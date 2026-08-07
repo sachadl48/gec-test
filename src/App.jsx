@@ -8,7 +8,8 @@ import {
   RotateCcw, AlertTriangle, Loader2, PlayCircle, Upload, Music, MapPin,
   AlignLeft, ListChecks, ToggleLeft, Hash, Tag, Video, XCircle as XCircleIcon,
   Undo2, ExternalLink, FileDown, Printer, MessageSquare, Globe, CheckSquare, Square,
-  Link2, Timer, BookCheck, ListOrdered, GitBranch, ArrowUpDown, ChevronUp, ChevronDown, Image as ImageIcon
+  Link2, Timer, BookCheck, ListOrdered, GitBranch, ArrowUpDown, ChevronUp, ChevronDown, Image as ImageIcon,
+  PauseCircle, Ban
 } from "lucide-react";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -70,7 +71,7 @@ function rowToQuestion(row) {
     cibles: row.cibles || undefined, marqueurs: row.marqueurs || undefined, paires: row.paires || undefined, arbre: row.arbre || undefined,
     items: row.items || undefined,
     reponseAttendue: row.reponse_attendue || undefined, reference: row.reference || "", dureeSecondes: row.duree_secondes || null,
-    numero: row.numero ?? undefined,
+    numero: row.numero ?? undefined, statut: row.statut || undefined,
   };
 }
 function questionToRow(q) {
@@ -84,7 +85,7 @@ function questionToRow(q) {
     cibles: q.cibles || null, marqueurs: q.marqueurs || null, paires: q.paires || null, arbre: q.arbre || null,
     items: q.items || null,
     reponse_attendue: q.reponseAttendue || null, reference: q.reference || null, duree_secondes: q.dureeSecondes || null,
-    numero: q.numero ?? null,
+    numero: q.numero ?? null, statut: q.statut || null,
   };
 }
 function rowToQuestionnaire(row) {
@@ -96,6 +97,8 @@ function rowToQuestionnaire(row) {
     overrides: row.overrides || null, correcteurId: row.correcteur_id || null, dateValidation: row.date_validation,
     luConfirme: !!row.lu_confirme, luConfirmeDate: row.lu_confirme_date,
     questionLangues: row.question_langues || undefined, langueMode: row.langue_mode || undefined,
+    supprime: !!row.supprime, justificationSuppression: row.justification_suppression || undefined,
+    supprimePar: row.supprime_par || undefined, dateSuppression: row.date_suppression || undefined,
   };
 }
 function questionnaireToRow(qn) {
@@ -107,6 +110,8 @@ function questionnaireToRow(qn) {
     overrides: qn.overrides ?? null, correcteur_id: qn.correcteurId || null, date_validation: qn.dateValidation || null,
     lu_confirme: !!qn.luConfirme, lu_confirme_date: qn.luConfirmeDate || null,
     question_langues: qn.questionLangues ?? null, langue_mode: qn.langueMode ?? null,
+    supprime: !!qn.supprime, justification_suppression: qn.justificationSuppression || null,
+    supprime_par: qn.supprimePar || null, date_suppression: qn.dateSuppression || null,
   };
 }
 
@@ -254,7 +259,7 @@ const T = {
     points_legender_label: "Points à légender ({n})", points_legender_hint: "Cliquez sur l'image pour placer un point numéroté, puis indiquez la réponse attendue pour chacun (utilisée comme aide lors de la correction manuelle). Cliquez sur un repère pour le supprimer.",
     reponse_attendue_point_placeholder: "Réponse attendue pour ce point",
     reference_label_field: "Référence (visible uniquement en correction et en lecture seule)", reference_placeholder: "ex. Article 4.2 du règlement interne",
-    exam_intro_subtitle: "{n} question{s} avant de commencer, voici comment ça fonctionne. Merci de tout lire attentivement et de cocher chaque case avant de démarrer.",
+    exam_intro_subtitle: "Petites explications avant de commencer, voici comment ça fonctionne. Merci de tout lire attentivement et de cocher chaque case avant de démarrer.",
     types_exercices_titre: "Types d'exercices présents", ack_types: "J'ai bien lu et compris les types de questions présents dans ce questionnaire.",
     penalty_warning: "Attention : dans les questions QCM à réponses multiples et Cliquer & pointer, chaque erreur (mauvaise case cochée ou mauvais clic) retire des points — cochez ou cliquez uniquement ce dont vous êtes sûr.",
     ack_penalty: "J'ai bien compris qu'une erreur peut me faire perdre des points sur ces questions.",
@@ -381,7 +386,7 @@ const T = {
     points_legender_label: "Te labelen punten ({n})", points_legender_hint: "Klik op de afbeelding om een genummerd punt te plaatsen en geef vervolgens het verwachte antwoord op voor elk punt (gebruikt als hulp bij manuele correctie). Klik op een markering om ze te verwijderen.",
     reponse_attendue_point_placeholder: "Verwacht antwoord voor dit punt",
     reference_label_field: "Referentie (enkel zichtbaar bij correctie en in alleen-lezen modus)", reference_placeholder: "bv. Artikel 4.2 van het interne reglement",
-    exam_intro_subtitle: "{n} vra{s} vooraleer te beginnen, zo werkt het. Lees alles aandachtig en vink elk vakje aan voor u start.",
+    exam_intro_subtitle: "Wat uitleg vooraleer te beginnen, zo werkt het. Lees alles aandachtig en vink elk vakje aan voor u start.",
     types_exercices_titre: "Aanwezige soorten oefeningen", ack_types: "Ik heb de soorten vragen in deze vragenlijst goed gelezen en begrepen.",
     penalty_warning: "Let op: bij meerkeuzevragen met meerdere antwoorden en klikken & aanwijzen trekt elke fout (verkeerd vakje aangevinkt of verkeerde klik) punten af — vink of klik enkel wat u zeker weet.",
     ack_penalty: "Ik heb begrepen dat een fout mij punten kan doen verliezen bij deze vragen.",
@@ -1113,7 +1118,7 @@ function ExamIntro({ questionnaire, questions, onStart, onExit }) {
   return (
     <div style={{ padding: "24px 28px", maxWidth: 640 }}>
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: C.navy, marginBottom: 4 }}>{questionnaire.titre}</div>
-      <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 24 }}>{t("exam_intro_subtitle", { n: qs.length, s: qs.length > 1 ? "s" : "" })}</div>
+      <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 24 }}>{t("exam_intro_subtitle")}</div>
 
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 16 }}>
         <SectionTitle>{t("types_exercices_titre")}</SectionTitle>
@@ -1193,7 +1198,7 @@ function EleveView({ user, questionnaires, categories, onLogout, submitReponses,
   const [viewing, setViewing] = useState(null);
   const [activeQuestions, setActiveQuestions] = useState(null);
   const [fetchError, setFetchError] = useState("");
-  const mine = questionnaires.filter(q => q.eleveId === user.id);
+  const mine = questionnaires.filter(q => q.eleveId === user.id && !q.supprime);
   const graded = mine.filter(q => q.statut === "validé");
   const catStats = computeCategoryStats(graded, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
@@ -1371,7 +1376,7 @@ function Apercu({ users, questions, questionnaires, categories }) {
   const { t } = useLang();
   const eleves = users.filter(u => u.role === "eleve");
   const aValider = questionnaires.filter(q => q.statut === "en attente de validation");
-  const gradedAll = questionnaires.filter(q => q.statut === "validé");
+  const gradedAll = questionnaires.filter(q => q.statut === "validé" && !q.supprime);
   const catStats = computeCategoryStats(gradedAll, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
   return (
@@ -1509,7 +1514,7 @@ function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, c
   const teamQuestionnaires = questionnaires.filter(qn => operatorIds.has(qn.eleveId));
   const [histFilter, setHistFilter] = useState("");
   const [selected, setSelected] = useState(new Set());
-  const graded = teamQuestionnaires.filter(qn => qn.statut === "validé").sort((a, b) => (b.dateValidation || "").localeCompare(a.dateValidation || ""));
+  const graded = teamQuestionnaires.filter(qn => qn.statut === "validé" && !qn.supprime).sort((a, b) => (b.dateValidation || "").localeCompare(a.dateValidation || ""));
   const gradedFiltered = graded.filter(qn => !histFilter || qn.eleveId === histFilter);
   const toggleSelect = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const exportSelection = () => {
@@ -1636,7 +1641,7 @@ function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, c
 }
 function EleveDetailView({ eleve, questionnaires, categories, onBack }) {
   const { t, lang } = useLang();
-  const mine = questionnaires.filter(q => q.eleveId === eleve.id);
+  const mine = questionnaires.filter(q => q.eleveId === eleve.id && !q.supprime);
   const graded = mine.filter(q => q.statut === "validé");
   const catStats = computeCategoryStats(graded, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
@@ -2286,7 +2291,12 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
   const [importing, setImporting] = useState(false);
   const save = (data) => { if (data.id) setQuestions(questions.map(q => q.id === data.id ? data : q)); else setQuestions([...questions, { ...data, id: genId("q"), numero: null }]); setModal(null); };
   const remove = (id) => setQuestions(questions.filter(q => q.id !== id));
-  const byCategory = filter === "Toutes" ? questions : questions.filter(q => (q.categories || []).includes(filter));
+  const byCategory = filter === "EnSuspens"
+    ? questions.filter(q => q.statut === "suspendue")
+    : filter === "Toutes"
+    ? questions.filter(q => q.statut !== "suspendue")
+    : questions.filter(q => q.statut !== "suspendue" && (q.categories || []).includes(filter));
+  const suspendedCount = questions.filter(q => q.statut === "suspendue").length;
   const searchNorm = normalizeText(search);
   const filtered = !searchNorm ? byCategory : byCategory.filter(q =>
     String(q.numero || "").includes(search.trim())
@@ -2320,6 +2330,9 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["Toutes", ...categories].map(cat => <button key={cat} onClick={() => setFilter(cat)} style={{ padding: "6px 13px", borderRadius: 20, border: `1px solid ${filter === cat ? C.navy : C.line}`, background: filter === cat ? C.navy : "#fff", color: filter === cat ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{cat === "Toutes" ? t("toutes_categories") : cat}</button>)}
+        {suspendedCount > 0 && (
+          <button onClick={() => setFilter("EnSuspens")} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 13px", borderRadius: 20, border: `1px solid ${filter === "EnSuspens" ? C.gold : C.line}`, background: filter === "EnSuspens" ? C.goldSoft : "#fff", color: filter === "EnSuspens" ? C.gold : C.inkSoft, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}><PauseCircle size={13} /> En suspens ({suspendedCount})</button>
+        )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {filtered.map(q => (
@@ -2328,13 +2341,14 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   {typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 11.5, fontWeight: 700, color: C.inkSoft, background: C.bg, borderRadius: 6, padding: "3px 8px" }}>#{q.numero}</span>}
+                  {q.statut === "suspendue" && <Badge color={C.gold} bg={C.goldSoft}><PauseCircle size={11} /> En suspens</Badge>}
                   <CategoryBadges allCategories={categories} cats={q.categories} />
                   <TypeBadge type={q.type} />
                   <Badge color={C.navy} bg={C.bg}><Hash size={10} />{q.points} {t("points_short")}{q.points > 1 ? "s" : ""}</Badge>
                   {q.media && <Badge color={C.teal} bg={C.tealSoft}>{q.media.type === "image" ? t("media_image") : q.media.type === "video" ? t("media_video") : t("media_audio")} {t("media_jointe")}</Badge>}
                   {!!q.dureeSecondes && <Badge color={C.gold} bg={C.goldSoft}><Timer size={10} />{Math.floor(q.dureeSecondes / 60)}:{String(q.dureeSecondes % 60).padStart(2, "0")}</Badge>}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: C.navy, marginTop: 8 }}>{qText(q, lang)}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: qText(q, lang).trim() ? C.navy : C.inkSoft, fontStyle: qText(q, lang).trim() ? "normal" : "italic", marginTop: 8 }}>{qText(q, lang).trim() || "Brouillon sans énoncé pour l'instant"}</div>
                 {(q.type === "qcm" || q.type === "vrai_faux") && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                     {qChoix(q, lang).map((c, i) => <span key={i} style={{ fontSize: 12, padding: "4px 9px", borderRadius: 6, background: i === q.bonneReponse ? C.greenSoft : C.bg, color: i === q.bonneReponse ? C.green : C.inkSoft, fontWeight: i === q.bonneReponse ? 600 : 400 }}>{i === q.bonneReponse && <CheckCircle2 size={11} style={{ marginRight: 4, verticalAlign: -1 }} />}{c}</span>)}
@@ -2427,7 +2441,7 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
   const initChoixFr = initial.choixFr ? [...initial.choixFr] : (initial.choix ? [...initial.choix] : ["", ""]);
   const initChoixNl = initial.choixNl ? [...initial.choixNl] : initChoixFr.map(() => "");
   const [form, setForm] = useState({
-    id: initial.id, categories: initial.categories && initial.categories.length ? [...initial.categories] : [categories[0]].filter(Boolean), type: initial.type || "qcm",
+    id: initial.id, numero: initial.numero, categories: initial.categories && initial.categories.length ? [...initial.categories] : [categories[0]].filter(Boolean), type: initial.type || "qcm",
     enonceFr: initial.enonceFr || initial.enonce || "", enonceNl: initial.enonceNl || "",
     points: initial.points || 1, media: initial.media || null,
     choixFr: initChoixFr, choixNl: initChoixNl, bonneReponse: initial.bonneReponse ?? 0,
@@ -2672,13 +2686,21 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
         <Btn variant="ghost" onClick={onClose}>{t("cancel")}</Btn>
+        <Btn variant="ghost" icon={PauseCircle} onClick={() => {
+          const { minuteurActif, minMin, minSec, ...rest } = form;
+          let finalPoints = form.points;
+          if (form.type === "qcm_multi") finalPoints = form.pointsParBonneReponse * form.bonnesReponses.length;
+          if (form.type === "point") finalPoints = form.pointsParBonneReponse * form.cibles.length;
+          if (form.type === "ordre") finalPoints = form.pointsParBonneReponse * form.items.length;
+          onSave({ ...rest, points: finalPoints, dureeSecondes: minuteurActif ? (minMin * 60 + minSec) : null, statut: "suspendue" });
+        }} title="Enregistrer telle quelle sans validation, pour la reprendre plus tard">Mettre en suspens</Btn>
         <Btn variant="primary" onClick={() => {
           const { minuteurActif, minMin, minSec, ...rest } = form;
           let finalPoints = form.points;
           if (form.type === "qcm_multi") finalPoints = form.pointsParBonneReponse * form.bonnesReponses.length;
           if (form.type === "point") finalPoints = form.pointsParBonneReponse * form.cibles.length;
           if (form.type === "ordre") finalPoints = form.pointsParBonneReponse * form.items.length;
-          onSave({ ...rest, points: finalPoints, dureeSecondes: minuteurActif ? (minMin * 60 + minSec) : null });
+          onSave({ ...rest, points: finalPoints, dureeSecondes: minuteurActif ? (minMin * 60 + minSec) : null, statut: "active" });
         }} disabled={!canSave}>{t("save")}</Btn>
       </div>
       </div>
@@ -2818,6 +2840,8 @@ function ListeQuestionnaires({ users, questions, questionnaires, setQuestionnair
   const [viewing, setViewing] = useState(null);
   const [histFilter, setHistFilter] = useState("");
   const [selected, setSelected] = useState(new Set());
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteJustification, setDeleteJustification] = useState("");
   const eleves = users.filter(u => u.role === "eleve");
   const resolveCorrecteur = (q) => (q.correcteurId ? users.find(u => u.id === q.correcteurId) : null);
   const toReview = questionnaires.filter(q => q.statut === "en attente de validation");
@@ -2829,6 +2853,15 @@ function ListeQuestionnaires({ users, questions, questionnaires, setQuestionnair
   const exportSelection = () => {
     const items = others.filter(q => selected.has(q.id)).map(q => ({ questionnaire: q, eleve: users.find(u => u.id === q.eleveId) }));
     if (items.length) requestPrint({ type: "questionnaires", items, questions, categories });
+  };
+  const confirmDelete = () => {
+    if (!deleteJustification.trim() || !deleteTarget) return;
+    setQuestionnaires(questionnaires.map(q => q.id === deleteTarget.id ? {
+      ...q, supprime: true, justificationSuppression: deleteJustification.trim(),
+      supprimePar: currentUser ? { prenom: currentUser.prenom, nom: currentUser.nom } : null,
+      dateSuppression: new Date().toISOString().slice(0, 10),
+    } : q));
+    setDeleteTarget(null); setDeleteJustification("");
   };
 
   if (reviewing) {
@@ -2870,24 +2903,46 @@ function ListeQuestionnaires({ users, questions, questionnaires, setQuestionnair
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {others.length === 0 && <EmptyState icon={ClipboardList} title={t("aucun_resultat_titre")} body={t("aucun_resultat_body")} />}
-          {others.map(q => { const e = users.find(u => u.id === q.eleveId); const isValide = q.statut === "validé"; const correcteur = resolveCorrecteur(q); return (
-            <div key={q.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", border: `1px solid ${selected.has(q.id) ? C.gold : C.line}`, borderRadius: 10, padding: "10px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {isValide && <button onClick={() => toggleSelect(q.id)} style={{ background: "none", border: "none", cursor: "pointer", color: selected.has(q.id) ? C.gold : C.inkSoft, display: "flex" }}>{selected.has(q.id) ? <CheckSquare size={17} /> : <Square size={17} />}</button>}
-                <span style={{ fontSize: 13 }}>
-                  {q.titre} — {e?.prenom} {e?.nom} <span style={{ color: C.inkSoft }}>· {q.dateAttribution}</span>
-                  {isValide && correcteur && <span style={{ color: C.inkSoft }}>{t("corrige_par")}{correcteur.prenom} {correcteur.nom}</span>}
-                </span>
+          {others.map(q => { const e = users.find(u => u.id === q.eleveId); const isValide = q.statut === "validé"; const correcteur = resolveCorrecteur(q); const isSupprime = !!q.supprime; return (
+            <div key={q.id} style={{ display: "flex", flexDirection: "column", background: isSupprime ? C.redSoft : "#fff", border: `1px solid ${isSupprime ? C.red : selected.has(q.id) ? C.gold : C.line}`, borderRadius: 10, padding: "10px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {isValide && !isSupprime && <button onClick={() => toggleSelect(q.id)} style={{ background: "none", border: "none", cursor: "pointer", color: selected.has(q.id) ? C.gold : C.inkSoft, display: "flex" }}>{selected.has(q.id) ? <CheckSquare size={17} /> : <Square size={17} />}</button>}
+                  <span style={{ fontSize: 13, textDecoration: isSupprime ? "line-through" : "none", color: isSupprime ? C.red : C.ink }}>
+                    {q.titre} — {e?.prenom} {e?.nom} <span style={{ color: isSupprime ? C.red : C.inkSoft }}>· {q.dateAttribution}</span>
+                    {isValide && correcteur && <span style={{ color: isSupprime ? C.red : C.inkSoft }}>{t("corrige_par")}{correcteur.prenom} {correcteur.nom}</span>}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {q.scoreGlobal != null && <span style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 600, textDecoration: isSupprime ? "line-through" : "none", color: isSupprime ? C.red : C.ink }}>{q.scoreGlobal}%</span>}
+                  <StatusBadge statut={q.statut} />
+                  {isValide && !isSupprime && <Btn variant="subtle" icon={ExternalLink} onClick={() => setViewing(q)} style={{ padding: "5px 10px", fontSize: 12 }}>{t("voir_btn")}</Btn>}
+                  {!isSupprime && <Btn variant="danger" icon={Ban} onClick={() => setDeleteTarget(q)} style={{ padding: "5px 10px", fontSize: 12 }} title="Supprimer ce questionnaire (justificatif requis)" />}
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {q.scoreGlobal != null && <span style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 600 }}>{q.scoreGlobal}%</span>}
-                <StatusBadge statut={q.statut} />
-                {isValide && <Btn variant="subtle" icon={ExternalLink} onClick={() => setViewing(q)} style={{ padding: "5px 10px", fontSize: 12 }}>{t("voir_btn")}</Btn>}
-              </div>
+              {isSupprime && (
+                <div style={{ fontSize: 12.5, color: C.red, fontWeight: 600, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.red}30` }}>
+                  Supprimé{q.supprimePar ? ` par ${q.supprimePar.prenom} ${q.supprimePar.nom}` : ""}{q.dateSuppression ? ` le ${q.dateSuppression}` : ""} — {q.justificationSuppression}
+                </div>
+              )}
             </div>
           ); })}
         </div>
       </div>
+      {deleteTarget && (
+        <Modal title="Supprimer ce questionnaire" onClose={() => { setDeleteTarget(null); setDeleteJustification(""); }}>
+          <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 14 }}>
+            « {deleteTarget.titre} » de {users.find(u => u.id === deleteTarget.eleveId)?.prenom} {users.find(u => u.id === deleteTarget.eleveId)?.nom} restera visible dans l'historique, affiché barré, avec le justificatif ci-dessous. Cette action n'est pas réversible.
+          </div>
+          <Field label="Justificatif (obligatoire)">
+            <textarea autoFocus style={{ ...inputStyle, minHeight: 90, resize: "vertical" }} placeholder="Expliquez pourquoi ce questionnaire est supprimé..." value={deleteJustification} onChange={e => setDeleteJustification(e.target.value)} />
+          </Field>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+            <Btn variant="ghost" onClick={() => { setDeleteTarget(null); setDeleteJustification(""); }}>{t("cancel")}</Btn>
+            <Btn variant="danger" icon={Ban} onClick={confirmDelete} disabled={!deleteJustification.trim()}>Supprimer</Btn>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -3299,7 +3354,7 @@ function buildLineSVG(points, width, height, color) {
   return `<svg width="${width}" height="${height}">${grid}<polyline points="${pathPts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xlabels}</svg>`;
 }
 function buildProfileBodyHTML({ eleve, questionnaires, questions, categories }) {
-  const validated = questionnaires.filter(q => q.eleveId === eleve.id && q.statut === "validé");
+  const validated = questionnaires.filter(q => q.eleveId === eleve.id && q.statut === "validé" && !q.supprime);
   const catStats = computeCategoryStats(validated, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
   const evolution = computeCategoryEvolution(validated, categories);
@@ -3337,11 +3392,11 @@ function buildProfileBodyHTML({ eleve, questionnaires, questions, categories }) 
 }
 function buildTeamBodyHTML({ team, operators, questionnaires, questions, categories }) {
   const operatorIds = new Set(operators.map(o => o.id));
-  const teamValidated = questionnaires.filter(qn => operatorIds.has(qn.eleveId) && qn.statut === "validé");
+  const teamValidated = questionnaires.filter(qn => operatorIds.has(qn.eleveId) && qn.statut === "validé" && !qn.supprime);
   const catStats = computeCategoryStats(teamValidated, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
   const rows = operators.map(o => {
-    const mine = questionnaires.filter(qn => qn.eleveId === o.id);
+    const mine = questionnaires.filter(qn => qn.eleveId === o.id && !qn.supprime);
     const graded = mine.filter(qn => qn.statut === "validé");
     const avg = graded.length ? Math.round(graded.reduce((a, qn) => a + (qn.scoreGlobal || 0), 0) / graded.length) : null;
     return `<tr><td style="padding:8px 10px;border-top:1px solid #E2E1D9;">${escapeHtml(o.prenom)} ${escapeHtml(o.nom)}</td><td style="padding:8px 10px;border-top:1px solid #E2E1D9;">${escapeHtml(o.fonction || "Élève")}</td><td style="padding:8px 10px;border-top:1px solid #E2E1D9;">${graded.length}</td><td style="padding:8px 10px;border-top:1px solid #E2E1D9;font-weight:600;">${avg != null ? avg + "%" : "—"}</td></tr>`;
