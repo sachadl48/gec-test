@@ -15,4 +15,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// sessionStorage plutôt que le localStorage par défaut : la session reste
+// active tant que l'onglet reste ouvert (un F5 ne déconnecte pas), mais
+// fermer l'onglet ou le navigateur déconnecte réellement — important sur
+// des postes potentiellement partagés entre opérateurs.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true },
+});
