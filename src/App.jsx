@@ -669,7 +669,12 @@ function LoadingScreen({ label }) {
 }
 function SaveErrorBanner({ visible }) {
   if (!visible) return null;
-  return <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "8px 14px", borderRadius: 8, marginBottom: 14 }}><AlertTriangle size={14} /> Échec de l'enregistrement. Vérifiez votre connexion et réessayez.</div>;
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "8px 14px", borderRadius: 8, marginBottom: 14 }}>
+      <AlertTriangle size={14} style={{ marginTop: 1, flexShrink: 0 }} />
+      <span>Échec de l'enregistrement. <span style={{ fontWeight: 400, fontFamily: FONT_MONO, fontSize: 11.5 }}>({visible})</span></span>
+    </div>
+  );
 }
 function MediaField({ media, onChange, imageOnly = false }) {
   const [error, setError] = useState("");
@@ -865,6 +870,15 @@ function ExamMode({ questionnaire, questions, categories, questionLangues, onExi
   const q = qs[idx];
   const langFor = (i) => (questionLangues && questionLangues[i]) || "fr";
 
+  // Avertit avant de fermer/rafraîchir l'onglet : les réponses ne sont
+  // envoyées qu'au clic final sur "Envoyer mes réponses", donc fermer la
+  // page en plein examen ferait perdre tout ce qui a déjà été répondu.
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
   useEffect(() => {
     const prev = prevIdxRef.current;
     if (prev !== idx && (qs[prev]?.dureeSecondes || qs[prev]?.type === "action_reaction")) {
@@ -886,7 +900,20 @@ function ExamMode({ questionnaire, questions, categories, questionLangues, onExi
     // eslint-disable-next-line
   }, [qSecondsLeft]);
 
-  if (!q) return null;
+  if (!q) {
+    return (
+      <div style={{ padding: "24px 28px" }}>
+        <div style={{ background: C.redSoft, border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, display: "flex", gap: 12 }}>
+          <AlertTriangle size={20} color={C.red} style={{ flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontWeight: 700, color: C.navy, marginBottom: 4 }}>Impossible d'afficher ce questionnaire</div>
+            <div style={{ fontSize: 13, color: C.ink }}>Aucune question n'a pu être chargée. Contactez un moniteur ou un administrateur si le problème persiste.</div>
+          </div>
+        </div>
+        <Btn variant="ghost" onClick={onExit} style={{ marginTop: 16 }}>{t("previous")}</Btn>
+      </div>
+    );
+  }
 
   const setAnswer = (val) => { const a = [...answers]; a[idx] = val; setAnswers(a); };
   const isAnswered = (i) => {
@@ -2254,8 +2281,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
   const [search, setSearch] = useState("");
   const [confirmQId, setConfirmQId] = useState(null);
   const [importing, setImporting] = useState(false);
-  const nextNumero = () => (questions.reduce((max, q) => Math.max(max, q.numero || 0), 0) + 1);
-  const save = (data) => { if (data.id) setQuestions(questions.map(q => q.id === data.id ? data : q)); else setQuestions([...questions, { ...data, id: genId("q"), numero: nextNumero() }]); setModal(null); };
+  const save = (data) => { if (data.id) setQuestions(questions.map(q => q.id === data.id ? data : q)); else setQuestions([...questions, { ...data, id: genId("q"), numero: null }]); setModal(null); };
   const remove = (id) => setQuestions(questions.filter(q => q.id !== id));
   const byCategory = filter === "Toutes" ? questions : questions.filter(q => (q.categories || []).includes(filter));
   const searchNorm = normalizeText(search);
@@ -3318,7 +3344,7 @@ function buildTeamBodyHTML({ team, operators, questionnaires, questions, categor
     return `<tr><td style="padding:8px 10px;border-top:1px solid #E2E1D9;">${escapeHtml(o.prenom)} ${escapeHtml(o.nom)}</td><td style="padding:8px 10px;border-top:1px solid #E2E1D9;">${escapeHtml(o.fonction || "Élève")}</td><td style="padding:8px 10px;border-top:1px solid #E2E1D9;">${graded.length}</td><td style="padding:8px 10px;border-top:1px solid #E2E1D9;font-weight:600;">${avg != null ? avg + "%" : "—"}</td></tr>`;
   }).join("");
 
-  const summary = `${printHeaderHTML(`Fiche team — ${team}`)}
+  const summary = `${printHeaderHTML(`Fiche team — ${escapeHtml(team)}`)}
     <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;"><tbody>
       <tr><td style="padding:8px 0;color:#5B6577;width:260px;">Opérateurs</td><td style="padding:8px 0;font-weight:700;">${operators.length}</td></tr>
       <tr><td style="padding:8px 0;color:#5B6577;">Questionnaires validés (team)</td><td style="padding:8px 0;font-weight:700;">${teamValidated.length}</td></tr>
@@ -3416,6 +3442,7 @@ async function syncArray(table, oldArr, newArr, toRow) {
   const oldIds = new Set(oldArr.map(x => x.id));
   const newIds = new Set(newArr.map(x => x.id));
   const idMap = {};
+  const insertedRows = {};
   for (const old of oldArr) {
     if (!newIds.has(old.id)) await supabase.from(table).delete().eq("id", old.id);
   }
@@ -3424,6 +3451,7 @@ async function syncArray(table, oldArr, newArr, toRow) {
       const { data, error } = await supabase.from(table).insert(toRow(item)).select().single();
       if (error) throw error;
       idMap[item.id] = data.id;
+      insertedRows[item.id] = data;
     } else {
       const before = oldArr.find(o => o.id === item.id);
       if (JSON.stringify(toRow(before)) !== JSON.stringify(toRow(item))) {
@@ -3432,7 +3460,7 @@ async function syncArray(table, oldArr, newArr, toRow) {
       }
     }
   }
-  return idMap;
+  return { idMap, insertedRows };
 }
 
 export default function App() {
@@ -3446,7 +3474,7 @@ export default function App() {
   const [categories, setCategoriesState] = useState([]);
   const [categoryConfig, setCategoryConfigState] = useState({});
   const [session, setSession] = useState(null);
-  const [saveError, setSaveError] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [printJob, setPrintJob] = useState(null);
 
   // Au premier chargement : reprendre une session déjà ouverte (ex. après un rafraîchissement de page)
@@ -3516,19 +3544,19 @@ export default function App() {
     const old = questions;
     setQuestionsState(newArr);
     try {
-      const idMap = await syncArray("questions", old, newArr, questionToRow);
-      if (Object.keys(idMap).length) setQuestionsState(prev => prev.map(q => idMap[q.id] ? { ...q, id: idMap[q.id] } : q));
-      setSaveError(false);
-    } catch (e) { setSaveError(true); }
+      const { idMap, insertedRows } = await syncArray("questions", old, newArr, questionToRow);
+      if (Object.keys(idMap).length) setQuestionsState(prev => prev.map(q => idMap[q.id] ? { ...q, id: idMap[q.id], numero: insertedRows[q.id]?.numero ?? q.numero } : q));
+      setSaveError("");
+    } catch (e) { setQuestionsState(old); setSaveError(e?.message || "Erreur inconnue."); }
   };
   const setQuestionnaires = async (newArr) => {
     const old = questionnaires;
     setQuestionnairesState(newArr);
     try {
-      const idMap = await syncArray("questionnaires", old, newArr, questionnaireToRow);
+      const { idMap } = await syncArray("questionnaires", old, newArr, questionnaireToRow);
       if (Object.keys(idMap).length) setQuestionnairesState(prev => prev.map(q => idMap[q.id] ? { ...q, id: idMap[q.id] } : q));
-      setSaveError(false);
-    } catch (e) { setSaveError(true); }
+      setSaveError("");
+    } catch (e) { setQuestionnairesState(old); setSaveError(e?.message || "Erreur inconnue."); }
   };
   const setCategories = async (newArr) => {
     const old = categories;
@@ -3538,8 +3566,8 @@ export default function App() {
       const added = newArr.filter(c => !old.includes(c));
       for (const c of removed) await supabase.from("categories").delete().eq("nom", c);
       for (const c of added) await supabase.from("categories").insert({ nom: c, seuil: categoryConfig[c]?.seuil ?? 60, fonctions: categoryConfig[c]?.fonctions || [...FONCTIONS] });
-      setSaveError(false);
-    } catch (e) { setSaveError(true); }
+      setSaveError("");
+    } catch (e) { setCategoriesState(old); setSaveError(e?.message || "Erreur inconnue."); }
   };
   const setCategoryConfig = async (newConfig) => {
     const old = categoryConfig;
@@ -3550,8 +3578,8 @@ export default function App() {
           await supabase.from("categories").update({ seuil: newConfig[cat].seuil, fonctions: newConfig[cat].fonctions }).eq("nom", cat);
         }
       }
-      setSaveError(false);
-    } catch (e) { setSaveError(true); }
+      setSaveError("");
+    } catch (e) { setCategoryConfigState(old); setSaveError(e?.message || "Erreur inconnue."); }
   };
   const refreshUsers = async () => {
     const { data, error } = await supabase.from("profiles").select("*");
@@ -3559,8 +3587,7 @@ export default function App() {
   };
 
   const importQuestions = async (newQuestions) => {
-    let n = questions.reduce((max, q) => Math.max(max, q.numero || 0), 0) + 1;
-    const rows = newQuestions.map(q => questionToRow({ ...q, numero: n++ }));
+    const rows = newQuestions.map(q => questionToRow({ ...q, numero: null }));
     const chunkSize = 200;
     for (let i = 0; i < rows.length; i += chunkSize) {
       const { error } = await supabase.from("questions").insert(rows.slice(i, i + chunkSize));
@@ -3572,15 +3599,23 @@ export default function App() {
   };
 
   const submitReponses = async (questionnaireId, reponses) => {
+    const before = questionnaires.find(q => q.id === questionnaireId);
     setQuestionnairesState(prev => prev.map(q => q.id === questionnaireId ? { ...q, reponses, statut: "en attente de validation" } : q));
-    try { await supabase.from("questionnaires").update({ reponses, statut: "en attente de validation" }).eq("id", questionnaireId); setSaveError(false); }
-    catch (e) { setSaveError(true); }
+    try { await supabase.from("questionnaires").update({ reponses, statut: "en attente de validation" }).eq("id", questionnaireId); setSaveError(""); }
+    catch (e) {
+      setQuestionnairesState(prev => prev.map(q => q.id === questionnaireId ? before : q));
+      setSaveError(e?.message || "Erreur inconnue.");
+    }
   };
   const confirmRead = async (questionnaireId) => {
     const date = new Date().toISOString().slice(0, 10);
+    const before = questionnaires.find(q => q.id === questionnaireId);
     setQuestionnairesState(prev => prev.map(q => q.id === questionnaireId ? { ...q, luConfirme: true, luConfirmeDate: date } : q));
-    try { await supabase.from("questionnaires").update({ lu_confirme: true, lu_confirme_date: date }).eq("id", questionnaireId); setSaveError(false); }
-    catch (e) { setSaveError(true); }
+    try { await supabase.from("questionnaires").update({ lu_confirme: true, lu_confirme_date: date }).eq("id", questionnaireId); setSaveError(""); }
+    catch (e) {
+      setQuestionnairesState(prev => prev.map(q => q.id === questionnaireId ? before : q));
+      setSaveError(e?.message || "Erreur inconnue.");
+    }
   };
 
   return (
