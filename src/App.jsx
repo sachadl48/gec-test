@@ -1083,16 +1083,19 @@ function ExamMode({ questionnaire, questions, categories, questionLangues, onExi
 
 /* ---------------------------------- ÉLÈVE VIEW ---------------------------------- */
 const TYPE_DESC = {
-  qcm: "Choisissez une seule réponse parmi les propositions.",
-  qcm_multi: "Cochez toutes les réponses correctes — plusieurs sont possibles.",
-  vrai_faux: "Indiquez si l'affirmation est vraie ou fausse.",
-  ouverte: "Rédigez une réponse libre en texte.",
-  point: "Cliquez directement sur l'image aux endroits demandés.",
-  legende: "Associez un texte à chaque point numéroté sur l'image.",
-  relier: "Reliez chaque élément de gauche à son correspondant de droite.",
-  action_reaction: "Faites des choix successifs jusqu'à atteindre un résultat final (aucun retour en arrière possible).",
-  ordre: "Remettez les actions dans le bon ordre à l'aide des flèches.",
+  qcm: { fr: "Choisissez une seule réponse parmi les propositions.", nl: "Kies één antwoord uit de voorstellen." },
+  qcm_multi: { fr: "Cochez toutes les réponses correctes — plusieurs sont possibles.", nl: "Vink alle juiste antwoorden aan — er zijn er meerdere mogelijk." },
+  vrai_faux: { fr: "Indiquez si l'affirmation est vraie ou fausse.", nl: "Geef aan of de bewering waar of onwaar is." },
+  ouverte: { fr: "Rédigez une réponse libre en texte.", nl: "Schrijf een vrij antwoord in tekst." },
+  point: { fr: "Cliquez directement sur l'image aux endroits demandés.", nl: "Klik rechtstreeks op de gevraagde plaatsen op de afbeelding." },
+  legende: { fr: "Associez un texte à chaque point numéroté sur l'image.", nl: "Koppel een tekst aan elk genummerd punt op de afbeelding." },
+  relier: { fr: "Reliez chaque élément de gauche à son correspondant de droite.", nl: "Verbind elk element links met het overeenkomstige element rechts." },
+  action_reaction: { fr: "Faites des choix successifs jusqu'à atteindre un résultat final (aucun retour en arrière possible).", nl: "Faites des choix successifs jusqu'à atteindre un résultat final (aucun retour en arrière possible)." },
+  ordre: { fr: "Remettez les actions dans le bon ordre à l'aide des flèches.", nl: "Zet de acties met de pijltjes in de juiste volgorde." },
 };
+function typeDesc(type, lang) { return (lang === "nl" ? TYPE_DESC[type]?.nl : TYPE_DESC[type]?.fr) || TYPE_DESC[type]?.fr || ""; }
+const AR_COLOR = { evenement: C.teal, action: C.navy2, resultat: C.green };
+const AR_LABEL = { evenement: "Événement", action: "Action", resultat: "Résultat" };
 function ExamIntro({ questionnaire, questions, onStart, onExit }) {
   const { t, lang } = useLang();
   const qs = questionnaire.questionIds.map(id => questions.find(q => q.id === id)).filter(Boolean);
