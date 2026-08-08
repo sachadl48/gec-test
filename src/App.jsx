@@ -157,7 +157,9 @@ const T = {
     login_title: "G.E.C.", login_subtitle: "Gestion des évaluations continues des opérateurs du DTM",
     login_id: "Identifiant", login_pwd: "Mot de passe", login_btn: "Se connecter",
     login_error: "Identifiant ou mot de passe incorrect.", login_demo: "Comptes de démonstration",
-    logout: "Déconnexion", nav_overview: "Aperçu", nav_profiles: "Profils opérateurs", nav_questions: "Banque de questions",
+    logout: "Déconnexion", nav_overview: "Aperçu", nav_profiles: "Profils opérateurs", nav_carnets: "Carnets d'élèves", nav_questions: "Banque de questions",
+    carnets_titre: "Carnets d'élèves", carnets_sub: "Opérateurs en formation — élèves régulateurs et élèves dispatcheurs.",
+    aucun_carnet_titre: "Aucun élève en formation", aucun_carnet_body: "Aucun profil élève régulateur ou élève dispatcheur ne correspond à cette recherche.",
     nav_questionnaires: "Questionnaires", nav_accounts: "Comptes moniteurs", nav_admin: "Administration", nav_staff: "Espace moniteur",
     student_badge: "Élève", questionnaires_done: "Questionnaires réalisés",
     agent_number: "N° agent", no_strength_yet: "Aucun point fort marqué pour l'instant.", no_weakness_yet: "Aucun point faible marqué pour l'instant.",
@@ -216,6 +218,11 @@ const T = {
     reference_label: "Référence : ", posed_correct_title: "Nombre de fois posée / nombre de bonnes réponses (questionnaires validés)",
     aucune_question_titre: "Aucune question", aucune_question_body: "Cette catégorie ne contient pas encore de question.",
     supprimer_question_titre: "Supprimer cette question ?", supprimer_question_msg: "Cette question sera définitivement supprimée de la banque de questions.",
+    questions_selectionnees: "{n} question(s) sélectionnée(s)", transferer_btn: "Transférer", supprimer_btn: "Supprimer", annuler_selection: "Annuler la sélection",
+    transferer_titre: "Transférer {n} question(s)", categorie_cible_label: "Catégorie cible", choisir_categorie: "Choisir une catégorie...",
+    transferer_hint: "Les questions sélectionnées seront déplacées vers cette catégorie (elle remplacera leur(s) catégorie(s) actuelle(s)).",
+    supprimer_questions_titre: "Supprimer ces questions ?", supprimer_questions_msg: "{n} question(s) seront définitivement supprimées de la banque de questions.",
+    renommer_categorie: "Renommer la catégorie",
     categories_titre: "Catégories", col_categorie: "Catégorie", col_seuil_reussite: "Seuil de réussite", col_concerne: "Concerne",
     confirmer: "Confirmer", enregistre: "Enregistré", nouvelle_categorie_placeholder: "Nouvelle catégorie...", pct_reussite: "% réussite",
     supprimer_categorie_titre: "Supprimer cette catégorie ?", supprimer_categorie_msg: "La catégorie « {cat} » sera définitivement supprimée.",
@@ -284,7 +291,9 @@ const T = {
     login_title: "G.E.C.", login_subtitle: "Beheer van de continue evaluaties van de DTM-operatoren",
     login_id: "Gebruikersnaam", login_pwd: "Wachtwoord", login_btn: "Inloggen",
     login_error: "Onjuiste gebruikersnaam of wachtwoord.", login_demo: "Demo-accounts",
-    logout: "Afmelden", nav_overview: "Overzicht", nav_profiles: "Operatorprofielen", nav_questions: "Vragenbank",
+    logout: "Afmelden", nav_overview: "Overzicht", nav_profiles: "Operatorprofielen", nav_carnets: "Leerlingdossiers", nav_questions: "Vragenbank",
+    carnets_titre: "Leerlingdossiers", carnets_sub: "Operators in opleiding — regulators en dispatchors in vorming.",
+    aucun_carnet_titre: "Geen leerling in opleiding", aucun_carnet_body: "Geen profiel van een regulator of dispatchor in vorming komt overeen met deze zoekopdracht.",
     nav_questionnaires: "Vragenlijsten", nav_accounts: "Monitoraccounts", nav_admin: "Beheer", nav_staff: "Monitorruimte",
     student_badge: "Leerling", questionnaires_done: "Afgeronde vragenlijsten",
     agent_number: "Personeelsnr.", no_strength_yet: "Nog geen sterke punten vastgesteld.", no_weakness_yet: "Nog geen zwakke punten vastgesteld.",
@@ -343,6 +352,11 @@ const T = {
     reference_label: "Referentie: ", posed_correct_title: "Aantal keer gesteld / aantal juiste antwoorden (gevalideerde vragenlijsten)",
     aucune_question_titre: "Geen vraag", aucune_question_body: "Deze categorie bevat nog geen vraag.",
     supprimer_question_titre: "Deze vraag verwijderen?", supprimer_question_msg: "Deze vraag wordt definitief verwijderd uit de vragenbank.",
+    questions_selectionnees: "{n} vra(a)g(en) geselecteerd", transferer_btn: "Verplaatsen", supprimer_btn: "Verwijderen", annuler_selection: "Selectie annuleren",
+    transferer_titre: "{n} vra(a)g(en) verplaatsen", categorie_cible_label: "Doelcategorie", choisir_categorie: "Kies een categorie...",
+    transferer_hint: "De geselecteerde vragen worden verplaatst naar deze categorie (deze vervangt hun huidige categorie(ën)).",
+    supprimer_questions_titre: "Deze vragen verwijderen?", supprimer_questions_msg: "{n} vra(a)g(en) worden definitief verwijderd uit de vragenbank.",
+    renommer_categorie: "Categorie hernoemen",
     categories_titre: "Categorieën", col_categorie: "Categorie", col_seuil_reussite: "Slagingsdrempel", col_concerne: "Betreft",
     confirmer: "Bevestigen", enregistre: "Opgeslagen", nouvelle_categorie_placeholder: "Nieuwe categorie...", pct_reussite: "% slagen",
     supprimer_categorie_titre: "Deze categorie verwijderen?", supprimer_categorie_msg: "De categorie « {cat} » wordt definitief verwijderd.",
@@ -613,7 +627,7 @@ function TypeBadge({ type }) {
 }
 function Modal({ title, onClose, children, width = 480 }) {
   return (
-    <div style={{ position: "absolute", inset: 0, background: "rgba(22,35,63,0.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", zIndex: 50, borderRadius: 16 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,63,0.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", zIndex: 50, overflowY: "auto" }}>
       <div style={{ background: "#fff", borderRadius: 14, width, maxWidth: "100%", maxHeight: "85%", overflowY: "auto", boxShadow: "0 20px 60px rgba(22,35,63,0.25)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: `1px solid ${C.line}` }}>
           <h3 style={{ margin: 0, fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: C.navy }}>{title}</h3>
@@ -629,7 +643,7 @@ function EmptyState({ icon: Icon, title, body }) {
 }
 function ConfirmDialog({ title, message, onConfirm, onCancel, confirmLabel = "Supprimer" }) {
   return (
-    <div style={{ position: "absolute", inset: 0, background: "rgba(22,35,63,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60, borderRadius: 16 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,63,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60 }}>
       <div style={{ background: "#fff", borderRadius: 14, padding: 24, maxWidth: 360, boxShadow: "0 20px 60px rgba(22,35,63,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.redSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><AlertTriangle size={16} color={C.red} /></div>
@@ -646,7 +660,7 @@ function ConfirmDialog({ title, message, onConfirm, onCancel, confirmLabel = "Su
 }
 function InfoDialog({ title, message, onClose }) {
   return (
-    <div style={{ position: "absolute", inset: 0, background: "rgba(22,35,63,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60, borderRadius: 16 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,63,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60 }}>
       <div style={{ background: "#fff", borderRadius: 14, padding: 24, maxWidth: 380, boxShadow: "0 20px 60px rgba(22,35,63,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.goldSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><AlertTriangle size={16} color={C.gold} /></div>
@@ -1342,13 +1356,14 @@ function EleveView({ user, questionnaires, categories, onLogout, submitReponses,
 }
 
 /* ---------------------------------- STAFF (MONITEUR / ADMIN) ---------------------------------- */
-function StaffView({ user, users, setUsers, questions, setQuestions, questionnaires, setQuestionnaires, categories, setCategories, categoryConfig, setCategoryConfig, onLogout, saveError, requestPrint, onImportQuestions }) {
+function StaffView({ user, users, setUsers, questions, setQuestions, questionnaires, setQuestionnaires, categories, setCategories, categoryConfig, setCategoryConfig, onLogout, saveError, requestPrint, onImportQuestions, onRenameCategory }) {
   const { t } = useLang();
   const [tab, setTab] = useState("apercu");
   const isAdmin = user.role === "admin";
   const tabs = [
     { key: "apercu", label: t("nav_overview"), icon: Home },
     { key: "profils", label: t("nav_profiles"), icon: Users },
+    { key: "carnets", label: t("nav_carnets"), icon: BookCheck },
     { key: "questions", label: t("nav_questions"), icon: HelpCircle },
     { key: "questionnaires", label: t("nav_questionnaires"), icon: ClipboardList },
     ...(isAdmin ? [{ key: "comptes", label: t("nav_accounts"), icon: ShieldCheck }] : []),
@@ -1368,7 +1383,8 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
           <SaveErrorBanner visible={saveError} />
           {tab === "apercu" && <Apercu users={users} questions={questions} questionnaires={questionnaires} categories={categories} />}
           {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
-          {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} />}
+          {tab === "carnets" && <CarnetsEleves users={users} questionnaires={questionnaires} questions={questions} categories={categories} />}
+          {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
           {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} requestPrint={requestPrint} />}
@@ -1646,6 +1662,57 @@ function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, c
     </div>
   );
 }
+function CarnetsEleves({ users, questionnaires, categories }) {
+  const { t, lang } = useLang();
+  const [search, setSearch] = useState("");
+  const [viewingEleve, setViewingEleve] = useState(null);
+  const eleves = users.filter(u =>
+    u.role === "eleve"
+    && (u.fonction === "Élève régulateur" || u.fonction === "Élève dispatcheur")
+    && `${u.prenom} ${u.nom} ${u.numeroAgent}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (viewingEleve) {
+    const fresh = users.find(u => u.id === viewingEleve.id) || viewingEleve;
+    return <EleveDetailView eleve={fresh} questionnaires={questionnaires} categories={categories} onBack={() => setViewingEleve(null)} />;
+  }
+
+  return (
+    <div>
+      <SectionTitle>{t("carnets_titre")}</SectionTitle>
+      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("carnets_sub")}</div>
+      <div style={{ position: "relative", marginBottom: 16, maxWidth: 320 }}>
+        <Search size={15} style={{ position: "absolute", left: 11, top: 11, color: C.inkSoft }} />
+        <input style={{ ...inputStyle, paddingLeft: 34 }} placeholder={t("rechercher_eleve")} value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+          <thead><tr style={{ background: C.bg, textAlign: "left" }}>{[t("col_eleve"), t("col_fonction"), t("col_team"), t("col_langue"), t("agent_number"), ""].map(h => <th key={h} style={{ padding: "10px 16px", fontSize: 11.5, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", fontWeight: 700 }}>{h}</th>)}</tr></thead>
+          <tbody>
+            {eleves.map(e => (
+              <tr key={e.id} style={{ borderTop: `1px solid ${C.line}` }}>
+                <td style={{ padding: "12px 16px" }}>
+                  <button onClick={() => setViewingEleve(e)} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit", color: C.navy, textAlign: "left" }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, flexShrink: 0 }}>{initials(e.prenom, e.nom)}</div>
+                    <span style={{ textDecoration: "underline", textDecorationColor: C.line }}>{e.prenom} {e.nom}</span>
+                  </button>
+                </td>
+                <td style={{ padding: "12px 16px" }}><Badge color={C.gold} bg={C.goldSoft}>{fonctionLabel(e.fonction, lang)}</Badge></td>
+                <td style={{ padding: "12px 16px", fontSize: 12.5, color: e.team ? C.ink : C.inkSoft }}>{e.team || "—"}</td>
+                <td style={{ padding: "12px 16px", fontSize: 12.5, color: C.inkSoft }}>{LANGS[e.langue || "fr"]}</td>
+                <td style={{ padding: "12px 16px", fontFamily: FONT_MONO, fontSize: 12.5 }}>{e.numeroAgent}</td>
+                <td style={{ padding: "12px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
+                  <Btn variant="subtle" icon={Eye} onClick={() => setViewingEleve(e)} style={{ padding: "6px 10px" }} />
+                </td>
+              </tr>
+            ))}
+            {eleves.length === 0 && <tr><td colSpan={6}><EmptyState icon={BookCheck} title={t("aucun_carnet_titre")} body={t("aucun_carnet_body")} /></td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 function EleveDetailView({ eleve, questionnaires, categories, onBack }) {
   const { t, lang } = useLang();
   const mine = questionnaires.filter(q => q.eleveId === eleve.id && !q.supprime);
@@ -1755,7 +1822,7 @@ function ProfilModal({ initial, users, isAdmin, onClose, onSave }) {
 }
 
 /* ------------------------- GESTION DES CATÉGORIES ------------------------- */
-function CategoryManager({ categories, setCategories, categoryConfig, setCategoryConfig, questions, isAdmin }) {
+function CategoryManager({ categories, setCategories, categoryConfig, setCategoryConfig, questions, setQuestions, isAdmin, onRenameCategory }) {
   const { t, lang } = useLang();
   const [newCat, setNewCat] = useState("");
   const [newSeuil, setNewSeuil] = useState(60);
@@ -1766,6 +1833,30 @@ function CategoryManager({ categories, setCategories, categoryConfig, setCategor
   const [savedFlash, setSavedFlash] = useState({});
   const [pendingFonctions, setPendingFonctions] = useState({});
   const [savedFlashF, setSavedFlashF] = useState({});
+  const [renamingCat, setRenamingCat] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameDuplicate, setRenameDuplicate] = useState(null);
+
+  const startRename = (cat) => { setRenamingCat(cat); setRenameValue(cat); };
+  const cancelRename = () => { setRenamingCat(null); setRenameValue(""); };
+  const confirmRename = () => {
+    const v = renameValue.trim();
+    if (!v || v === renamingCat) { cancelRename(); return; }
+    const match = findCategoryMatch(v, categories.filter(c => c !== renamingCat));
+    if (match) { setRenameDuplicate(match); return; }
+    const oldName = renamingCat;
+    if (onRenameCategory) {
+      onRenameCategory(oldName, v);
+    } else {
+      setCategories(categories.map(c => c === oldName ? v : c));
+      const newConfig = { ...categoryConfig };
+      newConfig[v] = newConfig[oldName] || { seuil: 60, fonctions: [...FONCTIONS] };
+      delete newConfig[oldName];
+      setCategoryConfig(newConfig);
+      setQuestions(questions.map(q => (q.categories || []).includes(oldName) ? { ...q, categories: q.categories.map(c => c === oldName ? v : c) } : q));
+    }
+    cancelRename();
+  };
 
   const add = () => {
     const v = newCat.trim();
@@ -1827,7 +1918,21 @@ function CategoryManager({ categories, setCategories, categoryConfig, setCategor
             const cfg = categoryConfig[c] || { seuil: 60, fonctions: [...FONCTIONS] };
             return (
               <tr key={c} style={{ borderTop: `1px solid ${C.line}` }}>
-                <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: catColor(categories, c) }} />{c}</span></td>
+                <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                  {renamingCat === c ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <input autoFocus style={{ ...inputStyle, width: 140, padding: "4px 6px", fontSize: 12.5 }} value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => { if (e.key === "Enter") confirmRename(); if (e.key === "Escape") cancelRename(); }} />
+                      <button onClick={confirmRename} title={t("confirmer")} style={{ background: "none", border: "none", cursor: "pointer", color: C.green, display: "flex" }}><CheckCircle2 size={16} /></button>
+                      <button onClick={cancelRename} title={t("cancel")} style={{ background: "none", border: "none", cursor: "pointer", color: C.inkSoft, display: "flex" }}><X size={16} /></button>
+                    </div>
+                  ) : (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: catColor(categories, c) }} />
+                      {c}
+                      {isAdmin && <button onClick={() => startRename(c)} title={t("renommer_categorie")} style={{ background: "none", border: "none", cursor: "pointer", color: C.inkSoft, display: "inline-flex", padding: 2 }}><Edit2 size={12} /></button>}
+                    </span>
+                  )}
+                </td>
                 <td style={{ padding: "6px 8px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 150 }}>
                     <input type="number" min={0} max={100} value={seuilValue(c)} onChange={e => setPendingSeuils(p => ({ ...p, [c]: Number(e.target.value) }))} onKeyDown={e => e.key === "Enter" && seuilDirty(c) && confirmSeuil(c)} style={{ ...inputStyle, width: 62, padding: "5px 8px" }} disabled={!isAdmin} /> <span style={{ color: C.inkSoft }}>%</span>
@@ -1872,6 +1977,9 @@ function CategoryManager({ categories, setCategories, categoryConfig, setCategor
       )}
       {duplicateMatch && (
         <InfoDialog title={t("categorie_existante_titre")} message={t("categorie_existante_msg", { cat: duplicateMatch })} onClose={() => setDuplicateMatch(null)} />
+      )}
+      {renameDuplicate && (
+        <InfoDialog title={t("categorie_existante_titre")} message={t("categorie_existante_msg", { cat: renameDuplicate })} onClose={() => setRenameDuplicate(null)} />
       )}
     </div>
   );
@@ -2289,13 +2397,28 @@ function ImportQuestions({ categories, onImport, onClose }) {
     </div>
   );
 }
-function GestionQuestions({ questions, setQuestions, categories, setCategories, categoryConfig, setCategoryConfig, isAdmin, onImportQuestions }) {
+function GestionQuestions({ questions, setQuestions, categories, setCategories, categoryConfig, setCategoryConfig, isAdmin, onImportQuestions, onRenameCategory }) {
   const { lang, t } = useLang();
   const [modal, setModal] = useState(null);
   const [filter, setFilter] = useState("Toutes");
   const [search, setSearch] = useState("");
   const [confirmQId, setConfirmQId] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [transferTarget, setTransferTarget] = useState("");
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const toggleSelect = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const clearSelection = () => setSelected(new Set());
+  const doTransfer = () => {
+    if (!transferTarget) return;
+    setQuestions(questions.map(q => selected.has(q.id) ? { ...q, categories: [transferTarget] } : q));
+    setShowTransfer(false); setTransferTarget(""); clearSelection();
+  };
+  const doBulkDelete = () => {
+    setQuestions(questions.filter(q => !selected.has(q.id)));
+    setConfirmBulkDelete(false); clearSelection();
+  };
   const save = (data) => { if (data.id) setQuestions(questions.map(q => q.id === data.id ? data : q)); else setQuestions([...questions, { ...data, id: genId("q"), numero: null }]); setModal(null); };
   const remove = (id) => setQuestions(questions.filter(q => q.id !== id));
   const byCategory = filter === "EnSuspens"
@@ -2320,7 +2443,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
 
   return (
     <div>
-      <CategoryManager categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} questions={questions} isAdmin={isAdmin} />
+      <CategoryManager categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} questions={questions} setQuestions={setQuestions} isAdmin={isAdmin} onRenameCategory={onRenameCategory} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <SectionTitle>{t("nav_questions")}</SectionTitle>
         <div style={{ display: "flex", gap: 8 }}>
@@ -2335,6 +2458,16 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
         <Search size={15} style={{ position: "absolute", left: 11, top: 11, color: C.inkSoft }} />
         <input style={{ ...inputStyle, paddingLeft: 34 }} placeholder={t("rechercher_question")} value={search} onChange={e => setSearch(e.target.value)} />
       </div>
+      {selected.size > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{t("questions_selectionnees", { n: selected.size })}</span>
+          <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+            <Btn variant="ghost" icon={Shuffle} onClick={() => setShowTransfer(true)}>{t("transferer_btn")}</Btn>
+            <Btn variant="danger" icon={Trash2} onClick={() => setConfirmBulkDelete(true)}>{t("supprimer_btn")}</Btn>
+            <Btn variant="ghost" icon={X} onClick={clearSelection}>{t("annuler_selection")}</Btn>
+          </div>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["Toutes", ...categories].map(cat => <button key={cat} onClick={() => setFilter(cat)} style={{ padding: "6px 13px", borderRadius: 20, border: `1px solid ${filter === cat ? C.navy : C.line}`, background: filter === cat ? C.navy : "#fff", color: filter === cat ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{cat === "Toutes" ? t("toutes_categories") : cat}</button>)}
         {suspendedCount > 0 && (
@@ -2343,9 +2476,11 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {filtered.map(q => (
-          <div key={q.id} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "14px 16px" }}>
+          <div key={q.id} style={{ background: "#fff", border: `1px solid ${selected.has(q.id) ? C.gold : C.line}`, borderRadius: 12, padding: "14px 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-              <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", gap: 10, flex: 1 }}>
+                <button onClick={() => toggleSelect(q.id)} style={{ background: "none", border: "none", cursor: "pointer", color: selected.has(q.id) ? C.gold : C.inkSoft, display: "flex", flexShrink: 0, marginTop: 2 }}>{selected.has(q.id) ? <CheckSquare size={17} /> : <Square size={17} />}</button>
+                <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   {typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 11.5, fontWeight: 700, color: C.inkSoft, background: C.bg, borderRadius: 6, padding: "3px 8px" }}>#{q.numero}</span>}
                   {q.statut === "suspendue" && <Badge color={C.gold} bg={C.goldSoft}><PauseCircle size={11} /> En suspens</Badge>}
@@ -2373,6 +2508,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
                 {q.type === "action_reaction" && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>{t("scenario_choix", { n: countTreeResults(q.arbre) })}</div>}
                 {q.type === "ordre" && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>{t("actions_ordre", { n: (q.items || []).length })}{(q.items || []).map(it => itemText(it, lang)).join(" → ")}</div>}
                 {q.reference && <div style={{ fontSize: 11.5, color: C.gold, marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}><Tag size={11} /> {t("reference_label")}{q.reference}</div>}
+                </div>
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 <Btn variant="subtle" icon={Edit2} onClick={() => setModal(q)} style={{ padding: "6px 10px" }} />
@@ -2385,6 +2521,24 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
       </div>
       {confirmQId && (
         <ConfirmDialog title={t("supprimer_question_titre")} message={t("supprimer_question_msg")} onConfirm={() => { remove(confirmQId); setConfirmQId(null); }} onCancel={() => setConfirmQId(null)} />
+      )}
+      {showTransfer && (
+        <Modal title={t("transferer_titre", { n: selected.size })} onClose={() => { setShowTransfer(false); setTransferTarget(""); }}>
+          <Field label={t("categorie_cible_label")}>
+            <select style={inputStyle} value={transferTarget} onChange={e => setTransferTarget(e.target.value)}>
+              <option value="">{t("choisir_categorie")}</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </Field>
+          <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 8 }}>{t("transferer_hint")}</div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+            <Btn variant="ghost" onClick={() => { setShowTransfer(false); setTransferTarget(""); }}>{t("cancel")}</Btn>
+            <Btn variant="primary" onClick={doTransfer} disabled={!transferTarget}>{t("transferer_btn")}</Btn>
+          </div>
+        </Modal>
+      )}
+      {confirmBulkDelete && (
+        <ConfirmDialog title={t("supprimer_questions_titre")} message={t("supprimer_questions_msg", { n: selected.size })} onConfirm={doBulkDelete} onCancel={() => setConfirmBulkDelete(false)} />
       )}
     </div>
   );
@@ -3630,6 +3784,26 @@ export default function App() {
       setSaveError("");
     } catch (e) { setQuestionnairesState(old); setSaveError(e?.message || "Erreur inconnue."); }
   };
+  const renameCategory = async (oldName, newName) => {
+    const oldCats = categories; const oldConfig = categoryConfig; const oldQuestions = questions;
+    setCategoriesState(categories.map(c => c === oldName ? newName : c));
+    setCategoryConfigState(cfg => { const n = { ...cfg }; n[newName] = n[oldName] || { seuil: 60, fonctions: [...FONCTIONS] }; delete n[oldName]; return n; });
+    setQuestionsState(qs => qs.map(q => (q.categories || []).includes(oldName) ? { ...q, categories: q.categories.map(c => c === oldName ? newName : c) } : q));
+    try {
+      const { error } = await supabase.from("categories").update({ nom: newName }).eq("nom", oldName);
+      if (error) throw error;
+      const affected = oldQuestions.filter(q => (q.categories || []).includes(oldName));
+      for (const q of affected) {
+        const newCats = q.categories.map(c => c === oldName ? newName : c);
+        const { error: qErr } = await supabase.from("questions").update({ categories: newCats }).eq("id", q.id);
+        if (qErr) throw qErr;
+      }
+      setSaveError("");
+    } catch (e) {
+      setCategoriesState(oldCats); setCategoryConfigState(oldConfig); setQuestionsState(oldQuestions);
+      setSaveError(e?.message || "Erreur inconnue.");
+    }
+  };
   const setCategories = async (newArr) => {
     const old = categories;
     setCategoriesState(newArr);
@@ -3705,7 +3879,7 @@ export default function App() {
         ) : session.role === "eleve" ? (
           <EleveView user={session} questionnaires={questionnaires} categories={categories} onLogout={logout} submitReponses={submitReponses} confirmRead={confirmRead} saveError={saveError} />
         ) : (
-          <StaffView user={session} users={users} setUsers={refreshUsers} questions={questions} setQuestions={setQuestions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} onLogout={logout} saveError={saveError} requestPrint={setPrintJob} onImportQuestions={importQuestions} />
+          <StaffView user={session} users={users} setUsers={refreshUsers} questions={questions} setQuestions={setQuestions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} onLogout={logout} saveError={saveError} requestPrint={setPrintJob} onImportQuestions={importQuestions} onRenameCategory={renameCategory} />
         )}
       </LangProvider>
       {printJob && <PrintOverlay job={printJob} onClose={() => setPrintJob(null)} />}
