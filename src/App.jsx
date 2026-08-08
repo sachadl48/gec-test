@@ -71,7 +71,7 @@ function rowToQuestion(row) {
     cibles: row.cibles || undefined, marqueurs: row.marqueurs || undefined, paires: row.paires || undefined, arbre: row.arbre || undefined,
     items: row.items || undefined,
     reponseAttendue: row.reponse_attendue || undefined, reference: row.reference || "", dureeSecondes: row.duree_secondes || null,
-    numero: row.numero ?? undefined, statut: row.statut || undefined,
+    numero: row.numero ?? undefined, statut: row.statut || undefined, remarqueSuspension: row.remarque_suspension || undefined,
   };
 }
 function questionToRow(q) {
@@ -85,7 +85,7 @@ function questionToRow(q) {
     cibles: q.cibles || null, marqueurs: q.marqueurs || null, paires: q.paires || null, arbre: q.arbre || null,
     items: q.items || null,
     reponse_attendue: q.reponseAttendue || null, reference: q.reference || null, duree_secondes: q.dureeSecondes || null,
-    numero: q.numero ?? null, statut: q.statut || null,
+    numero: q.numero ?? null, statut: q.statut || null, remarque_suspension: q.remarqueSuspension || null,
   };
 }
 function rowToQuestionnaire(row) {
@@ -223,6 +223,11 @@ const T = {
     transferer_hint: "Les questions sélectionnées seront déplacées vers cette catégorie (elle remplacera leur(s) catégorie(s) actuelle(s)).",
     supprimer_questions_titre: "Supprimer ces questions ?", supprimer_questions_msg: "{n} question(s) seront définitivement supprimées de la banque de questions.",
     renommer_categorie: "Renommer la catégorie",
+    caractere_interdit_titre: "Caractère non autorisé", caractere_interdit_msg: "Le caractère « / » n'est pas autorisé dans le nom d'une catégorie.",
+    remarque_suspension_label: "Remarque (visible uniquement par le staff)", remarque_suspension_hint: "Utile pour se rappeler pourquoi cette question est en suspens.",
+    remarque_suspension_placeholder: "Ex : en attente de confirmation de la bonne réponse avec le service X...",
+    mettre_en_suspens_btn: "Mettre en suspens", mettre_en_suspens_title: "Enregistrer telle quelle sans validation, pour la reprendre plus tard",
+    suspens_popup_intro: "Cette question sera enregistrée telle quelle, sans validation, pour être reprise plus tard.",
     categories_titre: "Catégories", col_categorie: "Catégorie", col_seuil_reussite: "Seuil de réussite", col_concerne: "Concerne",
     confirmer: "Confirmer", enregistre: "Enregistré", nouvelle_categorie_placeholder: "Nouvelle catégorie...", pct_reussite: "% réussite",
     supprimer_categorie_titre: "Supprimer cette catégorie ?", supprimer_categorie_msg: "La catégorie « {cat} » sera définitivement supprimée.",
@@ -357,6 +362,11 @@ const T = {
     transferer_hint: "De geselecteerde vragen worden verplaatst naar deze categorie (deze vervangt hun huidige categorie(ën)).",
     supprimer_questions_titre: "Deze vragen verwijderen?", supprimer_questions_msg: "{n} vra(a)g(en) worden definitief verwijderd uit de vragenbank.",
     renommer_categorie: "Categorie hernoemen",
+    caractere_interdit_titre: "Niet-toegestaan teken", caractere_interdit_msg: "Het teken « / » is niet toegestaan in de naam van een categorie.",
+    remarque_suspension_label: "Opmerking (enkel zichtbaar voor het personeel)", remarque_suspension_hint: "Handig om te onthouden waarom deze vraag in de wacht staat.",
+    remarque_suspension_placeholder: "Bv.: in afwachting van bevestiging van het juiste antwoord door dienst X...",
+    mettre_en_suspens_btn: "In de wacht zetten", mettre_en_suspens_title: "Zo opslaan zonder validatie, om later verder te doen",
+    suspens_popup_intro: "Deze vraag wordt zo opgeslagen, zonder validatie, om later verder te doen.",
     categories_titre: "Categorieën", col_categorie: "Categorie", col_seuil_reussite: "Slagingsdrempel", col_concerne: "Betreft",
     confirmer: "Bevestigen", enregistre: "Opgeslagen", nouvelle_categorie_placeholder: "Nieuwe categorie...", pct_reussite: "% slagen",
     supprimer_categorie_titre: "Deze categorie verwijderen?", supprimer_categorie_msg: "De categorie « {cat} » wordt definitief verwijderd.",
@@ -1384,7 +1394,7 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
           {tab === "apercu" && <Apercu users={users} questions={questions} questionnaires={questionnaires} categories={categories} />}
           {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
           {tab === "carnets" && <CarnetsEleves users={users} questionnaires={questionnaires} questions={questions} categories={categories} />}
-          {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} />}
+          {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
           {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} requestPrint={requestPrint} />}
@@ -1836,12 +1846,14 @@ function CategoryManager({ categories, setCategories, categoryConfig, setCategor
   const [renamingCat, setRenamingCat] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [renameDuplicate, setRenameDuplicate] = useState(null);
+  const [slashError, setSlashError] = useState(false);
 
   const startRename = (cat) => { setRenamingCat(cat); setRenameValue(cat); };
   const cancelRename = () => { setRenamingCat(null); setRenameValue(""); };
   const confirmRename = () => {
     const v = renameValue.trim();
     if (!v || v === renamingCat) { cancelRename(); return; }
+    if (v.includes("/")) { setSlashError(true); return; }
     const match = findCategoryMatch(v, categories.filter(c => c !== renamingCat));
     if (match) { setRenameDuplicate(match); return; }
     const oldName = renamingCat;
@@ -1861,6 +1873,7 @@ function CategoryManager({ categories, setCategories, categoryConfig, setCategor
   const add = () => {
     const v = newCat.trim();
     if (!v) return;
+    if (v.includes("/")) { setSlashError(true); return; }
     const match = findCategoryMatch(v, categories);
     if (match) { setDuplicateMatch(match); return; }
     setCategories([...categories, v]);
@@ -1980,6 +1993,9 @@ function CategoryManager({ categories, setCategories, categoryConfig, setCategor
       )}
       {renameDuplicate && (
         <InfoDialog title={t("categorie_existante_titre")} message={t("categorie_existante_msg", { cat: renameDuplicate })} onClose={() => setRenameDuplicate(null)} />
+      )}
+      {slashError && (
+        <InfoDialog title={t("caractere_interdit_titre")} message={t("caractere_interdit_msg")} onClose={() => setSlashError(false)} />
       )}
     </div>
   );
@@ -2397,8 +2413,21 @@ function ImportQuestions({ categories, onImport, onClose }) {
     </div>
   );
 }
-function GestionQuestions({ questions, setQuestions, categories, setCategories, categoryConfig, setCategoryConfig, isAdmin, onImportQuestions, onRenameCategory }) {
+function GestionQuestions({ questions, setQuestions, categories, setCategories, categoryConfig, setCategoryConfig, isAdmin, onImportQuestions, onRenameCategory, questionnaires }) {
   const { lang, t } = useLang();
+  const questionStats = useMemo(() => {
+    const stats = {};
+    const validated = (questionnaires || []).filter(qn => qn.statut === "validé" && !qn.supprime);
+    for (const qn of validated) {
+      (qn.questionIds || []).forEach((qid, i) => {
+        if (!stats[qid]) stats[qid] = { posed: 0, correct: 0 };
+        stats[qid].posed += 1;
+        const q = questions.find(qq => qq.id === qid);
+        if (q && isFullyCorrect(q, (qn.reponses || [])[i])) stats[qid].correct += 1;
+      });
+    }
+    return stats;
+  }, [questionnaires, questions]);
   const [modal, setModal] = useState(null);
   const [filter, setFilter] = useState("Toutes");
   const [search, setSearch] = useState("");
@@ -2491,6 +2520,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
                   {!!q.dureeSecondes && <Badge color={C.gold} bg={C.goldSoft}><Timer size={10} />{Math.floor(q.dureeSecondes / 60)}:{String(q.dureeSecondes % 60).padStart(2, "0")}</Badge>}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: qText(q, lang).trim() ? C.navy : C.inkSoft, fontStyle: qText(q, lang).trim() ? "normal" : "italic", marginTop: 8 }}>{qText(q, lang).trim() || "Brouillon sans énoncé pour l'instant"}</div>
+                {q.statut === "suspendue" && q.remarqueSuspension && <div style={{ fontSize: 12, color: C.gold, marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}><MessageSquare size={12} style={{ marginTop: 2, flexShrink: 0 }} /> {q.remarqueSuspension}</div>}
                 {(q.type === "qcm" || q.type === "vrai_faux") && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                     {qChoix(q, lang).map((c, i) => <span key={i} style={{ fontSize: 12, padding: "4px 9px", borderRadius: 6, background: i === q.bonneReponse ? C.greenSoft : C.bg, color: i === q.bonneReponse ? C.green : C.inkSoft, fontWeight: i === q.bonneReponse ? 600 : 400 }}>{i === q.bonneReponse && <CheckCircle2 size={11} style={{ marginRight: 4, verticalAlign: -1 }} />}{c}</span>)}
@@ -2510,7 +2540,12 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
                 {q.reference && <div style={{ fontSize: 11.5, color: C.gold, marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}><Tag size={11} /> {t("reference_label")}{q.reference}</div>}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                {q.statut !== "suspendue" && (
+                  <span title={t("posed_correct_title")} style={{ fontFamily: FONT_MONO, fontSize: 12.5, fontWeight: 600, color: C.inkSoft, background: C.bg, borderRadius: 6, padding: "6px 10px" }}>
+                    {questionStats[q.id] ? `${questionStats[q.id].posed}/${questionStats[q.id].correct}` : "—"}
+                  </span>
+                )}
                 <Btn variant="subtle" icon={Edit2} onClick={() => setModal(q)} style={{ padding: "6px 10px" }} />
                 <Btn variant="danger" icon={Trash2} onClick={() => setConfirmQId(q.id)} style={{ padding: "6px 10px" }} />
               </div>
@@ -2615,6 +2650,7 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
     reference: initial.reference || "",
     pointsParBonneReponse: initial.pointsParBonneReponse ?? 1,
     minuteurActif: !!initial.dureeSecondes, minMin: initial.dureeSecondes ? Math.floor(initial.dureeSecondes / 60) : 1, minSec: initial.dureeSecondes ? initial.dureeSecondes % 60 : 0,
+    remarqueSuspension: initial.remarqueSuspension || "",
   });
   const toggleCategorie = (c) => setForm({ ...form, categories: form.categories.includes(c) ? form.categories.filter(x => x !== c) : [...form.categories, c] });
   const updateItemTexteFr = (i, v) => { const items = [...form.items]; items[i] = { ...items[i], texteFr: v }; setForm({ ...form, items }); };
@@ -2663,6 +2699,8 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
   const removePaire = (i) => { if (form.paires.length <= 2) return; setForm({ ...form, paires: form.paires.filter((_, pi) => pi !== i) }); };
   const updatePaire = (i, field, v) => setForm({ ...form, paires: form.paires.map((p, pi) => pi === i ? { ...p, [field]: v } : p) });
 
+  const [showSuspendPopup, setShowSuspendPopup] = useState(false);
+  const [suspendRemark, setSuspendRemark] = useState(initial.remarqueSuspension || "");
   const canSave = form.enonceFr.trim() && form.enonceNl.trim() && form.categories.length > 0
     && (form.type !== "point" || (form.media?.type === "image" && (form.cibles || []).length > 0))
     && (form.type !== "legende" || (form.media?.type === "image" && form.marqueurs.length > 0 && form.marqueurs.every(m => m.reponse.trim())))
@@ -2847,14 +2885,7 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
         <Btn variant="ghost" onClick={onClose}>{t("cancel")}</Btn>
-        <Btn variant="ghost" icon={PauseCircle} onClick={() => {
-          const { minuteurActif, minMin, minSec, ...rest } = form;
-          let finalPoints = form.points;
-          if (form.type === "qcm_multi") finalPoints = form.pointsParBonneReponse * form.bonnesReponses.length;
-          if (form.type === "point") finalPoints = form.pointsParBonneReponse * form.cibles.length;
-          if (form.type === "ordre") finalPoints = form.pointsParBonneReponse * form.items.length;
-          onSave({ ...rest, points: finalPoints, dureeSecondes: minuteurActif ? (minMin * 60 + minSec) : null, statut: "suspendue" });
-        }} title="Enregistrer telle quelle sans validation, pour la reprendre plus tard">Mettre en suspens</Btn>
+        <Btn variant="ghost" icon={PauseCircle} onClick={() => setShowSuspendPopup(true)} title={t("mettre_en_suspens_title")}>{t("mettre_en_suspens_btn")}</Btn>
         <Btn variant="primary" onClick={() => {
           const { minuteurActif, minMin, minSec, ...rest } = form;
           let finalPoints = form.points;
@@ -2864,6 +2895,25 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
           onSave({ ...rest, points: finalPoints, dureeSecondes: minuteurActif ? (minMin * 60 + minSec) : null, statut: "active" });
         }} disabled={!canSave}>{t("save")}</Btn>
       </div>
+      {showSuspendPopup && (
+        <Modal title={t("mettre_en_suspens_btn")} onClose={() => setShowSuspendPopup(false)} width={420}>
+          <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 14 }}>{t("suspens_popup_intro")}</div>
+          <Field label={t("remarque_suspension_label")} hint={t("remarque_suspension_hint")}>
+            <textarea autoFocus style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} placeholder={t("remarque_suspension_placeholder")} value={suspendRemark} onChange={e => setSuspendRemark(e.target.value)} />
+          </Field>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+            <Btn variant="ghost" onClick={() => setShowSuspendPopup(false)}>{t("cancel")}</Btn>
+            <Btn variant="gold" icon={PauseCircle} onClick={() => {
+              const { minuteurActif, minMin, minSec, ...rest } = form;
+              let finalPoints = form.points;
+              if (form.type === "qcm_multi") finalPoints = form.pointsParBonneReponse * form.bonnesReponses.length;
+              if (form.type === "point") finalPoints = form.pointsParBonneReponse * form.cibles.length;
+              if (form.type === "ordre") finalPoints = form.pointsParBonneReponse * form.items.length;
+              onSave({ ...rest, points: finalPoints, dureeSecondes: minuteurActif ? (minMin * 60 + minSec) : null, statut: "suspendue", remarqueSuspension: suspendRemark.trim() });
+            }}>{t("mettre_en_suspens_btn")}</Btn>
+          </div>
+        </Modal>
+      )}
       </div>
     </div>
   );
