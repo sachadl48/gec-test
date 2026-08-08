@@ -971,7 +971,7 @@ function ExamMode({ questionnaire, questions, categories, questionLangues, onExi
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16, padding: 32, minHeight: 320 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            {typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 11.5, fontWeight: 700, color: C.inkSoft, background: C.bg, borderRadius: 6, padding: "3px 8px" }}>Question #{q.numero}</span>}
+            {typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 18, fontWeight: 700, color: C.navy, background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 8, padding: "5px 12px" }}>Question #{q.numero}</span>}
             <CategoryBadges allCategories={categories} cats={q.categories} />
           </div>
           <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.inkSoft }}>{q.points} pt{q.points > 1 ? "s" : ""}</span>
@@ -3029,8 +3029,15 @@ function AnalysisView({ questionnaire, eleve, questions, categories, onClose, on
             <div key={q.id} style={{ background: "#fff", padding: "20px 24px", border: `1px solid ${C.line}`, borderRadius: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
                 <div style={{ fontSize: 14, flex: 1 }}>
-                  <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>{typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700, color: C.inkSoft, background: C.bg, borderRadius: 6, padding: "3px 7px" }}>#{q.numero}</span>}<CategoryBadges allCategories={categories} cats={q.categories} /><TypeBadge type={q.type} /></div>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>{typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 15, fontWeight: 700, color: C.navy, background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 7, padding: "4px 10px" }}>#{q.numero}</span>}<CategoryBadges allCategories={categories} cats={q.categories} /><TypeBadge type={q.type} /></div>
                   <div style={{ fontSize: 16, fontWeight: 600, color: C.navy, marginBottom: 8 }}>{qText(q, langFor(i))}</div>
+                  {q.media && q.type !== "point" && q.type !== "legende" && (
+                    <div style={{ marginBottom: 12, maxWidth: 360 }}>
+                      {q.media.type === "image" && <img src={q.media.url} style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />}
+                      {q.media.type === "video" && <video src={q.media.url} controls style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />}
+                      {q.media.type === "audio" && <audio src={q.media.url} controls style={{ width: "100%" }} />}
+                    </div>
+                  )}
                   {(q.type === "qcm" || q.type === "vrai_faux") && (
                     <div style={{ marginTop: 6, fontSize: 13.5, color: correct ? C.green : C.red }}>{t("reponse_eleve")}{a !== undefined && a !== null ? qChoix(q, langFor(i))[a] : t("sans_reponse")}</div>
                   )}
