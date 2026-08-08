@@ -22,6 +22,7 @@ const C = {
   navy: "#16233F", navy2: "#1F3157", line: "#E2E1D9", gold: "#C89B3C",
   goldSoft: "#F3E7CC", teal: "#2F7A78", tealSoft: "#DCEDEB", red: "#C1443C",
   redSoft: "#F7E1DE", green: "#3E8E57", greenSoft: "#E1EFE3",
+  blue: "#3B6FA0", blueSoft: "#DCE6F0",
 };
 const FONT_DISPLAY = "'Space Grotesk', 'Arial Narrow', sans-serif";
 const FONT_BODY = "'Inter', -apple-system, sans-serif";
@@ -58,7 +59,7 @@ async function callEdgeFunction(name, body) {
 
 /* ---------------------------------- MAPPING BASE DE DONNÉES ↔ APPLICATION ---------------------------------- */
 function rowToUser(row) {
-  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "" };
+  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined };
 }
 function rowToQuestion(row) {
   return {
@@ -160,6 +161,14 @@ const T = {
     logout: "Déconnexion", nav_overview: "Aperçu", nav_profiles: "Profils opérateurs", nav_carnets: "Carnets d'élèves", nav_questions: "Banque de questions",
     carnets_titre: "Carnets d'élèves", carnets_sub: "Opérateurs en formation — élèves régulateurs et élèves dispatcheurs.",
     aucun_carnet_titre: "Aucun élève en formation", aucun_carnet_body: "Aucun profil élève régulateur ou élève dispatcheur ne correspond à cette recherche.",
+    formation_en_cours_titre: "Formation en cours", formation_reussies_titre: "Formations réussies", formation_ratees_titre: "Formations ratées",
+    valider_reussite_title: "Valider la réussite", valider_reussite_btn: "Valider la réussite",
+    valider_reussite_msg: "{nom} passera automatiquement au rôle « {fonction} ». Cette action est réversible en modifiant le profil manuellement.",
+    mettre_fin_formation_title: "Mettre fin à la formation", mettre_fin_formation_btn: "Mettre fin à la formation",
+    mettre_fin_formation_msg: "{nom} sera déplacé(e) dans « Formations ratées ». Son profil n'est pas supprimé.",
+    carnet_personnel_sous_titre: "Carnet de formation", carnet_personnel_bientot_titre: "Bientôt disponible",
+    carnet_personnel_bientot_body: "Le carnet de formation détaillé (suivi jour par jour par les moniteurs) arrive prochainement sur cette page.",
+    voir_carnet_btn: "Voir carnet", carnet_onglet_modifiable: "Modifiable", carnet_onglet_lecture_seule: "Lecture seule",
     nav_questionnaires: "Questionnaires", nav_accounts: "Comptes moniteurs", nav_admin: "Administration", nav_staff: "Espace moniteur",
     student_badge: "Élève", questionnaires_done: "Questionnaires réalisés",
     agent_number: "N° agent", no_strength_yet: "Aucun point fort marqué pour l'instant.", no_weakness_yet: "Aucun point faible marqué pour l'instant.",
@@ -192,7 +201,7 @@ const T = {
     reussite_globale_titre: "Réussite globale par catégorie", reussite_globale_sub: "Toutes catégories, tous élèves, sur l'ensemble des questionnaires validés.",
     pas_de_donnees_titre: "Pas encore de données", pas_de_donnees_body: "Ce graphique se remplira au fur et à mesure des validations de questionnaires.",
     qn_attente_titre: "Questionnaires en attente de validation", rien_a_valider_titre: "Rien à valider", rien_a_valider_body: "Tous les questionnaires terminés ont été traités.",
-    ajouter_eleve: "Ajouter un élève", rechercher_eleve: "Rechercher un élève...",
+    ajouter_eleve: "Ajouter un opérateur", rechercher_eleve: "Rechercher un élève...",
     col_eleve: "Opérateur", col_fonction: "Fonction", col_team: "Team", col_langue: "Langue", col_identifiant: "Identifiant", col_questionnaires: "Questionnaires",
     aucun_eleve_titre: "Aucun élève trouvé", aucun_eleve_body: "Essayez une autre recherche ou ajoutez un profil.",
     supprimer_profil_titre: "Supprimer ce profil ?", supprimer_profil_msg: "Le profil de {nom} et son historique de questionnaires seront définitivement supprimés.",
@@ -297,8 +306,16 @@ const T = {
     login_id: "Gebruikersnaam", login_pwd: "Wachtwoord", login_btn: "Inloggen",
     login_error: "Onjuiste gebruikersnaam of wachtwoord.", login_demo: "Demo-accounts",
     logout: "Afmelden", nav_overview: "Overzicht", nav_profiles: "Operatorprofielen", nav_carnets: "Leerlingdossiers", nav_questions: "Vragenbank",
-    carnets_titre: "Leerlingdossiers", carnets_sub: "Operators in opleiding — regulators en dispatchors in vorming.",
-    aucun_carnet_titre: "Geen leerling in opleiding", aucun_carnet_body: "Geen profiel van een regulator of dispatchor in vorming komt overeen met deze zoekopdracht.",
+    carnets_titre: "Leerlingdossiers", carnets_sub: "Operators in opleiding — regulators en dispatchers in vorming.",
+    aucun_carnet_titre: "Geen leerling in opleiding", aucun_carnet_body: "Geen profiel van een regulator of dispatcher in vorming komt overeen met deze zoekopdracht.",
+    formation_en_cours_titre: "Opleiding lopende", formation_reussies_titre: "Geslaagde opleidingen", formation_ratees_titre: "Mislukte opleidingen",
+    valider_reussite_title: "Slagen bevestigen", valider_reussite_btn: "Slagen bevestigen",
+    valider_reussite_msg: "{nom} krijgt automatisch de rol « {fonction} ». Deze actie is omkeerbaar door het profiel handmatig aan te passen.",
+    mettre_fin_formation_title: "Opleiding stopzetten", mettre_fin_formation_btn: "Opleiding stopzetten",
+    mettre_fin_formation_msg: "{nom} wordt verplaatst naar « Mislukte opleidingen ». Het profiel wordt niet verwijderd.",
+    carnet_personnel_sous_titre: "Opleidingsdossier", carnet_personnel_bientot_titre: "Binnenkort beschikbaar",
+    carnet_personnel_bientot_body: "Het gedetailleerde opleidingsdossier (dagelijkse opvolging door de monitoren) komt binnenkort op deze pagina.",
+    voir_carnet_btn: "Dossier bekijken", carnet_onglet_modifiable: "Bewerkbaar", carnet_onglet_lecture_seule: "Alleen lezen",
     nav_questionnaires: "Vragenlijsten", nav_accounts: "Monitoraccounts", nav_admin: "Beheer", nav_staff: "Monitorruimte",
     student_badge: "Leerling", questionnaires_done: "Afgeronde vragenlijsten",
     agent_number: "Personeelsnr.", no_strength_yet: "Nog geen sterke punten vastgesteld.", no_weakness_yet: "Nog geen zwakke punten vastgesteld.",
@@ -331,7 +348,7 @@ const T = {
     reussite_globale_titre: "Algemeen slagingspercentage per categorie", reussite_globale_sub: "Alle categorieën, alle leerlingen, over alle gevalideerde vragenlijsten.",
     pas_de_donnees_titre: "Nog geen gegevens", pas_de_donnees_body: "Deze grafiek vult zich naarmate vragenlijsten worden gevalideerd.",
     qn_attente_titre: "Vragenlijsten in afwachting van validatie", rien_a_valider_titre: "Niets te valideren", rien_a_valider_body: "Alle voltooide vragenlijsten zijn verwerkt.",
-    ajouter_eleve: "Leerling toevoegen", rechercher_eleve: "Zoek een leerling...",
+    ajouter_eleve: "Operator toevoegen", rechercher_eleve: "Zoek een leerling...",
     col_eleve: "Operator", col_fonction: "Functie", col_team: "Team", col_langue: "Taal", col_identifiant: "Gebruikersnaam", col_questionnaires: "Vragenlijsten",
     aucun_eleve_titre: "Geen leerling gevonden", aucun_eleve_body: "Probeer een andere zoekopdracht of voeg een profiel toe.",
     supprimer_profil_titre: "Dit profiel verwijderen?", supprimer_profil_msg: "Het profiel van {nom} en de geschiedenis van vragenlijsten worden definitief verwijderd.",
@@ -475,10 +492,15 @@ const TEAMS = ["Team 1", "Team 2", "Team 3", "Team 4", "Team 5", "Team 6"];
 const FONCTION_LABELS = {
   "Élève régulateur": { fr: "Élève régulateur", nl: "Regulator in vorming" },
   "Régulateur": { fr: "Régulateur", nl: "Regulator" },
-  "Élève dispatcheur": { fr: "Élève dispatcheur", nl: "Dispatchor in vorming" },
-  "Dispatcheur": { fr: "Dispatcheur", nl: "Dispatchor" },
+  "Élève dispatcheur": { fr: "Élève dispatcheur", nl: "Dispatcher in vorming" },
+  "Dispatcheur": { fr: "Dispatcheur", nl: "Dispatcher" },
 };
 function fonctionLabel(fonction, langue) { return FONCTION_LABELS[fonction]?.[langue === "nl" ? "nl" : "fr"] || fonction; }
+function fonctionColor(fonction) {
+  if (fonction === "Régulateur") return { color: C.green, bg: C.greenSoft };
+  if (fonction === "Dispatcheur") return { color: C.blue, bg: C.blueSoft };
+  return { color: C.gold, bg: C.goldSoft };
+}
 
 /* ---------------------------------- HELPERS ---------------------------------- */
 function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -1298,7 +1320,7 @@ function EleveView({ user, questionnaires, categories, onLogout, submitReponses,
             <div style={{ width: 56, height: 56, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, marginBottom: 14 }}>{initials(user.prenom, user.nom)}</div>
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.navy }}>{user.prenom} {user.nom}</div>
             <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.inkSoft, marginTop: 4 }}>{t("agent_number")} : {user.numeroAgent}</div>
-            <div style={{ marginTop: 14 }}><Badge color={C.teal} bg={C.tealSoft}>{user.fonction || t("student_badge")}</Badge></div>
+            <div style={{ marginTop: 14 }}><Badge {...fonctionColor(user.fonction)}>{user.fonction || t("student_badge")}</Badge></div>
             <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}` }}>
               <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 4 }}>{t("questionnaires_done")}</div>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: C.navy }}>{graded.length}</div>
@@ -1393,7 +1415,7 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
           <SaveErrorBanner visible={saveError} />
           {tab === "apercu" && <Apercu users={users} questions={questions} questionnaires={questionnaires} categories={categories} />}
           {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
-          {tab === "carnets" && <CarnetsEleves users={users} questionnaires={questionnaires} questions={questions} categories={categories} />}
+          {tab === "carnets" && <CarnetsEleves users={users} setUsers={setUsers} questionnaires={questionnaires} categories={categories} />}
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
@@ -1507,7 +1529,7 @@ function GestionProfils({ users, setUsers, questionnaires, questions, categories
                     <span style={{ textDecoration: "underline", textDecorationColor: C.line }}>{e.prenom} {e.nom}</span>
                   </button>
                 </td>
-                <td style={{ padding: "12px 16px" }}><Badge color={C.teal} bg={C.tealSoft}>{fonctionLabel(e.fonction, lang) || t("role_eleve")}</Badge></td>
+                <td style={{ padding: "12px 16px" }}><Badge {...fonctionColor(e.fonction)}>{fonctionLabel(e.fonction, lang) || t("role_eleve")}</Badge></td>
                 <td style={{ padding: "12px 16px", fontSize: 12.5, color: e.team ? C.ink : C.inkSoft }}>{e.team || "—"}</td>
                 <td style={{ padding: "12px 16px", fontSize: 12.5, color: C.inkSoft }}>{LANGS[e.langue || "fr"]}</td>
                 <td style={{ padding: "12px 16px", fontFamily: FONT_MONO, fontSize: 12.5 }}>{e.numeroAgent}</td>
@@ -1624,7 +1646,7 @@ function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, c
                 <button onClick={() => setViewingEleve(o)} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit", flex: 1, textAlign: "left" }}>
                   <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, flexShrink: 0 }}>{initials(o.prenom, o.nom)}</div>
                   <span style={{ fontSize: 13.5, color: C.navy, fontWeight: 600, textDecoration: "underline", textDecorationColor: C.line }}>{o.prenom} {o.nom}</span>
-                  <Badge color={C.teal} bg={C.tealSoft}>{fonctionLabel(o.fonction, lang) || t("role_eleve")}</Badge>
+                  <Badge {...fonctionColor(o.fonction)}>{fonctionLabel(o.fonction, lang) || t("role_eleve")}</Badge>
                 </button>
                 <Btn variant="subtle" icon={Eye} onClick={() => setViewingEleve(o)} style={{ padding: "6px 10px" }} />
                 <Btn variant="subtle" icon={FileDown} onClick={() => requestPrint({ type: "profile", eleve: o, questionnaires, categories })} style={{ padding: "6px 10px" }} />
@@ -1672,54 +1694,158 @@ function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, c
     </div>
   );
 }
-function CarnetsEleves({ users, questionnaires, categories }) {
+function CarnetPersonnel({ eleve, onBack }) {
+  const { t, lang } = useLang();
+  const tab2Visible = eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur";
+  const tab1Editable = eleve.fonction === "Élève régulateur";
+  const tab2Editable = eleve.fonction === "Élève dispatcheur";
+  const defaultTab = (eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur") ? "dispatcheur" : "regulateur";
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  const showingTab2 = activeTab === "dispatcheur" && tab2Visible;
+  const editable = showingTab2 ? tab2Editable : tab1Editable;
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <Btn variant="ghost" onClick={onBack}>{t("retour_btn")}</Btn>
+        <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, fontFamily: FONT_DISPLAY }}>{initials(eleve.prenom, eleve.nom)}</div>
+        <div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 700, color: C.navy }}>{eleve.prenom} {eleve.nom}</div>
+          <div style={{ fontSize: 12, color: C.inkSoft }}>{t("carnet_personnel_sous_titre")}</div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, borderBottom: `1px solid ${C.line}` }}>
+        <button onClick={() => setActiveTab("regulateur")} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 4px", marginRight: 20, fontSize: 13.5, fontWeight: 600, color: activeTab === "regulateur" ? C.navy : C.inkSoft, borderBottom: `2px solid ${activeTab === "regulateur" ? C.navy : "transparent"}` }}>
+          {fonctionLabel("Élève régulateur", lang)}
+        </button>
+        {tab2Visible && (
+          <button onClick={() => setActiveTab("dispatcheur")} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 4px", fontSize: 13.5, fontWeight: 600, color: activeTab === "dispatcheur" ? C.navy : C.inkSoft, borderBottom: `2px solid ${activeTab === "dispatcheur" ? C.navy : "transparent"}` }}>
+            {fonctionLabel("Élève dispatcheur", lang)}
+          </button>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        {editable
+          ? <Badge color={C.green} bg={C.greenSoft}>{t("carnet_onglet_modifiable")}</Badge>
+          : <Badge color={C.inkSoft} bg={C.bg}>{t("carnet_onglet_lecture_seule")}</Badge>}
+      </div>
+
+      <EmptyState icon={BookCheck} title={t("carnet_personnel_bientot_titre")} body={t("carnet_personnel_bientot_body")} />
+    </div>
+  );
+}
+const GRADUATION_MAP = { "Élève régulateur": "Régulateur", "Élève dispatcheur": "Dispatcheur" };
+function CarnetsEleves({ users, setUsers, questionnaires, categories }) {
   const { t, lang } = useLang();
   const [search, setSearch] = useState("");
   const [viewingEleve, setViewingEleve] = useState(null);
-  const eleves = users.filter(u =>
-    u.role === "eleve"
-    && (u.fonction === "Élève régulateur" || u.fonction === "Élève dispatcheur")
-    && `${u.prenom} ${u.nom} ${u.numeroAgent}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const [viewingCarnet, setViewingCarnet] = useState(null);
+  const [confirmSuccess, setConfirmSuccess] = useState(null);
+  const [confirmFail, setConfirmFail] = useState(null);
+  const [error, setError] = useState("");
+  const matches = (u) => `${u.prenom} ${u.nom} ${u.numeroAgent}`.toLowerCase().includes(search.toLowerCase());
 
+  const enCours = users.filter(u => u.role === "eleve" && (u.fonction === "Élève régulateur" || u.fonction === "Élève dispatcheur") && u.formationStatut !== "echouee" && matches(u));
+  const reussies = users.filter(u => u.role === "eleve" && (u.fonction === "Régulateur" || u.fonction === "Dispatcheur") && matches(u));
+  const ratees = users.filter(u => u.role === "eleve" && (u.fonction === "Élève régulateur" || u.fonction === "Élève dispatcheur") && u.formationStatut === "echouee" && matches(u));
+
+  const markSuccess = async (eleve) => {
+    const nouvelleFonction = GRADUATION_MAP[eleve.fonction];
+    if (!nouvelleFonction) return;
+    setError("");
+    try {
+      const { error: err } = await supabase.from("profiles").update({ fonction: nouvelleFonction, formation_statut: null }).eq("id", eleve.id);
+      if (err) throw err;
+      await setUsers();
+    } catch (e) { setError(e?.message || "Erreur inconnue."); }
+    setConfirmSuccess(null);
+  };
+  const markFail = async (eleve) => {
+    setError("");
+    try {
+      const { error: err } = await supabase.from("profiles").update({ formation_statut: "echouee" }).eq("id", eleve.id);
+      if (err) throw err;
+      await setUsers();
+    } catch (e) { setError(e?.message || "Erreur inconnue."); }
+    setConfirmFail(null);
+  };
+
+  if (viewingCarnet) {
+    const fresh = users.find(u => u.id === viewingCarnet.id) || viewingCarnet;
+    return <CarnetPersonnel eleve={fresh} onBack={() => setViewingCarnet(null)} />;
+  }
   if (viewingEleve) {
     const fresh = users.find(u => u.id === viewingEleve.id) || viewingEleve;
     return <EleveDetailView eleve={fresh} questionnaires={questionnaires} categories={categories} onBack={() => setViewingEleve(null)} />;
   }
 
+  const renderTable = (list, opts = {}) => (
+    <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden", marginBottom: 24 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+        <thead><tr style={{ background: C.bg, textAlign: "left" }}>{[t("col_eleve"), "", t("col_fonction"), t("col_team"), t("col_langue"), t("agent_number"), ""].map((h, i) => <th key={i} style={{ padding: "10px 16px", fontSize: 11.5, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", fontWeight: 700 }}>{h}</th>)}</tr></thead>
+        <tbody>
+          {list.map(e => (
+            <tr key={e.id} style={{ borderTop: `1px solid ${C.line}` }}>
+              <td style={{ padding: "12px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, flexShrink: 0 }}>{initials(e.prenom, e.nom)}</div>
+                  <span>{e.prenom} {e.nom}</span>
+                </div>
+              </td>
+              <td style={{ padding: "12px 16px" }}>
+                <Btn variant="subtle" icon={BookCheck} onClick={() => setViewingCarnet(e)} style={{ padding: "4px 9px", fontSize: 12 }}>{t("voir_carnet_btn")}</Btn>
+              </td>
+              <td style={{ padding: "12px 16px" }}><Badge {...fonctionColor(e.fonction)}>{fonctionLabel(e.fonction, lang)}</Badge></td>
+              <td style={{ padding: "12px 16px", fontSize: 12.5, color: e.team ? C.ink : C.inkSoft }}>{e.team || "—"}</td>
+              <td style={{ padding: "12px 16px", fontSize: 12.5, color: C.inkSoft }}>{LANGS[e.langue || "fr"]}</td>
+              <td style={{ padding: "12px 16px", fontFamily: FONT_MONO, fontSize: 12.5 }}>{e.numeroAgent}</td>
+              <td style={{ padding: "12px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
+                <Btn variant="subtle" icon={Eye} onClick={() => setViewingEleve(e)} style={{ padding: "6px 10px", marginRight: opts.actions ? 6 : 0 }} />
+                {opts.actions && <>
+                  <Btn variant="subtle" icon={CheckCircle2} onClick={() => setConfirmSuccess(e)} title={t("valider_reussite_title")} style={{ padding: "6px 10px", marginRight: 6, color: C.green }} />
+                  <Btn variant="subtle" icon={XCircle} onClick={() => setConfirmFail(e)} title={t("mettre_fin_formation_title")} style={{ padding: "6px 10px", color: C.red }} />
+                </>}
+              </td>
+            </tr>
+          ))}
+          {list.length === 0 && <tr><td colSpan={7}><EmptyState icon={BookCheck} title={t("aucun_carnet_titre")} body={t("aucun_carnet_body")} /></td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div>
       <SectionTitle>{t("carnets_titre")}</SectionTitle>
       <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("carnets_sub")}</div>
+      {error && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{error}</div>}
       <div style={{ position: "relative", marginBottom: 16, maxWidth: 320 }}>
         <Search size={15} style={{ position: "absolute", left: 11, top: 11, color: C.inkSoft }} />
         <input style={{ ...inputStyle, paddingLeft: 34 }} placeholder={t("rechercher_eleve")} value={search} onChange={e => setSearch(e.target.value)} />
       </div>
-      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
-          <thead><tr style={{ background: C.bg, textAlign: "left" }}>{[t("col_eleve"), t("col_fonction"), t("col_team"), t("col_langue"), t("agent_number"), ""].map(h => <th key={h} style={{ padding: "10px 16px", fontSize: 11.5, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", fontWeight: 700 }}>{h}</th>)}</tr></thead>
-          <tbody>
-            {eleves.map(e => (
-              <tr key={e.id} style={{ borderTop: `1px solid ${C.line}` }}>
-                <td style={{ padding: "12px 16px" }}>
-                  <button onClick={() => setViewingEleve(e)} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit", color: C.navy, textAlign: "left" }}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, flexShrink: 0 }}>{initials(e.prenom, e.nom)}</div>
-                    <span style={{ textDecoration: "underline", textDecorationColor: C.line }}>{e.prenom} {e.nom}</span>
-                  </button>
-                </td>
-                <td style={{ padding: "12px 16px" }}><Badge color={C.gold} bg={C.goldSoft}>{fonctionLabel(e.fonction, lang)}</Badge></td>
-                <td style={{ padding: "12px 16px", fontSize: 12.5, color: e.team ? C.ink : C.inkSoft }}>{e.team || "—"}</td>
-                <td style={{ padding: "12px 16px", fontSize: 12.5, color: C.inkSoft }}>{LANGS[e.langue || "fr"]}</td>
-                <td style={{ padding: "12px 16px", fontFamily: FONT_MONO, fontSize: 12.5 }}>{e.numeroAgent}</td>
-                <td style={{ padding: "12px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                  <Btn variant="subtle" icon={Eye} onClick={() => setViewingEleve(e)} style={{ padding: "6px 10px" }} />
-                </td>
-              </tr>
-            ))}
-            {eleves.length === 0 && <tr><td colSpan={6}><EmptyState icon={BookCheck} title={t("aucun_carnet_titre")} body={t("aucun_carnet_body")} /></td></tr>}
-          </tbody>
-        </table>
-      </div>
+
+      <SectionTitle>{t("formation_en_cours_titre")}</SectionTitle>
+      <div style={{ height: 10 }} />
+      {renderTable(enCours, { actions: true })}
+
+      <SectionTitle>{t("formation_reussies_titre")}</SectionTitle>
+      <div style={{ height: 10 }} />
+      {renderTable(reussies)}
+
+      <SectionTitle>{t("formation_ratees_titre")}</SectionTitle>
+      <div style={{ height: 10 }} />
+      {renderTable(ratees)}
+
+      {confirmSuccess && (
+        <ConfirmDialog title={t("valider_reussite_title")} message={t("valider_reussite_msg", { nom: `${confirmSuccess.prenom} ${confirmSuccess.nom}`, fonction: fonctionLabel(GRADUATION_MAP[confirmSuccess.fonction], lang) })}
+          confirmLabel={t("valider_reussite_btn")} onConfirm={() => markSuccess(confirmSuccess)} onCancel={() => setConfirmSuccess(null)} />
+      )}
+      {confirmFail && (
+        <ConfirmDialog title={t("mettre_fin_formation_title")} message={t("mettre_fin_formation_msg", { nom: `${confirmFail.prenom} ${confirmFail.nom}` })}
+          confirmLabel={t("mettre_fin_formation_btn")} onConfirm={() => markFail(confirmFail)} onCancel={() => setConfirmFail(null)} />
+      )}
     </div>
   );
 }
@@ -1813,8 +1939,8 @@ function ProfilModal({ initial, users, isAdmin, onClose, onSave }) {
           {Object.entries(LANGS).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
         </select>
       </Field>
-      <Field label="Team" hint={isAdmin ? t("team_hint_admin") : t("team_hint_readonly")}>
-        <select style={inputStyle} value={form.team} onChange={e => setForm({ ...form, team: e.target.value })} disabled={!isAdmin}>
+      <Field label="Team">
+        <select style={inputStyle} value={form.team} onChange={e => setForm({ ...form, team: e.target.value })}>
           <option value="">{t("team_aucune")}</option>
           {TEAMS.map(tm => <option key={tm} value={tm}>{tm}</option>)}
         </select>
