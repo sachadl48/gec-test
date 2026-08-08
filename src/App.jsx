@@ -142,6 +142,13 @@ function makePseudo(nom, prenom, users = [], excludeId = null) {
   return candidate;
 }
 function catColor(categories, cat) { const i = categories.indexOf(cat); return PALETTE[i >= 0 ? i % PALETTE.length : 0]; }
+// Supabase Auth exige un mot de passe d'au moins 6 caractères. Le mot de
+// passe réel (numéro d'agent complété par des zéros si besoin) doit être
+// identique à ce qui est affiché ici, sinon le staff communique un mot de
+// passe erroné à l'opérateur.
+function agentPassword(numeroAgent) {
+  return numeroAgent && numeroAgent.length < 6 ? numeroAgent.padStart(6, "0") : (numeroAgent || "");
+}
 
 /* ---------------------------------- LANGUE / TRADUCTION ---------------------------------- */
 const LANGS = { fr: "Français", nl: "Nederlands" };
@@ -1737,7 +1744,7 @@ function ProfilModal({ initial, users, isAdmin, onClose, onSave }) {
       </Field>
       <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 12.5, color: C.inkSoft, marginBottom: 8 }}>
         {t("identifiant_connexion")} : <strong style={{ fontFamily: FONT_MONO, color: C.ink }}>{pseudoPreview}</strong><br />
-        {t("mot_de_passe_label")} : <strong style={{ fontFamily: FONT_MONO, color: C.ink }}>{form.numeroAgent || "—"}</strong> <span>{t("genere_auto")}</span>
+        {t("mot_de_passe_label")} : <strong style={{ fontFamily: FONT_MONO, color: C.ink }}>{form.numeroAgent ? agentPassword(form.numeroAgent) : "—"}</strong> <span>{t("genere_auto")}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
         <Btn variant="ghost" onClick={onClose}>{t("cancel")}</Btn>
@@ -3304,7 +3311,7 @@ function CompteModal({ initial, users, onClose, onSave }) {
       )}
       <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 12.5, color: C.inkSoft, marginBottom: 8 }}>
         {t("identifiant_connexion")} : <strong style={{ fontFamily: FONT_MONO, color: C.ink }}>{pseudoPreview}</strong><br />
-        {t("mot_de_passe_label")} : <strong style={{ fontFamily: FONT_MONO, color: C.ink }}>{form.numeroAgent || "—"}</strong> <span>{t("genere_auto")}</span>
+        {t("mot_de_passe_label")} : <strong style={{ fontFamily: FONT_MONO, color: C.ink }}>{form.numeroAgent ? agentPassword(form.numeroAgent) : "—"}</strong> <span>{t("genere_auto")}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
         <Btn variant="ghost" onClick={onClose}>{t("cancel")}</Btn>
