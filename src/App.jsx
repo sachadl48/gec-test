@@ -1864,7 +1864,8 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
                 style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7 }}>
                 <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
-                {j.moniteurNom && <div style={{ fontSize: 9.5, color: C.inkSoft, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom}</div>}
+                <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
+                <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
               </button>
             );
           })}
