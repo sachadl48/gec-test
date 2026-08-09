@@ -59,7 +59,7 @@ async function callEdgeFunction(name, body) {
 
 /* ---------------------------------- MAPPING BASE DE DONNÉES ↔ APPLICATION ---------------------------------- */
 function rowToUser(row) {
-  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined };
+  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined };
 }
 function rowToQuestion(row) {
   return {
@@ -166,6 +166,15 @@ const T = {
     valider_reussite_msg: "{nom} passera automatiquement au rôle « {fonction} ». Cette action est réversible en modifiant le profil manuellement.",
     mettre_fin_formation_title: "Mettre fin à la formation", mettre_fin_formation_btn: "Mettre fin à la formation",
     mettre_fin_formation_msg: "{nom} sera déplacé(e) dans « Formations ratées ». Son profil n'est pas supprimé.",
+    debuter_formation_dp_btn: "Débuter formation DP", debuter_formation_dp_msg: "{nom} passera au rôle « Élève dispatcheur » et réapparaîtra dans « Formation en cours ».",
+    carnet_duree_regulateur: "35 jours avec moniteur + 10 jours en solo", carnet_duree_dispatcheur: "35 jours avec moniteur",
+    jour_label: "Jour", carnet_jour_titre: "Jour {n}",
+    carnet_criteres_apercu_note: "Aperçu de la mise en page — la liste de critères réelle et son enregistrement seront ajoutés une fois le carnet papier finalisé.",
+    critere_acquis: "Acquis", critere_a_revoir: "À revoir", critere_non_evalue: "Non évalué",
+    commencer_jour_btn: "Commencer", fin_journee_btn: "Fin de journée", moniteur_label: "Moniteur :",
+    carnet_pas_commence_note: "Cliquez sur « Commencer » pour démarrer cette journée de formation.",
+    examen_35_label: "Examen 35e jour réussi",
+    confirm_fin_journee_msg: "Le jour {n} sera clôturé et ne pourra plus être modifié. Le jour suivant sera débloqué.",
     carnet_personnel_sous_titre: "Carnet de formation", carnet_personnel_bientot_titre: "Bientôt disponible",
     carnet_personnel_bientot_body: "Le carnet de formation détaillé (suivi jour par jour par les moniteurs) arrive prochainement sur cette page.",
     voir_carnet_btn: "Voir carnet", carnet_onglet_modifiable: "Modifiable", carnet_onglet_lecture_seule: "Lecture seule",
@@ -313,6 +322,15 @@ const T = {
     valider_reussite_msg: "{nom} krijgt automatisch de rol « {fonction} ». Deze actie is omkeerbaar door het profiel handmatig aan te passen.",
     mettre_fin_formation_title: "Opleiding stopzetten", mettre_fin_formation_btn: "Opleiding stopzetten",
     mettre_fin_formation_msg: "{nom} wordt verplaatst naar « Mislukte opleidingen ». Het profiel wordt niet verwijderd.",
+    debuter_formation_dp_btn: "DP-opleiding starten", debuter_formation_dp_msg: "{nom} krijgt de rol « Dispatcher in vorming » en verschijnt opnieuw bij « Opleiding lopende ».",
+    carnet_duree_regulateur: "35 dagen met monitor + 10 dagen alleen", carnet_duree_dispatcheur: "35 dagen met monitor",
+    jour_label: "Dag", carnet_jour_titre: "Dag {n}",
+    carnet_criteres_apercu_note: "Voorbeeld van de lay-out — de echte criterialijst en opslag worden toegevoegd zodra het papieren dossier is afgerond.",
+    critere_acquis: "Verworven", critere_a_revoir: "Te herzien", critere_non_evalue: "Niet beoordeeld",
+    commencer_jour_btn: "Starten", fin_journee_btn: "Einde van de dag", moniteur_label: "Monitor:",
+    carnet_pas_commence_note: "Klik op « Starten » om deze opleidingsdag te beginnen.",
+    examen_35_label: "Examen dag 35 geslaagd",
+    confirm_fin_journee_msg: "Dag {n} wordt afgesloten en kan niet meer worden gewijzigd. De volgende dag wordt ontgrendeld.",
     carnet_personnel_sous_titre: "Opleidingsdossier", carnet_personnel_bientot_titre: "Binnenkort beschikbaar",
     carnet_personnel_bientot_body: "Het gedetailleerde opleidingsdossier (dagelijkse opvolging door de monitoren) komt binnenkort op deze pagina.",
     voir_carnet_btn: "Dossier bekijken", carnet_onglet_modifiable: "Bewerkbaar", carnet_onglet_lecture_seule: "Alleen lezen",
@@ -629,6 +647,7 @@ function Btn({ children, onClick, variant = "ghost", icon: Icon, style, disabled
     primary: { background: C.navy, color: "#fff" }, gold: { background: C.gold, color: C.navy },
     ghost: { background: "transparent", color: C.navy, border: `1px solid ${C.line}` },
     danger: { background: C.redSoft, color: C.red }, subtle: { background: C.bg, color: C.inkSoft },
+    success: { background: C.greenSoft, color: C.green },
   };
   return <button type="button" onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>{Icon && <Icon size={15} />}{children}</button>;
 }
@@ -673,18 +692,21 @@ function Modal({ title, onClose, children, width = 480 }) {
 function EmptyState({ icon: Icon, title, body }) {
   return <div style={{ textAlign: "center", padding: "48px 20px", color: C.inkSoft }}><Icon size={26} style={{ marginBottom: 10, opacity: 0.5 }} /><p style={{ margin: 0, fontWeight: 600, color: C.ink, fontSize: 14 }}>{title}</p><p style={{ margin: "4px 0 0", fontSize: 13 }}>{body}</p></div>;
 }
-function ConfirmDialog({ title, message, onConfirm, onCancel, confirmLabel = "Supprimer" }) {
+function ConfirmDialog({ title, message, onConfirm, onCancel, confirmLabel = "Supprimer", tone = "danger" }) {
+  const toneColor = tone === "success" ? C.green : C.red;
+  const toneBg = tone === "success" ? C.greenSoft : C.redSoft;
+  const ToneIcon = tone === "success" ? CheckCircle2 : AlertTriangle;
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,63,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 60 }}>
       <div style={{ background: "#fff", borderRadius: 14, padding: 24, maxWidth: 360, boxShadow: "0 20px 60px rgba(22,35,63,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.redSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><AlertTriangle size={16} color={C.red} /></div>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: toneBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><ToneIcon size={16} color={toneColor} /></div>
           <h3 style={{ margin: 0, fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 600, color: C.navy }}>{title}</h3>
         </div>
         <p style={{ fontSize: 13.5, color: C.inkSoft, margin: "0 0 20px" }}>{message}</p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <Btn variant="ghost" onClick={onCancel}>Annuler</Btn>
-          <Btn variant="danger" onClick={onConfirm}>{confirmLabel}</Btn>
+          <Btn variant={tone === "success" ? "success" : "danger"} onClick={onConfirm}>{confirmLabel}</Btn>
         </div>
       </div>
     </div>
@@ -1415,7 +1437,7 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
           <SaveErrorBanner visible={saveError} />
           {tab === "apercu" && <Apercu users={users} questions={questions} questionnaires={questionnaires} categories={categories} />}
           {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
-          {tab === "carnets" && <CarnetsEleves users={users} setUsers={setUsers} questionnaires={questionnaires} categories={categories} />}
+          {tab === "carnets" && <CarnetsEleves users={users} setUsers={setUsers} questionnaires={questionnaires} categories={categories} isAdmin={isAdmin} currentUser={user} />}
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
@@ -1694,15 +1716,168 @@ function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, c
     </div>
   );
 }
-function CarnetPersonnel({ eleve, onBack }) {
+const CRITERES_EXEMPLE = [
+  "Respect des procédures de sécurité", "Maîtrise des outils informatiques", "Communication avec les équipes terrain",
+  "Gestion d'un incident simple", "Autonomie dans les tâches courantes",
+];
+function makeJours(n, startAt = 1) {
+  return Array.from({ length: n }, (_, i) => ({
+    numero: startAt + i, statut: i === 0 ? "disponible" : "verrouille",
+    date: null, moniteurNom: null, moniteurComplet: null,
+    criteres: CRITERES_EXEMPLE.map(() => null),
+  }));
+}
+function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0"); return `${dd}/${mm}/${d.getFullYear()}`; }
+
+function CarnetJourDetail({ jourData, editable, currentUser, onUpdateList, onBack }) {
+  const { t } = useLang();
+  const [confirmFin, setConfirmFin] = useState(false);
+  const started = jourData.statut === "en_cours" || jourData.statut === "termine";
+  const finished = jourData.statut === "termine";
+  const canFillCriteria = editable && started && !finished;
+
+  const commencer = () => {
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? {
+      ...j, statut: "en_cours", date: formatDateJour(new Date()),
+      moniteurNom: currentUser?.nom || "", moniteurComplet: `${currentUser?.prenom || ""} ${currentUser?.nom || ""}`.trim(),
+    } : j));
+  };
+  const finDeJournee = () => {
+    onUpdateList(jours => jours.map(j => {
+      if (j.numero === jourData.numero) return { ...j, statut: "termine" };
+      if (j.numero === jourData.numero + 1 && j.statut === "verrouille") return { ...j, statut: "disponible" };
+      return j;
+    }));
+    setConfirmFin(false);
+    onBack();
+  };
+  const setStatutCritere = (i, v) => {
+    if (!canFillCriteria) return;
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, criteres: j.criteres.map((x, idx) => idx === i ? v : x) } : j));
+  };
+  const options = [
+    { value: "acquis", label: t("critere_acquis"), color: C.green, bg: C.greenSoft },
+    { value: "a_revoir", label: t("critere_a_revoir"), color: C.gold, bg: C.goldSoft },
+    { value: "non_evalue", label: t("critere_non_evalue"), color: C.inkSoft, bg: C.bg },
+  ];
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <Btn variant="ghost" onClick={onBack}>{t("retour_btn")}</Btn>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 700, color: C.navy }}>{t("carnet_jour_titre", { n: jourData.numero })}</div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 16px", marginBottom: 18 }}>
+        <Btn variant="gold" onClick={commencer} disabled={!editable || started}>{t("commencer_jour_btn")}</Btn>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.inkSoft }}>{jourData.date || ".../.../..."}</span>
+        <span style={{ fontSize: 13, color: C.inkSoft }}>{t("moniteur_label")} <strong style={{ color: C.ink }}>{jourData.moniteurComplet || "—"}</strong></span>
+        <Btn variant="primary" onClick={() => setConfirmFin(true)} disabled={!editable || !started || finished} style={{ marginLeft: "auto" }}>{t("fin_journee_btn")}</Btn>
+      </div>
+
+      {!started && <div style={{ background: C.bg, color: C.inkSoft, fontSize: 12.5, padding: "10px 14px", borderRadius: 8, marginBottom: 18 }}>{t("carnet_pas_commence_note")}</div>}
+      {started && <div style={{ background: C.tealSoft, color: C.teal, fontSize: 12, fontWeight: 600, padding: "8px 14px", borderRadius: 8, marginBottom: 18 }}>{t("carnet_criteres_apercu_note")}</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {CRITERES_EXEMPLE.map((critere, i) => (
+          <div key={i} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "14px 16px", opacity: started ? 1 : 0.5 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: C.navy, marginBottom: 10 }}>{critere}</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {options.map(opt => (
+                <button key={opt.value} disabled={!canFillCriteria} onClick={() => setStatutCritere(i, opt.value)}
+                  style={{ padding: "6px 12px", borderRadius: 20, border: `1px solid ${jourData.criteres[i] === opt.value ? opt.color : C.line}`, background: jourData.criteres[i] === opt.value ? opt.bg : "#fff", color: jourData.criteres[i] === opt.value ? opt.color : C.inkSoft, fontSize: 12, fontWeight: 600, cursor: canFillCriteria ? "pointer" : "not-allowed" }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {confirmFin && (
+        <ConfirmDialog tone="success" title={t("fin_journee_btn")} message={t("confirm_fin_journee_msg", { n: jourData.numero })}
+          confirmLabel={t("fin_journee_btn")} onConfirm={finDeJournee} onCancel={() => setConfirmFin(false)} />
+      )}
+    </div>
+  );
+}
+function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
   const { t, lang } = useLang();
   const tab2Visible = eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur";
   const tab1Editable = eleve.fonction === "Élève régulateur";
   const tab2Editable = eleve.fonction === "Élève dispatcheur";
   const defaultTab = (eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur") ? "dispatcheur" : "regulateur";
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [viewingJour, setViewingJour] = useState(null);
+  const [error, setError] = useState("");
   const showingTab2 = activeTab === "dispatcheur" && tab2Visible;
   const editable = showingTab2 ? tab2Editable : tab1Editable;
+
+  const carnet = eleve.carnet || {};
+  const joursReg = carnet.reg || makeJours(35, 1);
+  const joursRegSolo = carnet.regSolo || makeJours(10, 36);
+  const joursDisp = carnet.disp || makeJours(35, 1);
+  const examen35Reussi = !!carnet.examen35;
+
+  // Toute modification écrit directement sur le profil de l'élève en base
+  // (colonne "carnet"), puis rafraîchit la liste — ça survit à une sortie
+  // du carnet ou à un rechargement de page, contrairement à un simple state local.
+  const updateCarnet = async (patch) => {
+    setError("");
+    const newCarnet = { ...(eleve.carnet || {}), ...patch };
+    try {
+      const { error: err } = await supabase.from("profiles").update({ carnet: newCarnet }).eq("id", eleve.id);
+      if (err) throw err;
+      await setUsers();
+    } catch (e) { setError(e?.message || "Erreur inconnue."); }
+  };
+  const listSetters = {
+    reg: (updater) => updateCarnet({ reg: typeof updater === "function" ? updater(joursReg) : updater }),
+    regSolo: (updater) => updateCarnet({ regSolo: typeof updater === "function" ? updater(joursRegSolo) : updater }),
+    disp: (updater) => updateCarnet({ disp: typeof updater === "function" ? updater(joursDisp) : updater }),
+  };
+  const sections = { reg: [joursReg, listSetters.reg], regSolo: [joursRegSolo, listSetters.regSolo], disp: [joursDisp, listSetters.disp] };
+
+  if (viewingJour) {
+    const [list, setList] = sections[viewingJour.section];
+    const jourData = list.find(j => j.numero === viewingJour.numero);
+    return <CarnetJourDetail jourData={jourData} editable={editable} currentUser={currentUser} onUpdateList={setList} onBack={() => setViewingJour(null)} />;
+  }
+
+  const renderGrid = (section) => {
+    const [list, setList] = sections[section];
+    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, criteres: CRITERES_EXEMPLE.map(() => null) }]);
+    const removeJour = () => {
+      if (list.length <= 1) return;
+      const last = list[list.length - 1];
+      if (last.statut === "en_cours" || last.statut === "termine") return;
+      setList(list.slice(0, -1));
+    };
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10, marginBottom: 10 }}>
+          {list.map(j => {
+            const clickable = editable ? (j.statut !== "verrouille") : true;
+            const bg = j.statut === "verrouille" ? C.bg : j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
+            const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
+            const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
+            return (
+              <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
+                style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7 }}>
+                <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
+                {j.moniteurNom && <div style={{ fontSize: 9.5, color: C.inkSoft, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom}</div>}
+              </button>
+            );
+          })}
+        </div>
+        {editable && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <Btn variant="ghost" icon={Plus} onClick={addJour} style={{ padding: "5px 10px", fontSize: 12 }} />
+            <Btn variant="ghost" icon={X} onClick={removeJour} style={{ padding: "5px 10px", fontSize: 12 }} />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -1715,6 +1890,8 @@ function CarnetPersonnel({ eleve, onBack }) {
         </div>
       </div>
 
+      {error && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{error}</div>}
+
       <div style={{ display: "flex", gap: 8, marginBottom: 18, borderBottom: `1px solid ${C.line}` }}>
         <button onClick={() => setActiveTab("regulateur")} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 4px", marginRight: 20, fontSize: 13.5, fontWeight: 600, color: activeTab === "regulateur" ? C.navy : C.inkSoft, borderBottom: `2px solid ${activeTab === "regulateur" ? C.navy : "transparent"}` }}>
           {fonctionLabel("Élève régulateur", lang)}
@@ -1726,24 +1903,35 @@ function CarnetPersonnel({ eleve, onBack }) {
         )}
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         {editable
           ? <Badge color={C.green} bg={C.greenSoft}>{t("carnet_onglet_modifiable")}</Badge>
           : <Badge color={C.inkSoft} bg={C.bg}>{t("carnet_onglet_lecture_seule")}</Badge>}
+        <span style={{ fontSize: 12, color: C.inkSoft }}>{activeTab === "regulateur" ? t("carnet_duree_regulateur") : t("carnet_duree_dispatcheur")}</span>
       </div>
 
-      <EmptyState icon={BookCheck} title={t("carnet_personnel_bientot_titre")} body={t("carnet_personnel_bientot_body")} />
+      {activeTab === "regulateur" ? (
+        <>
+          {renderGrid("reg")}
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: C.navy, marginBottom: 16, cursor: editable ? "pointer" : "default" }}>
+            <input type="checkbox" checked={examen35Reussi} disabled={!editable} onChange={e => updateCarnet({ examen35: e.target.checked })} />
+            {t("examen_35_label")}
+          </label>
+          {examen35Reussi && renderGrid("regSolo")}
+        </>
+      ) : renderGrid("disp")}
     </div>
   );
 }
 const GRADUATION_MAP = { "Élève régulateur": "Régulateur", "Élève dispatcheur": "Dispatcheur" };
-function CarnetsEleves({ users, setUsers, questionnaires, categories }) {
+function CarnetsEleves({ users, setUsers, questionnaires, categories, isAdmin, currentUser }) {
   const { t, lang } = useLang();
   const [search, setSearch] = useState("");
   const [viewingEleve, setViewingEleve] = useState(null);
   const [viewingCarnet, setViewingCarnet] = useState(null);
   const [confirmSuccess, setConfirmSuccess] = useState(null);
   const [confirmFail, setConfirmFail] = useState(null);
+  const [confirmStartDP, setConfirmStartDP] = useState(null);
   const [error, setError] = useState("");
   const matches = (u) => `${u.prenom} ${u.nom} ${u.numeroAgent}`.toLowerCase().includes(search.toLowerCase());
 
@@ -1771,10 +1959,19 @@ function CarnetsEleves({ users, setUsers, questionnaires, categories }) {
     } catch (e) { setError(e?.message || "Erreur inconnue."); }
     setConfirmFail(null);
   };
+  const startDPTraining = async (eleve) => {
+    setError("");
+    try {
+      const { error: err } = await supabase.from("profiles").update({ fonction: "Élève dispatcheur", formation_statut: null }).eq("id", eleve.id);
+      if (err) throw err;
+      await setUsers();
+    } catch (e) { setError(e?.message || "Erreur inconnue."); }
+    setConfirmStartDP(null);
+  };
 
   if (viewingCarnet) {
     const fresh = users.find(u => u.id === viewingCarnet.id) || viewingCarnet;
-    return <CarnetPersonnel eleve={fresh} onBack={() => setViewingCarnet(null)} />;
+    return <CarnetPersonnel eleve={fresh} users={users} setUsers={setUsers} currentUser={currentUser} onBack={() => setViewingCarnet(null)} />;
   }
   if (viewingEleve) {
     const fresh = users.find(u => u.id === viewingEleve.id) || viewingEleve;
@@ -1783,34 +1980,44 @@ function CarnetsEleves({ users, setUsers, questionnaires, categories }) {
 
   const renderTable = (list, opts = {}) => (
     <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden", marginBottom: 24 }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
-        <thead><tr style={{ background: C.bg, textAlign: "left" }}>{[t("col_eleve"), "", t("col_fonction"), t("col_team"), t("col_langue"), t("agent_number"), ""].map((h, i) => <th key={i} style={{ padding: "10px 16px", fontSize: 11.5, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", fontWeight: 700 }}>{h}</th>)}</tr></thead>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: "15%" }} /><col style={{ width: "10%" }} /><col style={{ width: "10%" }} />
+          <col style={{ width: "7%" }} /><col style={{ width: "9%" }} /><col style={{ width: "8%" }} />
+          <col style={{ width: "16%" }} /><col style={{ width: "16%" }} /><col style={{ width: "9%" }} />
+        </colgroup>
+        <thead><tr style={{ background: C.bg, textAlign: "left" }}>{[t("col_eleve"), "", t("col_fonction"), t("col_team"), t("col_langue"), t("agent_number"), "", "", ""].map((h, i) => <th key={i} style={{ padding: "10px 16px", fontSize: 11.5, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
         <tbody>
           {list.map(e => (
             <tr key={e.id} style={{ borderTop: `1px solid ${C.line}` }}>
-              <td style={{ padding: "12px 16px" }}>
+              <td style={{ padding: "12px 16px", overflow: "hidden" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: FONT_DISPLAY, flexShrink: 0 }}>{initials(e.prenom, e.nom)}</div>
-                  <span>{e.prenom} {e.nom}</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.prenom} {e.nom}</span>
                 </div>
               </td>
               <td style={{ padding: "12px 16px" }}>
-                <Btn variant="subtle" icon={BookCheck} onClick={() => setViewingCarnet(e)} style={{ padding: "4px 9px", fontSize: 12 }}>{t("voir_carnet_btn")}</Btn>
+                <Btn variant="subtle" icon={BookCheck} onClick={() => setViewingCarnet(e)} style={{ padding: "4px 9px", fontSize: 12, whiteSpace: "nowrap" }}>{t("voir_carnet_btn")}</Btn>
               </td>
-              <td style={{ padding: "12px 16px" }}><Badge {...fonctionColor(e.fonction)}>{fonctionLabel(e.fonction, lang)}</Badge></td>
-              <td style={{ padding: "12px 16px", fontSize: 12.5, color: e.team ? C.ink : C.inkSoft }}>{e.team || "—"}</td>
-              <td style={{ padding: "12px 16px", fontSize: 12.5, color: C.inkSoft }}>{LANGS[e.langue || "fr"]}</td>
-              <td style={{ padding: "12px 16px", fontFamily: FONT_MONO, fontSize: 12.5 }}>{e.numeroAgent}</td>
-              <td style={{ padding: "12px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                <Btn variant="subtle" icon={Eye} onClick={() => setViewingEleve(e)} style={{ padding: "6px 10px", marginRight: opts.actions ? 6 : 0 }} />
-                {opts.actions && <>
-                  <Btn variant="subtle" icon={CheckCircle2} onClick={() => setConfirmSuccess(e)} title={t("valider_reussite_title")} style={{ padding: "6px 10px", marginRight: 6, color: C.green }} />
-                  <Btn variant="subtle" icon={XCircle} onClick={() => setConfirmFail(e)} title={t("mettre_fin_formation_title")} style={{ padding: "6px 10px", color: C.red }} />
-                </>}
+              <td style={{ padding: "12px 16px", overflow: "hidden" }}><Badge {...fonctionColor(e.fonction)}>{fonctionLabel(e.fonction, lang)}</Badge></td>
+              <td style={{ padding: "12px 16px", fontSize: 12.5, color: e.team ? C.ink : C.inkSoft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.team || "—"}</td>
+              <td style={{ padding: "12px 8px", fontSize: 12.5, color: C.inkSoft }}>{LANGS[e.langue || "fr"]}</td>
+              <td style={{ padding: "12px 16px", fontFamily: FONT_MONO, fontSize: 12.5, overflow: "hidden" }}>{e.numeroAgent}</td>
+              <td style={{ padding: "12px 6px" }}>
+                {opts.actions && isAdmin && <Btn variant="success" icon={CheckCircle2} onClick={() => setConfirmSuccess(e)} style={{ padding: "6px 8px", fontSize: 12 }}>{t("valider_reussite_btn")}</Btn>}
+                {opts.dpAction && isAdmin && e.fonction === "Régulateur" && (
+                  <Btn variant="success" icon={ArrowUpDown} onClick={() => setConfirmStartDP(e)} style={{ padding: "6px 8px", fontSize: 12 }}>{t("debuter_formation_dp_btn")}</Btn>
+                )}
+              </td>
+              <td style={{ padding: "12px 6px" }}>
+                {opts.actions && isAdmin && <Btn variant="danger" icon={XCircle} onClick={() => setConfirmFail(e)} style={{ padding: "6px 8px", fontSize: 12 }}>{t("mettre_fin_formation_btn")}</Btn>}
+              </td>
+              <td style={{ padding: "12px 8px", textAlign: "left" }}>
+                <Btn variant="subtle" icon={Eye} onClick={() => setViewingEleve(e)} style={{ padding: "6px 8px" }} />
               </td>
             </tr>
           ))}
-          {list.length === 0 && <tr><td colSpan={7}><EmptyState icon={BookCheck} title={t("aucun_carnet_titre")} body={t("aucun_carnet_body")} /></td></tr>}
+          {list.length === 0 && <tr><td colSpan={9}><EmptyState icon={BookCheck} title={t("aucun_carnet_titre")} body={t("aucun_carnet_body")} /></td></tr>}
         </tbody>
       </table>
     </div>
@@ -1832,19 +2039,23 @@ function CarnetsEleves({ users, setUsers, questionnaires, categories }) {
 
       <SectionTitle>{t("formation_reussies_titre")}</SectionTitle>
       <div style={{ height: 10 }} />
-      {renderTable(reussies)}
+      {renderTable(reussies, { dpAction: true })}
 
       <SectionTitle>{t("formation_ratees_titre")}</SectionTitle>
       <div style={{ height: 10 }} />
       {renderTable(ratees)}
 
       {confirmSuccess && (
-        <ConfirmDialog title={t("valider_reussite_title")} message={t("valider_reussite_msg", { nom: `${confirmSuccess.prenom} ${confirmSuccess.nom}`, fonction: fonctionLabel(GRADUATION_MAP[confirmSuccess.fonction], lang) })}
+        <ConfirmDialog tone="success" title={t("valider_reussite_title")} message={t("valider_reussite_msg", { nom: `${confirmSuccess.prenom} ${confirmSuccess.nom}`, fonction: fonctionLabel(GRADUATION_MAP[confirmSuccess.fonction], lang) })}
           confirmLabel={t("valider_reussite_btn")} onConfirm={() => markSuccess(confirmSuccess)} onCancel={() => setConfirmSuccess(null)} />
       )}
       {confirmFail && (
-        <ConfirmDialog title={t("mettre_fin_formation_title")} message={t("mettre_fin_formation_msg", { nom: `${confirmFail.prenom} ${confirmFail.nom}` })}
+        <ConfirmDialog tone="danger" title={t("mettre_fin_formation_title")} message={t("mettre_fin_formation_msg", { nom: `${confirmFail.prenom} ${confirmFail.nom}` })}
           confirmLabel={t("mettre_fin_formation_btn")} onConfirm={() => markFail(confirmFail)} onCancel={() => setConfirmFail(null)} />
+      )}
+      {confirmStartDP && (
+        <ConfirmDialog tone="success" title={t("debuter_formation_dp_btn")} message={t("debuter_formation_dp_msg", { nom: `${confirmStartDP.prenom} ${confirmStartDP.nom}` })}
+          confirmLabel={t("debuter_formation_dp_btn")} onConfirm={() => startDPTraining(confirmStartDP)} onCancel={() => setConfirmStartDP(null)} />
       )}
     </div>
   );
@@ -3335,7 +3546,7 @@ function AnalysisView({ questionnaire, eleve, questions, categories, onClose, on
     categorieCounts[cat] = { correct: correctCount, total: catQs.length };
   });
   const handleValidate = () => {
-    const reponsesFinal = initialAnswers.map((a, i) => qs[i].type === "ouverte" ? { ...a, points: grades[i] } : a);
+    const reponsesFinal = qs.map((q, i) => q.type === "ouverte" ? { ...initialAnswers[i], points: grades[i] } : initialAnswers[i]);
     const manualGrades = qs.map((q, i) => q.type === "legende" ? legendeGrades[i] : (questionnaire.manualGrades?.[i] ?? null));
     onValidate(reponsesFinal, scoreParCategorie, scoreGlobal, remarks, manualGrades, overrides, categorieCounts);
   };
