@@ -4140,6 +4140,50 @@ export default function App() {
     })();
   }, [session?.id, loadAttempt]);
 
+  // Écoute en direct (Supabase Realtime) : quand le staff attribue un
+  // nouveau questionnaire (ou valide une correction), ça apparaît chez
+  // l'élève sans qu'il doive recharger la page. Volontairement limité
+  // aux élèves : côté staff, l'écran est déjà mis à jour immédiatement
+  // par l'action elle-même — ajouter Realtime là aussi risquerait de
+  // faire apparaître un doublon le temps que l'id temporaire (créé
+  // localement avant confirmation de la base) soit remplacé par le vrai.
+  useEffect(() => {
+    if (!session || session.role !== "eleve") return;
+    const channel = supabase
+      .channel(`questionnaires-eleve-${session.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "questionnaires", filter: `eleve_id=eq.${session.id}` }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          setQuestionnairesState(prev => prev.some(q => q.id === payload.new.id) ? prev : [...prev, rowToQuestionnaire(payload.new)]);
+        } else if (payload.eventType === "UPDATE") {
+          setQuestionnairesState(prev => prev.map(q => q.id === payload.new.id ? rowToQuestionnaire(payload.new) : q));
+        } else if (payload.eventType === "DELETE") {
+          setQuestionnairesState(prev => prev.filter(q => q.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.id, session?.role]);
+
+  // Même principe côté staff, mais limité aux mises à jour (UPDATE) :
+  // quand un élève envoie ses réponses, ça apparaît dans "À valider" en
+  // direct. Volontairement pas les nouvelles attributions (INSERT) —
+  // celles-là, seul le staff peut les créer, et la personne qui vient
+  // d'attribuer a déjà l'affichage à jour via sa propre action ; les
+  // écouter aussi ferait courir le même risque de doublon évoqué plus
+  // haut. Une mise à jour, elle, ne peut jamais créer de doublon
+  // (elle remplace une ligne déjà là par son id réel, jamais un id
+  // temporaire) — donc sans danger de l'écouter systématiquement.
+  useEffect(() => {
+    if (!session || session.role === "eleve") return;
+    const channel = supabase
+      .channel(`questionnaires-staff-${session.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "questionnaires" }, (payload) => {
+        setQuestionnairesState(prev => prev.map(q => q.id === payload.new.id ? rowToQuestionnaire(payload.new) : q));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.id, session?.role]);
+
   const login = async (pseudo, password) => {
     const email = `${pseudo.trim().toLowerCase()}@gec.internal`;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
