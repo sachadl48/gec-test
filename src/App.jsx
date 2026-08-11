@@ -9,7 +9,7 @@ import {
   AlignLeft, ListChecks, ToggleLeft, Hash, Tag, Video, XCircle as XCircleIcon,
   Undo2, ExternalLink, FileDown, Printer, MessageSquare, Globe, CheckSquare, Square,
   Link2, Timer, BookCheck, ListOrdered, GitBranch, ArrowUpDown, ChevronUp, ChevronDown, Image as ImageIcon,
-  PauseCircle, Ban
+  PauseCircle, Ban, Gamepad2
 } from "lucide-react";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -59,7 +59,7 @@ async function callEdgeFunction(name, body) {
 
 /* ---------------------------------- MAPPING BASE DE DONNÉES ↔ APPLICATION ---------------------------------- */
 function rowToUser(row) {
-  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined, superAdmin: row.super_admin === true };
+  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined, superAdmin: row.super_admin === true, jeuStationsMeilleurScore: row.jeu_stations_meilleur_score || 0 };
 }
 function rowToQuestion(row) {
   return {
@@ -118,6 +118,56 @@ function questionnaireToRow(qn) {
 
 /* ---------------------------------- OUTILS DIVERS ---------------------------------- */
 function genId(prefix) { return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`; }
+function formatLogValue(v) {
+  if (v === null || v === undefined || v === "") return "vide";
+  if (typeof v === "boolean") return v ? "oui" : "non";
+  if (Array.isArray(v)) return v.length ? v.join(", ") : "vide";
+  const s = String(v);
+  return s.length > 40 ? s.slice(0, 40) + "…" : s;
+}
+// Compare deux versions d'un même élément champ par champ (parmi ceux listés
+// dans fieldLabels) et retourne une phrase listant précisément ce qui a
+// changé — ex: "Rôle : moniteur → admin · Team : —  → Team 3".
+function describeFieldChanges(before, after, fieldLabels) {
+  const changes = [];
+  for (const [field, label] of Object.entries(fieldLabels)) {
+    if (JSON.stringify(before?.[field]) !== JSON.stringify(after?.[field])) {
+      changes.push(`${label} : ${formatLogValue(before?.[field])} → ${formatLogValue(after?.[field])}`);
+    }
+  }
+  return changes.join(" · ");
+}
+function diffEntities(oldArr, newArr, describeItem, fieldLabels) {
+  const oldIds = new Set((oldArr || []).map(x => x.id));
+  const newIds = new Set((newArr || []).map(x => x.id));
+  const entries = [];
+  for (const item of newArr || []) {
+    if (!oldIds.has(item.id)) entries.push({ action: "creation", description: describeItem(item) });
+    else {
+      const before = (oldArr || []).find(o => o.id === item.id);
+      if (JSON.stringify(before) !== JSON.stringify(item)) {
+        const detail = fieldLabels ? describeFieldChanges(before, item, fieldLabels) : "";
+        entries.push({ action: "modification", description: detail ? `${describeItem(item)} — ${detail}` : describeItem(item) });
+      }
+    }
+  }
+  for (const item of oldArr || []) {
+    if (!newIds.has(item.id)) entries.push({ action: "suppression", description: describeItem(item) });
+  }
+  return entries;
+}
+// Écrit les entrées calculées par diffEntities (ou décrites à la main) dans
+// la table activity_log. Best-effort : une erreur ici ne doit jamais faire
+// échouer l'action métier elle-même, juste passer inaperçue.
+async function logActivity(entite, entries, auteur) {
+  if (!entries || entries.length === 0) return;
+  try {
+    await supabase.from("activity_log").insert(entries.map(e => ({ auteur, entite, action: e.action, description: e.description })));
+  } catch (e) { /* silencieux : le journal ne doit jamais bloquer l'action */ }
+}
+const USER_LOG_FIELDS = { role: "Rôle", fonction: "Fonction", nom: "Nom", prenom: "Prénom", numeroAgent: "N° agent", team: "Team", responsableTeam: "Responsable team", langue: "Langue", superAdmin: "Admin +", formationStatut: "Statut formation" };
+const QUESTION_LOG_FIELDS = { type: "Type", categories: "Catégories", points: "Points", statut: "Statut", reference: "Référence", enonceFr: "Énoncé (FR)" };
+const QUESTIONNAIRE_LOG_FIELDS = { statut: "Statut", scoreGlobal: "Score", supprime: "Supprimé", correcteurId: "Correcteur" };
 function stripAccents(str) { return (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
 function normalizeText(str) { return stripAccents(str || "").toLowerCase().trim().replace(/\s+/g, ""); }
 function findCategoryMatch(name, categories) { return categories.find(c => normalizeText(c) === normalizeText(name)) || null; }
@@ -155,6 +205,45 @@ function agentPassword(numeroAgent) {
 const LANGS = { fr: "Français", nl: "Nederlands" };
 const T = {
   fr: {
+    charger_plus_btn: "Charger {n} de plus",
+    jeu_stations_intro: "Associez le bon numéro de station à son nom, dans les deux sens. Choisissez un mode pour commencer.",
+    jeu_stations_titre: "Jeu des stations",
+    journal_activite_sub: "{n} action(s) enregistrée(s) (créations, modifications, suppressions) sur le site.",
+    journal_activite_titre: "Journal d'activité",
+    journal_vide_body: "Le journal se remplira au fur et à mesure des actions sur le site.",
+    journal_vide_titre: "Aucune activité",
+    log_action: "Action",
+    log_auteur: "Auteur",
+    log_creation: "Création",
+    log_date: "Date",
+    log_description: "Détail",
+    log_entite: "Élément",
+    log_modification: "Modification",
+    log_suppression: "Suppression",
+    meilleur_score_badge: "Record : {n}",
+    mode_chrono_desc: "{n} secondes pour répondre juste le plus de fois possible.",
+    mode_chrono_titre: "Mode chrono",
+    mode_libre_desc: "Aucune limite de temps, entraînez-vous à votre rythme.",
+    mode_libre_titre: "Mode libre",
+    nouveau_record_badge: "Nouveau record !",
+    question_name_to_num: "Quel est le numéro de cette station ?",
+    question_num_to_name: "Quelle est cette station ?",
+    record_dtm_label: "Record DTM :",
+    record_personnel_label: "Record personnel :",
+    rejouer_btn: "Rejouer",
+    reset_btn: "Réinitialiser",
+    reset_carnets_confirm_msg: "{n} carnet(s) de formation seront définitivement vidés (jours, notes, commentaires). Cette action est irréversible.",
+    reset_carnets_disp_titre: "Réinitialiser les carnets Élève dispatcheur",
+    reset_carnets_msg: "{n} profil(s) ont un carnet de formation actuellement rempli.",
+    reset_carnets_reg_titre: "Réinitialiser les carnets Élève régulateur",
+    reset_questionnaires_confirm_msg: "{n} questionnaire(s) seront définitivement supprimés (attribués, en cours et validés). Cette action est irréversible.",
+    reset_questionnaires_msg: "{n} questionnaire(s) actuellement dans l'historique.",
+    reset_questionnaires_titre: "Réinitialiser l'historique des questionnaires",
+    resultats_titre: "Résultats",
+    score_label: "Score :",
+    terminer_btn: "Terminer",
+    zone_dangereuse_sub: "Actions irréversibles — à utiliser en connaissance de cause.",
+    zone_dangereuse_titre: "Zone dangereuse",
     aide_cotation_btn: "Aide cotation", aide_cotation_titre: "Comment noter ?",
     carnet_graphiques_apparaitront: "Ce graphique se remplira au fur et à mesure des journées de formation notées.",
     carnet_radar_titre: "Vue d'ensemble par compétence",
@@ -163,6 +252,9 @@ const T = {
     exporter_btn: "Exporter", note_calculee_label: "Calculée : {v}/5", poste_label: "Poste :",
     previsualiser_titre: "Aperçu de la question",
     resume_semaine_label: "Résumé de la semaine", resume_semaine_placeholder: "Résumé de la semaine et objectifs de la semaine suivante, à partager avec le candidat...",
+    incidents_rencontres_label: "Incident(s) rencontré(s)", incidents_rencontres_placeholder: "Incidents survenus durant la journée...",
+    annuler_jour_btn: "Annulé", reouvrir_jour_btn: "Réouvrir jour",
+    confirm_annuler_jour_msg: "Le jour {n} sera remis à zéro (date, moniteur, poste, commentaires et notes effacés). Cette action est irréversible.",
     sous_onglet_graphiques: "Graphiques d'évolution des compétences", sous_onglet_jours: "Jours",
     volet_criteres_situationnels_note: "Critères ci-dessous : à noter uniquement si une situation spécifique s'est présentée aujourd'hui.",
     volet_notes_count: "{n}/{total} noté(s)",
@@ -325,6 +417,45 @@ const T = {
     confirm_envoi_titre: "Envoyer vos réponses ?", confirm_envoi_msg: "C'est la dernière question. Une fois envoyées, vos réponses ne pourront plus être modifiées.",
   },
   nl: {
+    charger_plus_btn: "{n} meer laden",
+    jeu_stations_intro: "Koppel het juiste stationsnummer aan zijn naam, in beide richtingen. Kies een modus om te beginnen.",
+    jeu_stations_titre: "Stationsspel",
+    journal_activite_sub: "{n} actie(s) geregistreerd (aanmaken, wijzigen, verwijderen) op de site.",
+    journal_activite_titre: "Activiteitenlog",
+    journal_vide_body: "Het logboek vult zich naarmate er acties op de site plaatsvinden.",
+    journal_vide_titre: "Geen activiteit",
+    log_action: "Actie",
+    log_auteur: "Auteur",
+    log_creation: "Aangemaakt",
+    log_date: "Datum",
+    log_description: "Detail",
+    log_entite: "Element",
+    log_modification: "Gewijzigd",
+    log_suppression: "Verwijderd",
+    meilleur_score_badge: "Record: {n}",
+    mode_chrono_desc: "{n} seconden om zo vaak mogelijk juist te antwoorden.",
+    mode_chrono_titre: "Chronomodus",
+    mode_libre_desc: "Geen tijdslimiet, oefen op je eigen tempo.",
+    mode_libre_titre: "Vrije modus",
+    nouveau_record_badge: "Nieuw record!",
+    question_name_to_num: "Wat is het nummer van dit station?",
+    question_num_to_name: "Welk station is dit?",
+    record_dtm_label: "DTM-record:",
+    record_personnel_label: "Persoonlijk record:",
+    rejouer_btn: "Opnieuw spelen",
+    reset_btn: "Resetten",
+    reset_carnets_confirm_msg: "{n} opleidingsdossier(s) worden definitief geleegd (dagen, beoordelingen, opmerkingen). Deze actie is onomkeerbaar.",
+    reset_carnets_disp_titre: "Dossiers Élève dispatcheur resetten",
+    reset_carnets_msg: "{n} profiel(en) hebben momenteel een ingevuld opleidingsdossier.",
+    reset_carnets_reg_titre: "Dossiers Élève régulateur resetten",
+    reset_questionnaires_confirm_msg: "{n} vragenlijst(en) worden definitief verwijderd (toegewezen, lopende en gevalideerde). Deze actie is onomkeerbaar.",
+    reset_questionnaires_msg: "{n} vragenlijst(en) momenteel in de geschiedenis.",
+    reset_questionnaires_titre: "Geschiedenis van de vragenlijsten resetten",
+    resultats_titre: "Resultaten",
+    score_label: "Score:",
+    terminer_btn: "Beëindigen",
+    zone_dangereuse_sub: "Onomkeerbare acties — gebruik met kennis van zaken.",
+    zone_dangereuse_titre: "Gevarenzone",
     aide_cotation_btn: "Beoordelingshulp", aide_cotation_titre: "Hoe beoordelen?",
     carnet_graphiques_apparaitront: "Deze grafiek vult zich naarmate opleidingsdagen worden beoordeeld.",
     carnet_radar_titre: "Overzicht per competentie",
@@ -333,6 +464,9 @@ const T = {
     exporter_btn: "Exporteren", note_calculee_label: "Berekend: {v}/5", poste_label: "Post:",
     previsualiser_titre: "Voorbeeld van de vraag",
     resume_semaine_label: "Weekoverzicht", resume_semaine_placeholder: "Samenvatting van de week en doelstellingen voor volgende week, te delen met de kandidaat...",
+    incidents_rencontres_label: "Ondervonden incident(en)", incidents_rencontres_placeholder: "Incidenten tijdens de dag...",
+    annuler_jour_btn: "Annuleren", reouvrir_jour_btn: "Dag heropenen",
+    confirm_annuler_jour_msg: "Dag {n} wordt gereset (datum, monitor, post, opmerkingen en beoordelingen gewist). Deze actie is onomkeerbaar.",
     sous_onglet_graphiques: "Evolutiegrafieken van de competenties", sous_onglet_jours: "Dagen",
     volet_criteres_situationnels_note: "Onderstaande criteria: enkel beoordelen als er zich vandaag een specifieke situatie heeft voorgedaan.",
     volet_notes_count: "{n}/{total} beoordeeld",
@@ -1297,13 +1431,160 @@ function ExamIntro({ questionnaire, questions, onStart, onExit }) {
   );
 }
 
-function EleveView({ user, questionnaires, categories, onLogout, submitReponses, confirmRead, saveError }) {
+function stationName(station, langue) { return langue === "nl" ? station.nl : station.fr; }
+function pickDistractors(correctStation, count) {
+  const pool = STATIONS.filter(s => s.numero !== correctStation.numero);
+  return [...pool].sort(() => Math.random() - 0.5).slice(0, count);
+}
+function generateStationQuestion() {
+  const correct = STATIONS[Math.floor(Math.random() * STATIONS.length)];
+  const direction = Math.random() < 0.5 ? "numToName" : "nameToNum";
+  const displayLang = Math.random() < 0.5 ? "fr" : "nl";
+  const optionStations = [correct, ...pickDistractors(correct, 3)].sort(() => Math.random() - 0.5);
+  return { direction, displayLang, correct, options: optionStations, correctIndex: optionStations.findIndex(s => s.numero === correct.numero) };
+}
+const CHRONO_DUREE = 60;
+function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
+  const { t, lang } = useLang();
+  const [mode, setMode] = useState(null); // null | "libre" | "chrono"
+  const [question, setQuestion] = useState(null);
+  const [score, setScore] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [feedback, setFeedback] = useState(null); // { correct, selectedIndex } | null
+  const [timeLeft, setTimeLeft] = useState(CHRONO_DUREE);
+  const [finished, setFinished] = useState(false);
+  const meilleurScore = user.jeuStationsMeilleurScore || 0;
+  const dtmBest = dtmRecord ? dtmRecord.score : 0;
+  const RecordBanner = () => (
+    <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 18, fontSize: 12.5 }}>
+      <span style={{ color: C.inkSoft }}>{t("record_personnel_label")} <strong style={{ color: C.navy, fontFamily: FONT_MONO }}>{meilleurScore}</strong></span>
+      <span style={{ color: C.inkSoft }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBest}</strong>{dtmRecord && <span> ({dtmRecord.prenom} {dtmRecord.nom})</span>}</span>
+    </div>
+  );
+
+  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generateStationQuestion()); };
+
+  useEffect(() => {
+    if (mode !== "chrono" || finished) return;
+    if (timeLeft <= 0) {
+      setFinished(true);
+      if (score > meilleurScore) supabase.from("profiles").update({ jeu_stations_meilleur_score: score }).eq("id", user.id).then(() => setUsers());
+      return;
+    }
+    const id = setTimeout(() => setTimeLeft(s => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [mode, timeLeft, finished]);
+
+  const answer = (i) => {
+    if (feedback) return;
+    const correct = i === question.correctIndex;
+    setFeedback({ correct, selectedIndex: i });
+    setTotal(t => t + 1);
+    if (correct) setScore(s => s + 1);
+    setTimeout(() => {
+      setFeedback(null);
+      if (mode === "chrono" && timeLeft <= 1) return; // le minuteur gère la fin
+      setQuestion(generateStationQuestion());
+    }, 550);
+  };
+
+  const stopLibre = () => setFinished(true);
+
+  if (!mode) {
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 700, color: C.navy }}>{t("jeu_stations_titre")}</div>
+        </div>
+        <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 12, maxWidth: 480 }}>{t("jeu_stations_intro")}</div>
+        <RecordBanner />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 560 }}>
+          <button onClick={() => startMode("libre")} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_libre_titre")}</div>
+            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_libre_desc")}</div>
+          </button>
+          <button onClick={() => startMode("chrono")} style={{ background: "#fff", border: `1px solid ${C.gold}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_chrono_titre")}</div>
+            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_chrono_desc", { n: CHRONO_DUREE })}</div>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (finished) {
+    const isNewBest = mode === "chrono" && score > meilleurScore;
+    return (
+      <div style={{ maxWidth: 480 }}>
+        <RecordBanner />
+        <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16, padding: 32, textAlign: "center" }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("resultats_titre")}</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 40, fontWeight: 700, color: C.gold, margin: "14px 0" }}>{score}/{total}</div>
+          {isNewBest && <Badge color={C.gold} bg={C.goldSoft}>{t("nouveau_record_badge")}</Badge>}
+          {mode === "chrono" && !isNewBest && meilleurScore > 0 && <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 6 }}>{t("meilleur_score_badge", { n: meilleurScore })}</div>}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 24 }}>
+            <Btn variant="ghost" onClick={() => setMode(null)}>{t("retour_btn")}</Btn>
+            <Btn variant="gold" icon={PlayCircle} onClick={() => startMode(mode)}>{t("rejouer_btn")}</Btn>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 520 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+        <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.inkSoft }}>{t("score_label")} <strong style={{ color: C.navy }}>{score}/{total}</strong></span>
+          {mode === "chrono" && <span style={{ fontFamily: FONT_MONO, fontSize: 15, fontWeight: 700, color: timeLeft <= 10 ? C.red : C.navy }}>{timeLeft}s</span>}
+          {mode === "libre" && <Btn variant="subtle" onClick={stopLibre} style={{ padding: "5px 10px", fontSize: 12 }}>{t("terminer_btn")}</Btn>}
+        </div>
+      </div>
+      <RecordBanner />
+      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16, padding: 28 }}>
+        <div style={{ fontSize: 11.5, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 10, textAlign: "center" }}>
+          {question.direction === "numToName" ? t("question_num_to_name") : t("question_name_to_num")}
+        </div>
+        <div style={{ fontSize: question.direction === "numToName" ? 40 : 22, fontWeight: 700, color: C.navy, textAlign: "center", marginBottom: 24, fontFamily: question.direction === "numToName" ? FONT_MONO : FONT_DISPLAY }}>
+          {question.direction === "numToName" ? question.correct.numero : stationName(question.correct, question.displayLang)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {question.options.map((opt, i) => {
+            const isCorrect = i === question.correctIndex;
+            const isSelected = feedback?.selectedIndex === i;
+            let bg = "#fff", border = C.line, color = C.ink;
+            if (feedback) {
+              if (isCorrect) { bg = C.greenSoft; border = C.green; color = C.green; }
+              else if (isSelected) { bg = C.redSoft; border = C.red; color = C.red; }
+            }
+            return (
+              <button key={i} disabled={!!feedback} onClick={() => answer(i)}
+                style={{ background: bg, border: `2px solid ${border}`, color, borderRadius: 12, padding: "14px 10px", fontSize: question.direction === "numToName" ? 14 : 18, fontWeight: 700, fontFamily: question.direction === "numToName" ? FONT_BODY : FONT_MONO, cursor: feedback ? "default" : "pointer", textAlign: "center" }}>
+                {question.direction === "numToName" ? stationName(opt, question.displayLang) : opt.numero}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EleveView({ user, users, setUsers, questionnaires, categories, onLogout, submitReponses, confirmRead, saveError }) {
   const { t } = useLang();
   const [playing, setPlaying] = useState(null);
   const [examStarted, setExamStarted] = useState(false);
   const [viewing, setViewing] = useState(null);
+  const [showGame, setShowGame] = useState(false);
   const [activeQuestions, setActiveQuestions] = useState(null);
   const [fetchError, setFetchError] = useState("");
+  const [dtmRecord, setDtmRecord] = useState(null);
+  useEffect(() => {
+    supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
+  }, []);
+  const dtmBest = dtmRecord ? dtmRecord.score : 0;
   const mine = questionnaires.filter(q => q.eleveId === user.id && !q.supprime);
   const graded = mine.filter(q => q.statut === "validé");
   const catStats = computeCategoryStats(graded, categories);
@@ -1362,6 +1643,16 @@ function EleveView({ user, questionnaires, categories, onLogout, submitReponses,
       </div>
     );
   }
+  if (showGame) {
+    return (
+      <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
+        <Header user={user} onLogout={onLogout} />
+        <div style={{ padding: "24px 28px" }}>
+          <StationGame user={user} users={users} setUsers={setUsers} dtmRecord={dtmRecord} onExit={() => setShowGame(false)} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
@@ -1380,6 +1671,16 @@ function EleveView({ user, questionnaires, categories, onLogout, submitReponses,
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <button onClick={() => setShowGame(true)} style={{ background: C.navy, borderRadius: 14, border: "none", padding: 20, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={20} color={C.gold} /></div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, fontWeight: 700, color: "#fff" }}>{t("jeu_stations_titre")}</div>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 4 }}>
+                  <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.65)" }}>{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScore || 0}</strong></span>
+                  <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.65)" }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBest}</strong>{dtmRecord && <span> ({dtmRecord.prenom} {dtmRecord.nom})</span>}</span>
+                </div>
+              </div>
+            </button>
             <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22 }}>
               <SectionTitle>{t("strengths_weaknesses")}</SectionTitle>
               {graded.length > 0 ? (
@@ -1441,7 +1742,7 @@ function EleveView({ user, questionnaires, categories, onLogout, submitReponses,
 }
 
 /* ---------------------------------- STAFF (MONITEUR / ADMIN) ---------------------------------- */
-function StaffView({ user, users, setUsers, questions, setQuestions, questionnaires, setQuestionnaires, categories, setCategories, categoryConfig, setCategoryConfig, onLogout, saveError, requestPrint, onImportQuestions, onRenameCategory }) {
+function StaffView({ user, users, setUsers, questions, setQuestions, questionnaires, setQuestionnaires, categories, setCategories, categoryConfig, setCategoryConfig, onLogout, saveError, requestPrint, onImportQuestions, onRenameCategory, refreshQuestionnaires }) {
   const { t } = useLang();
   const [tab, setTab] = useState("apercu");
   const isAdmin = user.role === "admin";
@@ -1469,12 +1770,12 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
         <div style={{ padding: "24px 28px", minWidth: 0 }}>
           <SaveErrorBanner visible={saveError} />
           {tab === "apercu" && <Apercu users={users} questions={questions} questionnaires={questionnaires} categories={categories} />}
-          {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
+          {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} currentUser={user} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
           {tab === "carnets" && <CarnetsEleves users={users} setUsers={setUsers} questionnaires={questionnaires} categories={categories} isAdmin={isAdmin} currentUser={user} />}
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
-          {tab === "admin" && isSuperAdmin && <AdminPage />}
+          {tab === "admin" && isSuperAdmin && <AdminPage setUsers={setUsers} refreshQuestionnaires={refreshQuestionnaires} />}
           {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} requestPrint={requestPrint} />}
         </div>
       </div>
@@ -1529,22 +1830,26 @@ function Apercu({ users, questions, questionnaires, categories }) {
 }
 
 /* ------------------------- GESTION PROFILS ------------------------- */
-function GestionProfils({ users, setUsers, questionnaires, questions, categories, isAdmin, onPrint }) {
+function GestionProfils({ users, setUsers, questionnaires, questions, categories, isAdmin, currentUser, onPrint }) {
   const { t, lang } = useLang();
   const [modal, setModal] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [search, setSearch] = useState("");
   const [viewingEleve, setViewingEleve] = useState(null);
   const [error, setError] = useState("");
+  const auteurLog = currentUser ? `${currentUser.prenom} ${currentUser.nom}` : "Système";
   const eleves = users.filter(u => u.role === "eleve" && `${u.prenom} ${u.nom} ${u.numeroAgent}`.toLowerCase().includes(search.toLowerCase()));
   const save = async (data) => {
     setError("");
     const pseudo = makePseudo(data.nom, data.prenom, users, data.id);
+    const before = data.id ? users.find(u => u.id === data.id) : null;
     try {
       if (data.id) {
         await callEdgeFunction("manage-user", { action: "update", userId: data.id, pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, fonction: data.fonction, langue: data.langue || "fr", team: data.team, responsableTeam: data.responsableTeam });
+        logActivity("Profil", diffEntities([before], [{ ...before, ...data, pseudo }], u => `${u.prenom} ${u.nom}`, USER_LOG_FIELDS), auteurLog);
       } else {
         await callEdgeFunction("manage-user", { action: "create", pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, role: "eleve", fonction: data.fonction, langue: data.langue || "fr", team: data.team, responsableTeam: data.responsableTeam });
+        logActivity("Profil", [{ action: "creation", description: `${data.prenom} ${data.nom}` }], auteurLog);
       }
       await setUsers();
       setModal(null);
@@ -1552,7 +1857,12 @@ function GestionProfils({ users, setUsers, questionnaires, questions, categories
   };
   const remove = async (id) => {
     setError("");
-    try { await callEdgeFunction("manage-user", { action: "delete", userId: id }); await setUsers(); }
+    const target = users.find(u => u.id === id);
+    try {
+      await callEdgeFunction("manage-user", { action: "delete", userId: id });
+      logActivity("Profil", [{ action: "suppression", description: target ? `${target.prenom} ${target.nom}` : id }], auteurLog);
+      await setUsers();
+    }
     catch (e) { setError(e.message || t("erreur_suppression")); }
   };
   const confirmTarget = eleves.find(e => e.id === confirmId);
@@ -1751,6 +2061,71 @@ function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, c
   );
 }
 const POSTES = ["P11", "P12", "P21", "P22", "P23"];
+const STATIONS = [
+  { numero: 1, fr: "De Brouckère", nl: "De Brouckère" },
+  { numero: 2, fr: "Gare centrale", nl: "Centraal Station" },
+  { numero: 3, fr: "Parc", nl: "Park" },
+  { numero: 4, fr: "Arts-loi (1-5)", nl: "Kunst-Wet (1-5)" },
+  { numero: 5, fr: "Maelbeek", nl: "Maalbeek" },
+  { numero: 6, fr: "Shuman", nl: "Shuman" },
+  { numero: 7, fr: "Merode", nl: "Merode" },
+  { numero: 8, fr: "Montgomery", nl: "Montgomery" },
+  { numero: 9, fr: "Joséphine-Charlotte", nl: "Joséphine-Charlotte" },
+  { numero: 10, fr: "Gribaumont", nl: "Gribaumont" },
+  { numero: 11, fr: "Tomberg", nl: "Tomberg" },
+  { numero: 12, fr: "Roodebeek", nl: "Roodebeek" },
+  { numero: 13, fr: "Vandervelde", nl: "Vandervelde" },
+  { numero: 14, fr: "Alma", nl: "Alma" },
+  { numero: 15, fr: "Crainhem", nl: "Kraainem" },
+  { numero: 16, fr: "Stockel", nl: "Stokkel" },
+  { numero: 20, fr: "Thieffry", nl: "Thieffry" },
+  { numero: 21, fr: "Pétillon", nl: "Pétillon" },
+  { numero: 22, fr: "Hankar", nl: "Hankar" },
+  { numero: 23, fr: "Delta", nl: "Delta" },
+  { numero: 24, fr: "Beaulieu", nl: "Beaulieu" },
+  { numero: 25, fr: "Demey", nl: "Demey" },
+  { numero: 26, fr: "Herrmann-Debroux", nl: "Herrmann-Debroux" },
+  { numero: 27, fr: "Sainte-Catherine", nl: "Sint-Katelijne" },
+  { numero: 28, fr: "Conte de Flandre", nl: "Graaf van Vlaanderen" },
+  { numero: 29, fr: "Etangs noirs", nl: "Zwarte Vijvers" },
+  { numero: 30, fr: "Trône", nl: "Troon" },
+  { numero: 31, fr: "Porte de Namur", nl: "Naamsepoort" },
+  { numero: 32, fr: "Louise", nl: "Louiza" },
+  { numero: 33, fr: "Hôtel des Monnaies", nl: "Munthof" },
+  { numero: 34, fr: "Porte de Hal", nl: "Hallepoort" },
+  { numero: 35, fr: "Gare du Midi", nl: "Zuidstation" },
+  { numero: 36, fr: "Clemenceau", nl: "Clemenceau" },
+  { numero: 37, fr: "Delacroix", nl: "Delacroix" },
+  { numero: 38, fr: "Gare de l'Ouest (2-6)", nl: "Weststation (2-6)" },
+  { numero: 40, fr: "Arts-loi (2-6)", nl: "Kunst-Wet (2-6)" },
+  { numero: 41, fr: "Madou", nl: "Madou" },
+  { numero: 42, fr: "Botanique", nl: "Kruidtuin" },
+  { numero: 43, fr: "Rogier", nl: "Rogier" },
+  { numero: 44, fr: "Yser", nl: "Ijzer" },
+  { numero: 46, fr: "Ribaucourt", nl: "Ribaucourt" },
+  { numero: 47, fr: "Elisabeth", nl: "Elisabeth" },
+  { numero: 783, fr: "Roi Baudouin", nl: "Koning Boudewijn" },
+  { numero: 782, fr: "Heysel", nl: "Heizel" },
+  { numero: 781, fr: "Houba-Brugmann", nl: "Houba-Brugmann" },
+  { numero: 780, fr: "Stuyvenbergh", nl: "Stuyvenbergh" },
+  { numero: 779, fr: "Bockstael", nl: "Bockstael" },
+  { numero: 778, fr: "Pannenhuis", nl: "Pannenhuis" },
+  { numero: 777, fr: "Belgica", nl: "Belgica" },
+  { numero: 776, fr: "Simonis", nl: "Simonis" },
+  { numero: 775, fr: "Osseghem", nl: "Ossegem" },
+  { numero: 774, fr: "Beekkant", nl: "Beekkant" },
+  { numero: 773, fr: "Gare de l'Ouest (1-5)", nl: "Weststation (1-5)" },
+  { numero: 772, fr: "Jacques Brel", nl: "Jacques Brel" },
+  { numero: 771, fr: "Aumale", nl: "Aumale" },
+  { numero: 770, fr: "Saint-Guidon", nl: "Sint-Guido" },
+  { numero: 769, fr: "Veeweyde", nl: "Veeweide" },
+  { numero: 768, fr: "Bizet", nl: "Bizet" },
+  { numero: 767, fr: "La Roue", nl: "Het Rad" },
+  { numero: 766, fr: "CERIA", nl: "Coovi" },
+  { numero: 765, fr: "Eddy Merckx", nl: "Eddy Merckx" },
+  { numero: 764, fr: "Erasme", nl: "Erasmus" },
+];
+
 const COTATION_SCALE = [
   { value: 1, label: "1", desc: "Très faible", descComplete: "Très faible, néant, médiocre, catastrophique", color: C.red, bg: C.redSoft },
   { value: 2, label: "2", desc: "Faible", descComplete: "Faible, insuffisant, bof", color: C.gold, bg: C.goldSoft },
@@ -1975,7 +2350,7 @@ function makeJours(n, startAt = 1) {
   return Array.from({ length: n }, (_, i) => ({
     numero: startAt + i, statut: i === 0 ? "disponible" : "verrouille",
     date: null, moniteurNom: null, moniteurComplet: null, poste: null,
-    commentaireHumain: "", commentaireTechnique: "", resumeSemaine: "", competencesGlobales: {}, criteres: {},
+    commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {},
   }));
 }
 function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0"); return `${dd}/${mm}/${d.getFullYear()}`; }
@@ -1983,6 +2358,7 @@ function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); co
 function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateList, onBack }) {
   const { t } = useLang();
   const [confirmFin, setConfirmFin] = useState(false);
+  const [confirmAnnuler, setConfirmAnnuler] = useState(false);
   const [openVolet, setOpenVolet] = useState(null);
   const [showAideCotation, setShowAideCotation] = useState(false);
   const started = jourData.statut === "en_cours" || jourData.statut === "termine";
@@ -1996,13 +2372,21 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateLis
     } : j));
   };
   const finDeJournee = () => {
-    onUpdateList(jours => jours.map(j => {
-      if (j.numero === jourData.numero) return { ...j, statut: "termine" };
-      if (j.numero === jourData.numero + 1 && j.statut === "verrouille") return { ...j, statut: "disponible" };
-      return j;
-    }));
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, statut: "termine" } : j));
     setConfirmFin(false);
     onBack();
+  };
+  const annulerJour = () => {
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? {
+      ...j, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null,
+      commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "",
+      competencesGlobales: {}, criteres: {},
+    } : j));
+    setConfirmAnnuler(false);
+    onBack();
+  };
+  const reouvrirJour = () => {
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, statut: "en_cours" } : j));
   };
   const setChampTexte = (champ, texte) => {
     onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, [champ]: texte } : j));
@@ -2035,16 +2419,26 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateLis
           </select>
         </span>
         <Btn variant="primary" onClick={() => setConfirmFin(true)} disabled={!editable || !started || finished} style={{ marginLeft: "auto" }}>{t("fin_journee_btn")}</Btn>
+        {started && !finished && <Btn variant="danger" icon={Ban} onClick={() => setConfirmAnnuler(true)} disabled={!editable}>{t("annuler_jour_btn")}</Btn>}
+        {finished && <Btn variant="ghost" icon={Undo2} onClick={reouvrirJour} disabled={!editable}>{t("reouvrir_jour_btn")}</Btn>}
       </div>
 
       {!started && <div style={{ background: C.bg, color: C.inkSoft, fontSize: 12.5, padding: "10px 14px", borderRadius: 8, marginBottom: 18 }}>{t("carnet_pas_commence_note")}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 18 }}>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("commentaire_humain_label")}</div>
-          <textarea disabled={!canFill} value={jourData.commentaireHumain || ""} onChange={e => setChampTexte("commentaireHumain", e.target.value)}
-            placeholder={t("commentaire_humain_placeholder")}
-            style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6 }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("commentaire_humain_label")}</div>
+            <textarea disabled={!canFill} value={jourData.commentaireHumain || ""} onChange={e => setChampTexte("commentaireHumain", e.target.value)}
+              placeholder={t("commentaire_humain_placeholder")}
+              style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("incidents_rencontres_label")}</div>
+            <textarea disabled={!canFill} value={jourData.incidentsRencontres || ""} onChange={e => setChampTexte("incidentsRencontres", e.target.value)}
+              placeholder={t("incidents_rencontres_placeholder")}
+              style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6 }} />
+          </div>
         </div>
         <div>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("commentaire_technicite_label")}</div>
@@ -2124,6 +2518,10 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateLis
         <ConfirmDialog tone="success" title={t("fin_journee_btn")} message={t("confirm_fin_journee_msg", { n: jourData.numero })}
           confirmLabel={t("fin_journee_btn")} onConfirm={finDeJournee} onCancel={() => setConfirmFin(false)} />
       )}
+      {confirmAnnuler && (
+        <ConfirmDialog title={t("annuler_jour_btn")} message={t("confirm_annuler_jour_msg", { n: jourData.numero })}
+          confirmLabel={t("annuler_jour_btn")} onConfirm={annulerJour} onCancel={() => setConfirmAnnuler(false)} />
+      )}
       {showAideCotation && (
         <Modal title={t("aide_cotation_titre")} onClose={() => setShowAideCotation(false)} width={480}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -2188,7 +2586,7 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
 
   const renderGrid = (section) => {
     const [list, setList] = sections[section];
-    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, commentaireHumain: "", commentaireTechnique: "", resumeSemaine: "", competencesGlobales: {}, criteres: {} }]);
+    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {} }]);
     const removeJour = () => {
       if (list.length <= 1) return;
       const last = list[list.length - 1];
@@ -2199,7 +2597,7 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10, marginBottom: 10 }}>
           {list.map(j => {
-            const clickable = editable ? (j.statut !== "verrouille") : true;
+            const clickable = true;
             const bg = j.statut === "verrouille" ? C.bg : j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
             const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
             const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
@@ -2298,10 +2696,11 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
               )}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
-              {EVOLUTION_GRAPHS.map(g => {
+              {EVOLUTION_GRAPHS.map((g, gi) => {
+                const categories = gi === 0 && activeTab === "dispatcheur" ? ["Gestion d'incident", "Safety", "Multi Tasking"] : g.categories;
                 const data = activeTab === "regulateur"
-                  ? [...computeEvolutionCarnet(joursReg, volets, g.categories), ...computeEvolutionCarnet(joursRegSolo, volets, g.categories, 35)]
-                  : computeEvolutionCarnet(joursDisp, volets, g.categories);
+                  ? [...computeEvolutionCarnet(joursReg, volets, categories), ...computeEvolutionCarnet(joursRegSolo, volets, categories, 35)]
+                  : computeEvolutionCarnet(joursDisp, volets, categories);
                 return (
                   <div key={g.titre} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 700, color: C.navy, marginBottom: 12 }}>{g.titre}</div>
@@ -2314,7 +2713,7 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
                             <YAxis domain={[0, 5]} tick={{ fontSize: 9, fill: "#B8BCC4" }} />
                             <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${C.line}`, fontSize: 12 }} labelFormatter={(v) => `${t("jour_label")} ${v}`} />
                             <Legend wrapperStyle={{ fontSize: 11 }} />
-                            {g.categories.map((cat, ci) => (
+                            {categories.map((cat, ci) => (
                               <Line key={cat} type="monotone" dataKey={cat} stroke={EVOLUTION_COLORS[ci % EVOLUTION_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
                             ))}
                           </LineChart>
@@ -2401,6 +2800,7 @@ function CarnetsEleves({ users, setUsers, questionnaires, questions, categories,
   const reussies = users.filter(u => u.role === "eleve" && (u.fonction === "Régulateur" || u.fonction === "Dispatcheur") && matches(u));
   const ratees = users.filter(u => u.role === "eleve" && (u.fonction === "Élève régulateur" || u.fonction === "Élève dispatcheur") && u.formationStatut === "echouee" && matches(u));
 
+  const auteurLog = currentUser ? `${currentUser.prenom} ${currentUser.nom}` : "Système";
   const markSuccess = async (eleve) => {
     const nouvelleFonction = GRADUATION_MAP[eleve.fonction];
     if (!nouvelleFonction) return;
@@ -2408,6 +2808,7 @@ function CarnetsEleves({ users, setUsers, questionnaires, questions, categories,
     try {
       const { error: err } = await supabase.from("profiles").update({ fonction: nouvelleFonction, formation_statut: null }).eq("id", eleve.id);
       if (err) throw err;
+      logActivity("Profil", [{ action: "modification", description: `${eleve.prenom} ${eleve.nom} — Fonction : ${eleve.fonction} → ${nouvelleFonction}` }], auteurLog);
       await setUsers();
     } catch (e) { setError(e?.message || "Erreur inconnue."); }
     setConfirmSuccess(null);
@@ -2417,6 +2818,7 @@ function CarnetsEleves({ users, setUsers, questionnaires, questions, categories,
     try {
       const { error: err } = await supabase.from("profiles").update({ formation_statut: "echouee" }).eq("id", eleve.id);
       if (err) throw err;
+      logActivity("Profil", [{ action: "modification", description: `${eleve.prenom} ${eleve.nom} — Statut formation : vide → echouee` }], auteurLog);
       await setUsers();
     } catch (e) { setError(e?.message || "Erreur inconnue."); }
     setConfirmFail(null);
@@ -2426,6 +2828,7 @@ function CarnetsEleves({ users, setUsers, questionnaires, questions, categories,
     try {
       const { error: err } = await supabase.from("profiles").update({ fonction: "Élève dispatcheur", formation_statut: null }).eq("id", eleve.id);
       if (err) throw err;
+      logActivity("Profil", [{ action: "modification", description: `${eleve.prenom} ${eleve.nom} — Fonction : ${eleve.fonction} → Élève dispatcheur` }], auteurLog);
       await setUsers();
     } catch (e) { setError(e?.message || "Erreur inconnue."); }
     setConfirmStartDP(null);
@@ -3356,6 +3759,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
     return stats;
   }, [questionnaires, questions]);
   const [modal, setModal] = useState(null);
+  const [contentLang, setContentLang] = useState(lang);
   const [filter, setFilter] = useState("Toutes");
   const [search, setSearch] = useState("");
   const [confirmQId, setConfirmQId] = useState(null);
@@ -3403,7 +3807,12 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
       <CategoryManager categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} questions={questions} setQuestions={setQuestions} isAdmin={isAdmin} onRenameCategory={onRenameCategory} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <SectionTitle>{t("nav_questions")}</SectionTitle>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 3, background: C.bg, borderRadius: 8, padding: 3, marginRight: 4 }}>
+            {["fr", "nl"].map(l => (
+              <button key={l} onClick={() => setContentLang(l)} style={{ padding: "5px 11px", borderRadius: 6, border: "none", background: contentLang === l ? "#fff" : "transparent", color: contentLang === l ? C.navy : C.inkSoft, fontWeight: 700, fontSize: 12, cursor: "pointer", boxShadow: contentLang === l ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>{l.toUpperCase()}</button>
+            ))}
+          </div>
           <a href="/gec-modele-import-questions.xlsx" download style={{ textDecoration: "none" }}>
             <Btn variant="ghost" icon={FileDown}>{t("telecharger_modele")}</Btn>
           </a>
@@ -3426,7 +3835,10 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
         </div>
       )}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        {["Toutes", ...categories].map(cat => <button key={cat} onClick={() => setFilter(cat)} style={{ padding: "6px 13px", borderRadius: 20, border: `1px solid ${filter === cat ? C.navy : C.line}`, background: filter === cat ? C.navy : "#fff", color: filter === cat ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{cat === "Toutes" ? t("toutes_categories") : cat}</button>)}
+        {["Toutes", ...categories].map(cat => {
+          const count = cat === "Toutes" ? questions.filter(q => q.statut !== "suspendue").length : questions.filter(q => q.statut !== "suspendue" && (q.categories || []).includes(cat)).length;
+          return <button key={cat} onClick={() => setFilter(cat)} style={{ padding: "6px 13px", borderRadius: 20, border: `1px solid ${filter === cat ? C.navy : C.line}`, background: filter === cat ? C.navy : "#fff", color: filter === cat ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{cat === "Toutes" ? t("toutes_categories") : cat} ({count})</button>;
+        })}
         {suspendedCount > 0 && (
           <button onClick={() => setFilter("EnSuspens")} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 13px", borderRadius: 20, border: `1px solid ${filter === "EnSuspens" ? C.gold : C.line}`, background: filter === "EnSuspens" ? C.goldSoft : "#fff", color: filter === "EnSuspens" ? C.gold : C.inkSoft, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}><PauseCircle size={13} /> En suspens ({suspendedCount})</button>
         )}
@@ -3447,16 +3859,16 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
                   {q.media && <Badge color={C.teal} bg={C.tealSoft}>{q.media.type === "image" ? t("media_image") : q.media.type === "video" ? t("media_video") : t("media_audio")} {t("media_jointe")}</Badge>}
                   {!!q.dureeSecondes && <Badge color={C.gold} bg={C.goldSoft}><Timer size={10} />{Math.floor(q.dureeSecondes / 60)}:{String(q.dureeSecondes % 60).padStart(2, "0")}</Badge>}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: qText(q, lang).trim() ? C.navy : C.inkSoft, fontStyle: qText(q, lang).trim() ? "normal" : "italic", marginTop: 8 }}>{qText(q, lang).trim() || "Brouillon sans énoncé pour l'instant"}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: qText(q, contentLang).trim() ? C.navy : C.inkSoft, fontStyle: qText(q, contentLang).trim() ? "normal" : "italic", marginTop: 8 }}>{qText(q, contentLang).trim() || "Brouillon sans énoncé pour l'instant"}</div>
                 {q.statut === "suspendue" && q.remarqueSuspension && <div style={{ fontSize: 12, color: C.gold, marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}><MessageSquare size={12} style={{ marginTop: 2, flexShrink: 0 }} /> {q.remarqueSuspension}</div>}
                 {(q.type === "qcm" || q.type === "vrai_faux") && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                    {qChoix(q, lang).map((c, i) => <span key={i} style={{ fontSize: 12, padding: "4px 9px", borderRadius: 6, background: i === q.bonneReponse ? C.greenSoft : C.bg, color: i === q.bonneReponse ? C.green : C.inkSoft, fontWeight: i === q.bonneReponse ? 600 : 400 }}>{i === q.bonneReponse && <CheckCircle2 size={11} style={{ marginRight: 4, verticalAlign: -1 }} />}{c}</span>)}
+                    {qChoix(q, contentLang).map((c, i) => <span key={i} style={{ fontSize: 12, padding: "4px 9px", borderRadius: 6, background: i === q.bonneReponse ? C.greenSoft : C.bg, color: i === q.bonneReponse ? C.green : C.inkSoft, fontWeight: i === q.bonneReponse ? 600 : 400 }}>{i === q.bonneReponse && <CheckCircle2 size={11} style={{ marginRight: 4, verticalAlign: -1 }} />}{c}</span>)}
                   </div>
                 )}
                 {q.type === "qcm_multi" && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                    {qChoix(q, lang).map((c, i) => { const ok = (q.bonnesReponses || []).includes(i); return <span key={i} style={{ fontSize: 12, padding: "4px 9px", borderRadius: 6, background: ok ? C.greenSoft : C.bg, color: ok ? C.green : C.inkSoft, fontWeight: ok ? 600 : 400 }}>{ok && <CheckCircle2 size={11} style={{ marginRight: 4, verticalAlign: -1 }} />}{c}</span>; })}
+                    {qChoix(q, contentLang).map((c, i) => { const ok = (q.bonnesReponses || []).includes(i); return <span key={i} style={{ fontSize: 12, padding: "4px 9px", borderRadius: 6, background: ok ? C.greenSoft : C.bg, color: ok ? C.green : C.inkSoft, fontWeight: ok ? 600 : 400 }}>{ok && <CheckCircle2 size={11} style={{ marginRight: 4, verticalAlign: -1 }} />}{c}</span>; })}
                   </div>
                 )}
                 {q.type === "ouverte" && q.reponseAttendue && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 8, fontStyle: "italic" }}>{t("element_reponse_attendu")}{q.reponseAttendue}</div>}
@@ -3464,7 +3876,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
                 {q.type === "legende" && q.media && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>{t("points_legender", { n: (q.marqueurs || []).length })}</div>}
                 {q.type === "relier" && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>{t("paires_relier", { n: (q.paires || []).length })}</div>}
                 {q.type === "action_reaction" && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>{t("scenario_choix", { n: countTreeResults(q.arbre) })}</div>}
-                {q.type === "ordre" && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>{t("actions_ordre", { n: (q.items || []).length })}{(q.items || []).map(it => itemText(it, lang)).join(" → ")}</div>}
+                {q.type === "ordre" && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 8 }}>{t("actions_ordre", { n: (q.items || []).length })}{(q.items || []).map(it => itemText(it, contentLang)).join(" → ")}</div>}
                 {q.reference && <div style={{ fontSize: 11.5, color: C.gold, marginTop: 8, display: "flex", alignItems: "center", gap: 5 }}><Tag size={11} /> {t("reference_label")}{q.reference}</div>}
                 </div>
               </div>
@@ -4364,13 +4776,128 @@ function AnalysisView({ questionnaire, eleve, questions, categories, onClose, on
 }
 
 /* ------------------------- GESTION COMPTES (ADMIN) ------------------------- */
-function AdminPage() {
+function AdminPage({ setUsers, refreshQuestionnaires }) {
   const { t } = useLang();
+  const [confirmResetCarnetsReg, setConfirmResetCarnetsReg] = useState(false);
+  const [confirmResetCarnetsDisp, setConfirmResetCarnetsDisp] = useState(false);
+  const [confirmResetQn, setConfirmResetQn] = useState(false);
+  const [activityLog, setActivityLog] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [loadingLog, setLoadingLog] = useState(true);
+  const [resetError, setResetError] = useState("");
+  const [nbCarnetsReg, setNbCarnetsReg] = useState(null);
+  const [nbCarnetsDisp, setNbCarnetsDisp] = useState(null);
+  const [nbQuestionnaires, setNbQuestionnaires] = useState(null);
+  const PAGE_SIZE = 300;
+
+  const fetchLogPage = async (p) => {
+    const from = p * PAGE_SIZE;
+    const { data, count } = await supabase.from("activity_log").select("*", { count: "exact" }).order("date", { ascending: false }).range(from, from + PAGE_SIZE - 1);
+    setActivityLog(prev => p === 0 ? (data || []) : [...prev, ...(data || [])]);
+    setTotal(count || 0);
+    setLoadingLog(false);
+  };
+  const fetchCounts = async () => {
+    const { data } = await supabase.from("profiles").select("carnet").eq("role", "eleve");
+    setNbCarnetsReg((data || []).filter(u => u.carnet && (u.carnet.reg || u.carnet.regSolo)).length);
+    setNbCarnetsDisp((data || []).filter(u => u.carnet && u.carnet.disp).length);
+    const { count } = await supabase.from("questionnaires").select("*", { count: "exact", head: true });
+    setNbQuestionnaires(count || 0);
+  };
+  useEffect(() => { fetchLogPage(0); fetchCounts(); }, []);
+  const loadMore = () => { const next = page + 1; setPage(next); fetchLogPage(next); };
+
+  const doReset = async (rpcName, onDone) => {
+    setResetError("");
+    try {
+      const { error } = await supabase.rpc(rpcName);
+      if (error) throw error;
+      await onDone();
+      await fetchCounts();
+    } catch (e) { setResetError(e?.message || "Erreur inconnue."); }
+  };
+
+  const ACTION_STYLE = {
+    creation: { label: t("log_creation"), color: C.green, bg: C.greenSoft },
+    modification: { label: t("log_modification"), color: C.gold, bg: C.goldSoft },
+    suppression: { label: t("log_suppression"), color: C.red, bg: C.redSoft },
+  };
+
   return (
     <div>
       <SectionTitle>{t("nav_admin_page")}</SectionTitle>
-      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("admin_page_sub")}</div>
-      <EmptyState icon={Lock} title={t("admin_page_bientot_titre")} body={t("admin_page_bientot_body")} />
+      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 24 }}>{t("admin_page_sub")}</div>
+
+      <SectionTitle>{t("journal_activite_titre")}</SectionTitle>
+      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("journal_activite_sub", { n: total })}</div>
+      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden", marginBottom: 12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead><tr style={{ background: C.bg, textAlign: "left" }}>{[t("log_date"), t("log_auteur"), t("log_entite"), t("log_action"), t("log_description")].map(h => <th key={h} style={{ padding: "10px 16px", fontSize: 11, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", fontWeight: 700 }}>{h}</th>)}</tr></thead>
+          <tbody>
+            {activityLog.map(entry => {
+              const st = ACTION_STYLE[entry.action] || ACTION_STYLE.modification;
+              const d = new Date(entry.date);
+              return (
+                <tr key={entry.id} style={{ borderTop: `1px solid ${C.line}` }}>
+                  <td style={{ padding: "10px 16px", fontFamily: FONT_MONO, fontSize: 12, color: C.inkSoft, whiteSpace: "nowrap" }}>{d.toLocaleDateString("fr-BE")} {d.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" })}</td>
+                  <td style={{ padding: "10px 16px" }}>{entry.auteur}</td>
+                  <td style={{ padding: "10px 16px", color: C.inkSoft }}>{entry.entite}</td>
+                  <td style={{ padding: "10px 16px" }}><Badge color={st.color} bg={st.bg}>{st.label}</Badge></td>
+                  <td style={{ padding: "10px 16px", color: C.inkSoft }}>{entry.description}</td>
+                </tr>
+              );
+            })}
+            {!loadingLog && activityLog.length === 0 && <tr><td colSpan={5}><EmptyState icon={ClipboardList} title={t("journal_vide_titre")} body={t("journal_vide_body")} /></td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {total > activityLog.length && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
+          <Btn variant="ghost" onClick={loadMore}>{t("charger_plus_btn", { n: total - activityLog.length })}</Btn>
+        </div>
+      )}
+      {total <= activityLog.length && <div style={{ marginBottom: 32 }} />}
+
+      <SectionTitle>{t("zone_dangereuse_titre")}</SectionTitle>
+      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("zone_dangereuse_sub")}</div>
+      {resetError && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{resetError}</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ background: "#fff", border: `1px solid ${C.red}40`, borderRadius: 12, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontWeight: 700, color: C.navy, marginBottom: 3 }}>{t("reset_carnets_reg_titre")}</div>
+            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("reset_carnets_msg", { n: nbCarnetsReg ?? "…" })}</div>
+          </div>
+          <Btn variant="danger" icon={Trash2} onClick={() => setConfirmResetCarnetsReg(true)} disabled={!nbCarnetsReg}>{t("reset_btn")}</Btn>
+        </div>
+        <div style={{ background: "#fff", border: `1px solid ${C.red}40`, borderRadius: 12, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontWeight: 700, color: C.navy, marginBottom: 3 }}>{t("reset_carnets_disp_titre")}</div>
+            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("reset_carnets_msg", { n: nbCarnetsDisp ?? "…" })}</div>
+          </div>
+          <Btn variant="danger" icon={Trash2} onClick={() => setConfirmResetCarnetsDisp(true)} disabled={!nbCarnetsDisp}>{t("reset_btn")}</Btn>
+        </div>
+        <div style={{ background: "#fff", border: `1px solid ${C.red}40`, borderRadius: 12, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontWeight: 700, color: C.navy, marginBottom: 3 }}>{t("reset_questionnaires_titre")}</div>
+            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("reset_questionnaires_msg", { n: nbQuestionnaires ?? "…" })}</div>
+          </div>
+          <Btn variant="danger" icon={Trash2} onClick={() => setConfirmResetQn(true)} disabled={!nbQuestionnaires}>{t("reset_btn")}</Btn>
+        </div>
+      </div>
+
+      {confirmResetCarnetsReg && (
+        <ConfirmDialog title={t("reset_carnets_reg_titre")} message={t("reset_carnets_confirm_msg", { n: nbCarnetsReg })}
+          confirmLabel={t("reset_btn")} onConfirm={async () => { await doReset("reset_carnets_regulateur", setUsers); setConfirmResetCarnetsReg(false); }} onCancel={() => setConfirmResetCarnetsReg(false)} />
+      )}
+      {confirmResetCarnetsDisp && (
+        <ConfirmDialog title={t("reset_carnets_disp_titre")} message={t("reset_carnets_confirm_msg", { n: nbCarnetsDisp })}
+          confirmLabel={t("reset_btn")} onConfirm={async () => { await doReset("reset_carnets_dispatcheur", setUsers); setConfirmResetCarnetsDisp(false); }} onCancel={() => setConfirmResetCarnetsDisp(false)} />
+      )}
+      {confirmResetQn && (
+        <ConfirmDialog title={t("reset_questionnaires_titre")} message={t("reset_questionnaires_confirm_msg", { n: nbQuestionnaires })}
+          confirmLabel={t("reset_btn")} onConfirm={async () => { await doReset("reset_questionnaire_history", refreshQuestionnaires); setConfirmResetQn(false); }} onCancel={() => setConfirmResetQn(false)} />
+      )}
     </div>
   );
 }
@@ -4380,14 +4907,18 @@ function GestionComptes({ users, setUsers, currentUser }) {
   const [confirmId, setConfirmId] = useState(null);
   const [error, setError] = useState("");
   const moniteurs = users.filter(u => u.role === "moniteur" || u.role === "admin");
+  const auteurLog = currentUser ? `${currentUser.prenom} ${currentUser.nom}` : "Système";
   const save = async (data) => {
     setError("");
     const pseudo = makePseudo(data.nom, data.prenom, users, data.id);
+    const before = data.id ? users.find(u => u.id === data.id) : null;
     try {
       if (data.id) {
         await callEdgeFunction("manage-user", { action: "update", userId: data.id, pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false });
+        logActivity("Profil", diffEntities([before], [{ ...before, ...data, pseudo }], u => `${u.prenom} ${u.nom}`, USER_LOG_FIELDS), auteurLog);
       } else {
         await callEdgeFunction("manage-user", { action: "create", pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, role: data.role, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false });
+        logActivity("Profil", [{ action: "creation", description: `${data.prenom} ${data.nom}` }], auteurLog);
       }
       await setUsers();
       setModal(null);
@@ -4396,7 +4927,12 @@ function GestionComptes({ users, setUsers, currentUser }) {
   const remove = async (id) => {
     if (id === currentUser.id) return;
     setError("");
-    try { await callEdgeFunction("manage-user", { action: "delete", userId: id }); await setUsers(); }
+    const target = users.find(u => u.id === id);
+    try {
+      await callEdgeFunction("manage-user", { action: "delete", userId: id });
+      logActivity("Profil", [{ action: "suppression", description: target ? `${target.prenom} ${target.nom}` : id }], auteurLog);
+      await setUsers();
+    }
     catch (e) { setError(e.message || t("erreur_suppression")); }
   };
   const confirmTarget = moniteurs.find(m => m.id === confirmId);
@@ -4808,6 +5344,7 @@ export default function App() {
     setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({});
   };
 
+  const auteurLog = session ? `${session.prenom} ${session.nom}` : "Système";
   const setQuestions = async (newArr) => {
     const old = questions;
     setQuestionsState(newArr);
@@ -4815,6 +5352,7 @@ export default function App() {
       const { idMap, insertedRows } = await syncArray("questions", old, newArr, questionToRow);
       if (Object.keys(idMap).length) setQuestionsState(prev => prev.map(q => idMap[q.id] ? { ...q, id: idMap[q.id], numero: insertedRows[q.id]?.numero ?? q.numero } : q));
       setSaveError("");
+      logActivity("Question", diffEntities(old, newArr, q => `#${q.numero ?? "?"} — ${(q.enonceFr || "").slice(0, 60) || "(sans énoncé)"}`, QUESTION_LOG_FIELDS), auteurLog);
     } catch (e) { setQuestionsState(old); setSaveError(e?.message || "Erreur inconnue."); }
   };
   const setQuestionnaires = async (newArr) => {
@@ -4824,6 +5362,7 @@ export default function App() {
       const { idMap } = await syncArray("questionnaires", old, newArr, questionnaireToRow);
       if (Object.keys(idMap).length) setQuestionnairesState(prev => prev.map(q => idMap[q.id] ? { ...q, id: idMap[q.id] } : q));
       setSaveError("");
+      logActivity("Questionnaire", diffEntities(old, newArr, qn => { const e = users.find(u => u.id === qn.eleveId); return `${qn.titre || "Questionnaire"} — ${e ? `${e.prenom} ${e.nom}` : "élève inconnu"}`; }, QUESTIONNAIRE_LOG_FIELDS), auteurLog);
     } catch (e) { setQuestionnairesState(old); setSaveError(e?.message || "Erreur inconnue."); }
   };
   const renameCategory = async (oldName, newName) => {
@@ -4841,6 +5380,7 @@ export default function App() {
         if (qErr) throw qErr;
       }
       setSaveError("");
+      logActivity("Catégorie", [{ action: "modification", description: `${oldName} → ${newName}` }], auteurLog);
     } catch (e) {
       setCategoriesState(oldCats); setCategoryConfigState(oldConfig); setQuestionsState(oldQuestions);
       setSaveError(e?.message || "Erreur inconnue.");
@@ -4855,6 +5395,10 @@ export default function App() {
       for (const c of removed) await supabase.from("categories").delete().eq("nom", c);
       for (const c of added) await supabase.from("categories").insert({ nom: c, seuil: categoryConfig[c]?.seuil ?? 60, fonctions: categoryConfig[c]?.fonctions || [...FONCTIONS] });
       setSaveError("");
+      logActivity("Catégorie", [
+        ...removed.map(c => ({ action: "suppression", description: c })),
+        ...added.map(c => ({ action: "creation", description: c })),
+      ], auteurLog);
     } catch (e) { setCategoriesState(old); setSaveError(e?.message || "Erreur inconnue."); }
   };
   const setCategoryConfig = async (newConfig) => {
@@ -4872,6 +5416,10 @@ export default function App() {
   const refreshUsers = async () => {
     const { data, error } = await supabase.from("profiles").select("*");
     if (!error) setUsersState(data.map(rowToUser));
+  };
+  const refreshQuestionnaires = async () => {
+    const { data, error } = await supabase.from("questionnaires").select("*");
+    if (!error) setQuestionnairesState(data.map(rowToQuestionnaire));
   };
 
   const importQuestions = async (newQuestions) => {
@@ -4919,9 +5467,9 @@ export default function App() {
             <Btn variant="gold" style={{ marginTop: 18 }} onClick={() => { setLoadError(false); setLoadAttempt(a => a + 1); }}>Réessayer</Btn>
           </div>
         ) : session.role === "eleve" ? (
-          <EleveView user={session} questionnaires={questionnaires} categories={categories} onLogout={logout} submitReponses={submitReponses} confirmRead={confirmRead} saveError={saveError} />
+          <EleveView user={users.find(u => u.id === session.id) || session} users={users} setUsers={refreshUsers} questionnaires={questionnaires} categories={categories} onLogout={logout} submitReponses={submitReponses} confirmRead={confirmRead} saveError={saveError} />
         ) : (
-          <StaffView user={session} users={users} setUsers={refreshUsers} questions={questions} setQuestions={setQuestions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} onLogout={logout} saveError={saveError} requestPrint={setPrintJob} onImportQuestions={importQuestions} onRenameCategory={renameCategory} />
+          <StaffView user={session} users={users} setUsers={refreshUsers} questions={questions} setQuestions={setQuestions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} onLogout={logout} saveError={saveError} requestPrint={setPrintJob} onImportQuestions={importQuestions} onRenameCategory={renameCategory} refreshQuestionnaires={refreshQuestionnaires} />
         )}
       </LangProvider>
       {printJob && <PrintOverlay job={printJob} onClose={() => setPrintJob(null)} />}
