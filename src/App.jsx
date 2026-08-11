@@ -243,6 +243,8 @@ const T = {
     score_label: "Score :",
     terminer_btn: "Terminer",
     zone_dangereuse_sub: "Actions irréversibles — à utiliser en connaissance de cause.",
+    zone_dangereuse_carnet_note: "La réinitialisation d'un carnet se fait maintenant directement depuis le carnet de l'élève concerné (bouton visible en haut de chaque onglet, réservé aux Admin +).",
+    reset_onglet_btn: "Réinitialiser cet onglet", confirm_reset_onglet_msg: "Le carnet {fonction} de cet élève sera entièrement vidé (tous les jours, notes et commentaires). Cette action est irréversible.",
     zone_dangereuse_titre: "Zone dangereuse",
     aide_cotation_btn: "Aide cotation", aide_cotation_titre: "Comment noter ?",
     carnet_graphiques_apparaitront: "Ce graphique se remplira au fur et à mesure des journées de formation notées.",
@@ -455,6 +457,8 @@ const T = {
     score_label: "Score:",
     terminer_btn: "Beëindigen",
     zone_dangereuse_sub: "Onomkeerbare acties — gebruik met kennis van zaken.",
+    zone_dangereuse_carnet_note: "Het resetten van een dossier gebeurt nu rechtstreeks vanuit het dossier van de betrokken leerling (knop bovenaan elk tabblad, voorbehouden aan Admin +).",
+    reset_onglet_btn: "Dit tabblad resetten", confirm_reset_onglet_msg: "Het {fonction}-dossier van deze leerling wordt volledig geleegd (alle dagen, beoordelingen en opmerkingen). Deze actie is onomkeerbaar.",
     zone_dangereuse_titre: "Gevarenzone",
     aide_cotation_btn: "Beoordelingshulp", aide_cotation_titre: "Hoe beoordelen?",
     carnet_graphiques_apparaitront: "Deze grafiek vult zich naarmate opleidingsdagen worden beoordeeld.",
@@ -1468,7 +1472,7 @@ function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
     if (mode !== "chrono" || finished) return;
     if (timeLeft <= 0) {
       setFinished(true);
-      if (score > meilleurScore) supabase.from("profiles").update({ jeu_stations_meilleur_score: score }).eq("id", user.id).then(() => setUsers());
+      if (score > meilleurScore) supabase.rpc("update_my_station_score", { new_score: score }).then(({ error }) => { if (!error) setUsers(); });
       return;
     }
     const id = setTimeout(() => setTimeLeft(s => s - 1), 1000);
@@ -1775,7 +1779,7 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
-          {tab === "admin" && isSuperAdmin && <AdminPage setUsers={setUsers} refreshQuestionnaires={refreshQuestionnaires} />}
+          {tab === "admin" && isSuperAdmin && <AdminPage refreshQuestionnaires={refreshQuestionnaires} />}
           {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} requestPrint={requestPrint} />}
         </div>
       </div>
@@ -2542,6 +2546,8 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateLis
 }
 function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
   const { t, lang } = useLang();
+  const isSuperAdmin = currentUser?.superAdmin === true;
+  const [confirmResetTab, setConfirmResetTab] = useState(false);
   const tab2Visible = eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur";
   const tab1Editable = eleve.fonction === "Élève régulateur";
   const tab2Editable = eleve.fonction === "Élève dispatcheur";
@@ -2598,7 +2604,7 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10, marginBottom: 10 }}>
           {list.map(j => {
             const clickable = true;
-            const bg = j.statut === "verrouille" ? C.bg : j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
+            const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
             const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
             const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
             const isSemaine = j.numero % 5 === 0;
@@ -2654,6 +2660,9 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
           ? <Badge color={C.green} bg={C.greenSoft}>{t("carnet_onglet_modifiable")}</Badge>
           : <Badge color={C.inkSoft} bg={C.bg}>{t("carnet_onglet_lecture_seule")}</Badge>}
         <span style={{ fontSize: 12, color: C.inkSoft }}>{activeTab === "regulateur" ? t("carnet_duree_regulateur") : t("carnet_duree_dispatcheur")}</span>
+        {isSuperAdmin && (
+          <Btn variant="danger" icon={Trash2} onClick={() => setConfirmResetTab(true)} style={{ marginLeft: "auto", padding: "5px 10px", fontSize: 12 }}>{t("reset_onglet_btn")}</Btn>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
@@ -2727,6 +2736,10 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
           </>
         );
       })()}
+      {confirmResetTab && (
+        <ConfirmDialog title={t("reset_onglet_btn")} message={t("confirm_reset_onglet_msg", { fonction: fonctionLabel(activeTab === "regulateur" ? "Élève régulateur" : "Élève dispatcheur", lang) })}
+          confirmLabel={t("reset_btn")} onConfirm={async () => { await updateCarnet(activeTab === "regulateur" ? { reg: undefined, regSolo: undefined, examen35: undefined } : { disp: undefined }); setConfirmResetTab(false); }} onCancel={() => setConfirmResetTab(false)} />
+      )}
     </div>
   );
 }
@@ -4776,18 +4789,14 @@ function AnalysisView({ questionnaire, eleve, questions, categories, onClose, on
 }
 
 /* ------------------------- GESTION COMPTES (ADMIN) ------------------------- */
-function AdminPage({ setUsers, refreshQuestionnaires }) {
+function AdminPage({ refreshQuestionnaires }) {
   const { t } = useLang();
-  const [confirmResetCarnetsReg, setConfirmResetCarnetsReg] = useState(false);
-  const [confirmResetCarnetsDisp, setConfirmResetCarnetsDisp] = useState(false);
   const [confirmResetQn, setConfirmResetQn] = useState(false);
   const [activityLog, setActivityLog] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loadingLog, setLoadingLog] = useState(true);
   const [resetError, setResetError] = useState("");
-  const [nbCarnetsReg, setNbCarnetsReg] = useState(null);
-  const [nbCarnetsDisp, setNbCarnetsDisp] = useState(null);
   const [nbQuestionnaires, setNbQuestionnaires] = useState(null);
   const PAGE_SIZE = 300;
 
@@ -4799,9 +4808,6 @@ function AdminPage({ setUsers, refreshQuestionnaires }) {
     setLoadingLog(false);
   };
   const fetchCounts = async () => {
-    const { data } = await supabase.from("profiles").select("carnet").eq("role", "eleve");
-    setNbCarnetsReg((data || []).filter(u => u.carnet && (u.carnet.reg || u.carnet.regSolo)).length);
-    setNbCarnetsDisp((data || []).filter(u => u.carnet && u.carnet.disp).length);
     const { count } = await supabase.from("questionnaires").select("*", { count: "exact", head: true });
     setNbQuestionnaires(count || 0);
   };
@@ -4860,23 +4866,9 @@ function AdminPage({ setUsers, refreshQuestionnaires }) {
       {total <= activityLog.length && <div style={{ marginBottom: 32 }} />}
 
       <SectionTitle>{t("zone_dangereuse_titre")}</SectionTitle>
-      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("zone_dangereuse_sub")}</div>
+      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("zone_dangereuse_carnet_note")}</div>
       {resetError && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{resetError}</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ background: "#fff", border: `1px solid ${C.red}40`, borderRadius: 12, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontWeight: 700, color: C.navy, marginBottom: 3 }}>{t("reset_carnets_reg_titre")}</div>
-            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("reset_carnets_msg", { n: nbCarnetsReg ?? "…" })}</div>
-          </div>
-          <Btn variant="danger" icon={Trash2} onClick={() => setConfirmResetCarnetsReg(true)} disabled={!nbCarnetsReg}>{t("reset_btn")}</Btn>
-        </div>
-        <div style={{ background: "#fff", border: `1px solid ${C.red}40`, borderRadius: 12, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontWeight: 700, color: C.navy, marginBottom: 3 }}>{t("reset_carnets_disp_titre")}</div>
-            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("reset_carnets_msg", { n: nbCarnetsDisp ?? "…" })}</div>
-          </div>
-          <Btn variant="danger" icon={Trash2} onClick={() => setConfirmResetCarnetsDisp(true)} disabled={!nbCarnetsDisp}>{t("reset_btn")}</Btn>
-        </div>
         <div style={{ background: "#fff", border: `1px solid ${C.red}40`, borderRadius: 12, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontWeight: 700, color: C.navy, marginBottom: 3 }}>{t("reset_questionnaires_titre")}</div>
@@ -4886,14 +4878,6 @@ function AdminPage({ setUsers, refreshQuestionnaires }) {
         </div>
       </div>
 
-      {confirmResetCarnetsReg && (
-        <ConfirmDialog title={t("reset_carnets_reg_titre")} message={t("reset_carnets_confirm_msg", { n: nbCarnetsReg })}
-          confirmLabel={t("reset_btn")} onConfirm={async () => { await doReset("reset_carnets_regulateur", setUsers); setConfirmResetCarnetsReg(false); }} onCancel={() => setConfirmResetCarnetsReg(false)} />
-      )}
-      {confirmResetCarnetsDisp && (
-        <ConfirmDialog title={t("reset_carnets_disp_titre")} message={t("reset_carnets_confirm_msg", { n: nbCarnetsDisp })}
-          confirmLabel={t("reset_btn")} onConfirm={async () => { await doReset("reset_carnets_dispatcheur", setUsers); setConfirmResetCarnetsDisp(false); }} onCancel={() => setConfirmResetCarnetsDisp(false)} />
-      )}
       {confirmResetQn && (
         <ConfirmDialog title={t("reset_questionnaires_titre")} message={t("reset_questionnaires_confirm_msg", { n: nbQuestionnaires })}
           confirmLabel={t("reset_btn")} onConfirm={async () => { await doReset("reset_questionnaire_history", refreshQuestionnaires); setConfirmResetQn(false); }} onCancel={() => setConfirmResetQn(false)} />
