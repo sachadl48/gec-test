@@ -155,11 +155,22 @@ function agentPassword(numeroAgent) {
 const LANGS = { fr: "Français", nl: "Nederlands" };
 const T = {
   fr: {
+    aide_cotation_btn: "Aide cotation", aide_cotation_titre: "Comment noter ?",
+    carnet_graphiques_apparaitront: "Ce graphique se remplira au fur et à mesure des journées de formation notées.",
+    carnet_radar_titre: "Vue d'ensemble par compétence",
+    commentaire_humain_label: "Commentaire sur l'humain", commentaire_humain_placeholder: "Attitude, motivation, comportement, relationnel...",
+    commentaire_technicite_label: "Commentaire sur la technicité", commentaire_technicite_placeholder: "Maîtrise technique, incidents rencontrés...",
+    exporter_btn: "Exporter", note_calculee_label: "Calculée : {v}/5", poste_label: "Poste :",
+    previsualiser_titre: "Aperçu de la question",
+    resume_semaine_label: "Résumé de la semaine", resume_semaine_placeholder: "Résumé de la semaine et objectifs de la semaine suivante, à partager avec le candidat...",
+    sous_onglet_graphiques: "Graphiques d'évolution des compétences", sous_onglet_jours: "Jours",
+    volet_criteres_situationnels_note: "Critères ci-dessous : à noter uniquement si une situation spécifique s'est présentée aujourd'hui.",
+    volet_notes_count: "{n}/{total} noté(s)",
     login_title: "G.E.C.", login_subtitle: "Gestion des évaluations continues des opérateurs du DTM",
     login_id: "Identifiant", login_pwd: "Mot de passe", login_btn: "Se connecter",
     login_error: "Identifiant ou mot de passe incorrect.", login_demo: "Comptes de démonstration",
-    logout: "Déconnexion", nav_overview: "Aperçu", nav_profiles: "Profils opérateurs", nav_carnets: "Carnets d'élèves", nav_questions: "Banque de questions",
-    carnets_titre: "Carnets d'élèves", carnets_sub: "Opérateurs en formation — élèves régulateurs et élèves dispatcheurs.",
+    logout: "Déconnexion", nav_overview: "Aperçu", nav_profiles: "Profils opérateurs", nav_carnets: "Formations", nav_questions: "Banque de questions",
+    carnets_titre: "Formations", carnets_sub: "Opérateurs en formation — élèves régulateurs et élèves dispatcheurs.",
     aucun_carnet_titre: "Aucun élève en formation", aucun_carnet_body: "Aucun profil élève régulateur ou élève dispatcheur ne correspond à cette recherche.",
     formation_en_cours_titre: "Formation en cours", formation_reussies_titre: "Formations réussies", formation_ratees_titre: "Formations ratées",
     valider_reussite_title: "Valider la réussite", valider_reussite_btn: "Valider la réussite",
@@ -311,11 +322,22 @@ const T = {
     confirm_envoi_titre: "Envoyer vos réponses ?", confirm_envoi_msg: "C'est la dernière question. Une fois envoyées, vos réponses ne pourront plus être modifiées.",
   },
   nl: {
+    aide_cotation_btn: "Beoordelingshulp", aide_cotation_titre: "Hoe beoordelen?",
+    carnet_graphiques_apparaitront: "Deze grafiek vult zich naarmate opleidingsdagen worden beoordeeld.",
+    carnet_radar_titre: "Overzicht per competentie",
+    commentaire_humain_label: "Opmerking over de mens", commentaire_humain_placeholder: "Houding, motivatie, gedrag, relaties...",
+    commentaire_technicite_label: "Opmerking over de techniciteit", commentaire_technicite_placeholder: "Technische beheersing, ondervonden incidenten...",
+    exporter_btn: "Exporteren", note_calculee_label: "Berekend: {v}/5", poste_label: "Post:",
+    previsualiser_titre: "Voorbeeld van de vraag",
+    resume_semaine_label: "Weekoverzicht", resume_semaine_placeholder: "Samenvatting van de week en doelstellingen voor volgende week, te delen met de kandidaat...",
+    sous_onglet_graphiques: "Evolutiegrafieken van de competenties", sous_onglet_jours: "Dagen",
+    volet_criteres_situationnels_note: "Onderstaande criteria: enkel beoordelen als er zich vandaag een specifieke situatie heeft voorgedaan.",
+    volet_notes_count: "{n}/{total} beoordeeld",
     login_title: "G.E.C.", login_subtitle: "Beheer van de continue evaluaties van de DTM-operatoren",
     login_id: "Gebruikersnaam", login_pwd: "Wachtwoord", login_btn: "Inloggen",
     login_error: "Onjuiste gebruikersnaam of wachtwoord.", login_demo: "Demo-accounts",
-    logout: "Afmelden", nav_overview: "Overzicht", nav_profiles: "Operatorprofielen", nav_carnets: "Leerlingdossiers", nav_questions: "Vragenbank",
-    carnets_titre: "Leerlingdossiers", carnets_sub: "Operators in opleiding — regulators en dispatchers in vorming.",
+    logout: "Afmelden", nav_overview: "Overzicht", nav_profiles: "Operatorprofielen", nav_carnets: "Opleidingen", nav_questions: "Vragenbank",
+    carnets_titre: "Opleidingen", carnets_sub: "Operators in opleiding — regulators en dispatchers in vorming.",
     aucun_carnet_titre: "Geen leerling in opleiding", aucun_carnet_body: "Geen profiel van een regulator of dispatcher in vorming komt overeen met deze zoekopdracht.",
     formation_en_cours_titre: "Opleiding lopende", formation_reussies_titre: "Geslaagde opleidingen", formation_ratees_titre: "Mislukte opleidingen",
     valider_reussite_title: "Slagen bevestigen", valider_reussite_btn: "Slagen bevestigen",
@@ -1716,25 +1738,244 @@ function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, c
     </div>
   );
 }
-const CRITERES_EXEMPLE = [
-  "Respect des procédures de sécurité", "Maîtrise des outils informatiques", "Communication avec les équipes terrain",
-  "Gestion d'un incident simple", "Autonomie dans les tâches courantes",
+const POSTES = ["P11", "P12", "P21", "P22", "P23"];
+const COTATION_SCALE = [
+  { value: 1, label: "1", desc: "Très faible", descComplete: "Très faible, néant, médiocre, catastrophique", color: C.red, bg: C.redSoft },
+  { value: 2, label: "2", desc: "Faible", descComplete: "Faible, insuffisant, bof", color: C.gold, bg: C.goldSoft },
+  { value: 3, label: "3", desc: "Satisfaisant", descComplete: "Satisfaisant, requis pour permettre de maintenir l'élève sur une courbe d'apprentissage lui permettant en fin de formation d'arriver à l'autonomie — relatif et non absolu", color: C.teal, bg: C.tealSoft },
+  { value: 4, label: "4", desc: "Bien", descComplete: "Bien, peu de remarque, au-dessus de la moyenne", color: C.green, bg: C.greenSoft },
+  { value: 5, label: "5", desc: "Excellent", descComplete: "Excellent, exceptionnel, très bien", color: C.blue, bg: C.blueSoft },
 ];
+const CRITERES_REGULATEUR = [
+  { categorie: "Regulation", type: "Connaissances", label: "Les concepts de régulation" },
+  { categorie: "Regulation", type: "Savoir-faire", label: "Repérer les trains en retard (trou, vecteurs)" },
+  { categorie: "Regulation", type: "Savoir-faire", label: "TP (via flèche ET fenêtre TP)" },
+  { categorie: "Regulation", type: "Savoir-faire", label: "MRR (station priviliégiée, tempo, les retirer à temps)" },
+  { categorie: "Regulation", type: "Savoir-faire", label: "Régulation proactive (MRR, décalage train, demi tour, TAG, acceleration de manœuvre, injection T)" },
+  { categorie: "Safety", type: "Connaissances", label: "Safety ferroviaires et connaissances des base (conduite)" },
+  { categorie: "Safety", type: "Connaissances", label: "Comprendre la détection des trains" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Identifier, comprendre et anticiper les situations accidentogènes (infra, éléments extérieurs, incidents, etc)" },
+  { categorie: "Safety", type: "", label: "Mettre une zone en sécurité (MRS, couper le courant, entrée prudente, 25Km/h, etc)" },
+  { categorie: "Multi Tasking", type: "", label: "retenir les informations des conversations radio/appels et reçues et prendre les actions nécessaires" },
+  { categorie: "Multi Tasking", type: "", label: "Identifier les anomalies de la GCTR/Crew Management et respecter les concepts de régulation tout en gérant ses appels" },
+  { categorie: "Multi Tasking", type: "", label: "Garder de la bande passante" },
+  { categorie: "Multi Tasking", type: "", label: "Remplir le cahier en temps réel" },
+  { categorie: "SYREM", type: "Connaissances", label: "CAI (rôle, definition,quand l’enlever,…)" },
+  { categorie: "SYREM", type: "Savoir-faire", label: "TAG" },
+  { categorie: "SYREM", type: "Savoir-faire", label: "TP (via flèche ET fenêtre TP)" },
+  { categorie: "SYREM", type: "Savoir-faire", label: "Coupure 900v en urgence" },
+  { categorie: "SYREM", type: "Savoir-faire", label: "OS Marché sur l’écran (disptacher) PO" },
+  { categorie: "SYREM", type: "Connaissances", label: "Magenta impact" },
+  { categorie: "SYREM", type: "Connaissances", label: "Architecture et ecran Noir / Magenta" },
+  { categorie: "SYREM", type: "Connaissances", label: "information disponibles (nbre de train, fenêtre TP)" },
+  { categorie: "PEX", type: "Connaissances", label: "Connaitre la signification des couleurs et logo’s" },
+  { categorie: "PEX", type: "", label: "Savoire lire et réguler via le PEX" },
+  { categorie: "PEX", type: "Connaissances", label: "Connaissance des différents segment d’une course de depart/arrivée" },
+  { categorie: "PEX", type: "Connaissances", label: "Pouvoir comprendre les bugs (train non-associé, course en blanc, creation impossible d’une course)" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Glisser les courses" },
+  { categorie: "PEX", type: "Savoir-faire", label: "TAG & Dépassement terminus" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Remise à horaire" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Associer course/train" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Décharger/recharger PEX" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Gérer / Effectuer les entrées/sorties dépôts" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Gérer les APR" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Supprimer courses avec/sans compensation" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Train tourné / Création de courses" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Créer un train renfort / Train d'essai" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Gérer les conséquence d'un TP sans fleche" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Gérer le retard dans le PEX" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Garage / Dégarage sur ligne" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Position T à Simonis" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Position G à Schuman S33" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Position R3/R6 Gare de l'ouest" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Positionnement des écrans" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "introduction itinéraires de sorties et rentrées dépôt" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Basculer de calculateur" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Tracer iti voies de garage" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Tracer iti contre-sens" },
+  { categorie: "Factory Link", type: "Connaissances", label: "Connaitre logique des iti (enregistrement, cycle, one shoot,...)" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Mettre une MRS" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Mettre une limitation 25km/h" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "TAG Herman debroux / Fleche info voyageur" },
+  { categorie: "Factory Link", type: "", label: "NTR" },
+  { categorie: "Factory Link", type: "Connaissances", label: "Alarmes" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Création de services" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Associer les conducteurs sur les services" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Permutation de service" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Utilisation des filtres (trouver une dispo,…)" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Rechercher un service ou matricule" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Gérer demandes de récupération d’heure" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Gestion des alarmes" },
+  { categorie: "GCTR", type: "Connaissances", label: "Compréhension alarmes (géographique, double segment, break)" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Gérer les absences" },
+  { categorie: "Généralités", type: "Connaissances", label: "Interconnexion réseau (quai centraux, SNCB, correspondances, etc)" },
+  { categorie: "Généralités", type: "Connaissances", label: "Rôles des différents acteurs dans la salle et niveau Traffic" },
+  { categorie: "Généralités", type: "Connaissances", label: "Connaitre les numéros de téléphones" },
+  { categorie: "Généralités", type: "Connaissances", label: "Connaitre le plan du réseau (stations+numéros+aiguillages)" },
+  { categorie: "Généralités", type: "Connaissances", label: "Quel matériel sur quelle ligne / restriction matériel" },
+  { categorie: "Généralités", type: "Savoir-faire", label: "Pouvoir utiliser le SVOI" },
+  { categorie: "Généralités", type: "Savoir-faire", label: "Lecture et participation à un scenario BABEL" },
+  { categorie: "Généralités", type: "Savoir-faire", label: "Utilisation de Skywalker" },
+  { categorie: "Généralités", type: "Connaissances", label: "Dépôts & sorties dépôt" },
+  { categorie: "Généralités", type: "Connaissances", label: "Configuration des terminus et arrières-stations" },
+  { categorie: "Généralités", type: "Connaissances", label: "Voies de garage" },
+  { categorie: "Généralités", type: "Connaissances", label: "Zone grises des stations (difference portillon fin de quai et 900v)" },
+  { categorie: "Généralités", type: "Savoir-faire", label: "taxi stop" },
+  { categorie: "Généralités", type: "Connaissances", label: "Locaux de gestions, de détente, de metzo des différents lieu de remplacement" },
+  { categorie: "Administratif", type: "", label: "Savoir remplir correctement le cahier" },
+  { categorie: "Administratif", type: "Savoir-faire", label: "Traiter la feuille d’anomalie / APR" },
+  { categorie: "Administratif", type: "", label: "Passage d'info shift suivant" },
+  { categorie: "Administratif", type: "", label: "Aller chercher proactivement la bouffe avec le sourire" },
+  { categorie: "Respect des règles", type: "Connaissances", label: "Reglement d'exploitation RIM/REM" },
+  { categorie: "Respect des règles", type: "Connaissances", label: "Rapport conducteur" },
+  { categorie: "Respect des règles", type: "Connaissances", label: "Règles Move & lieux de remplacement" },
+  { categorie: "IRIS/Qualité", type: "Connaissances", label: "La notion de qualité au sein du Dispatching" },
+  { categorie: "IRIS/Qualité", type: "Connaissances", label: "Connaitre la base de l’utilisation de l’IRIS (compo, info, lieu, actions, prévenu, Descritpion / Action / Conséquence, ... )" },
+  { categorie: "IRIS/Qualité", type: "Savoir-faire", label: "Création et encodage complet de l'IRIS" },
+  { categorie: "IRIS/Qualité", type: "Savoir-faire", label: "Encoder les km perdus" },
+  { categorie: "IRIS/Qualité", type: "Savoir-faire", label: "Création IRIS pour APR" },
+  { categorie: "IRIS/Qualité", type: "Savoir-faire", label: "Assistance vicitme (dispatcher)" },
+  { categorie: "Communication", type: "Savoir-être", label: "Garde un ton de voix assertif et adapté aux situations" },
+  { categorie: "Communication", type: "Connaissances", label: "Utilisation de la radio (parler, terminer, messages généraux,…)" },
+  { categorie: "Communication", type: "Connaissances", label: "Utilisation des téléphones (Pax et CISCO et centrale d'urgence)" },
+  { categorie: "Communication", type: "Connaissances", label: "Utilisation du Stento" },
+  { categorie: "Communication", type: "Savoir-être", label: "Communiquer avec son binôme et l'autre paire de lignes" },
+  { categorie: "Communication", type: "Savoir-faire", label: "Faire un AWT" },
+  { categorie: "client et info-voyageur", type: "Connaissances", label: "L'offre & horaires" },
+  { categorie: "client et info-voyageur", type: "Connaissances", label: "Les impacts des incidents sur les clients (BABEL, perturbations, trajets alternatifs et connexions…)" },
+  { categorie: "client et info-voyageur", type: "Connaissances", label: "Connaître les durées estimées d'incidents" },
+  { categorie: "client et info-voyageur", type: "Savoir-être", label: "Adapter ses actions dans l'intérêt du client" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "Pose des questions si quelques chose n'est pas clair / apprentissage actif" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "cherche à comprendre les logiques" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "s'interesse aux cas particulier/ incidents / Théorie Vs Pratique" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "demande du feedback sur ses prestations" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "Essaye d'apprendre métier de Dispatcher" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "Montre une volonté de gagner en autonomie" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Reste maître de ses émotions" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "est capable de détecter / anticiper les problématiques" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "ne génère/communique pas de stress aux autres collaborateurs" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Est capable de recevoir un feedback/une critique" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Garde la maitrise (pas d'hésitation)" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "n'oublie pas de communiquer les informations essentielles" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "est capable de détecter et communiquer ses limites" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Fait preuve de vigilance" },
+];
+const CRITERES_DISPATCHEUR = [
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Gérer les priorités en incident (Disp)" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Placement des mises au rouge de sécurité en incident" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Tester / Basculer vers le fall back" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Prendre les commandes à partir du fallback" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Prendre les commandes à partir du DRS" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Choix du BABEL" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Activation d'un Babel" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Gestion de l'arrivée des secours" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Gestion des évacuations en tunnel" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Surnombre de voyageurs" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Accessibilité aux stations" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Envoi d’agents en renfort" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Trafic suspendu ou ralenti" },
+  { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Plan d’urgence" },
+  { categorie: "Gestion d'incident", type: "Connaissances", label: "Scénarios par type d'incident (suicide, tiers bloqué dans les portes, incendies, etc)" },
+  { categorie: "Safety", type: "Connaissances", label: "Safety ferroviaire" },
+  { categorie: "Safety", type: "Connaissances", label: "Comprendre la logique et les limtes des (systèmes de) signalisation et de la sécurité ferroviaire" },
+  { categorie: "Safety", type: "Connaissances", label: "Expérience et habitude vs safety ferroviaire (rester vigilant)" },
+  { categorie: "Safety", type: "Connaissances", label: "Utilité des Movement Authority" },
+  { categorie: "Safety", type: "Connaissances", label: "Comprendre les principes des zones à protéger (signalisation, 900V, …)" },
+  { categorie: "Safety", type: "Connaissances", label: "Comprendre la détection des trains" },
+  { categorie: "Safety", type: "Connaissances", label: "Risques de prises des itinéraires en local (BCL)" },
+  { categorie: "Safety", type: "Connaissances", label: "Identifier, comprendre et anticiper les situations accidentogènes (infra, éléments extérieurs, incidents, etc)" },
+  { categorie: "Safety", type: "Connaissances", label: "Système de protection embarqué sur les trains" },
+  { categorie: "Safety", type: "Connaissances", label: "Dégrader la sécurité" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Donner procédure Niveau 1" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Donner procédure Niveau 2" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Donner procédure Niveau 3" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Demander la remise 900V" },
+  { categorie: "Safety", type: "Connaissances", label: "Conformité des rames et véhicules spéciaux : sécurité et légalité (règlement de police)" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Donner les accès à la voie" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Retirer les MRS" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Vérification de l'aiguillage en procédure" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Prise de décision en \"déviant de la note\" tout en restant brain base safety" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Récupération d'objets" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Test itinéraires/feu bleu" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Test aiguillages" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Test 0*" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Test contre-sens" },
+  { categorie: "Safety", type: "Savoir-faire", label: "Gestion des sécurités portes (aut. basculement des portes trains et/ou portes locales)" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "VT : coordination des initéraires et compo des convois" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Vérifier les compos des convois et les attestation de conformité" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Appeler energie pour coupure 900V (zone de travaux)" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Sécurisation les zones test" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Sécurisation chantier" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Accès à la voie" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Diriger les locos" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Tracer les itinéraires" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Prise en local de l'aiguillage / donner la main sur l'aiguillage" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Véhicules spéciaux \"non détecté\" ou \"sans attestation\"" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Installer une zone de sécurisation pour des test (ex: Hitachi (zone complète))" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Libération de la zone de sécurisation (remise en ordre) / zone CBTC" },
+  { categorie: "Travaux / Travaux de nuit", type: "Savoir-faire", label: "Enregistrement des feuilles de nuits" },
+  { categorie: "Multi Tasking", type: "Savoir-être", label: "Veille active sur la régulation (Disp)" },
+  { categorie: "Multi Tasking", type: "Savoir-être", label: "retenir les informations des conversations radio reçues et prendre les actions nécessaires" },
+  { categorie: "Multi Tasking", type: "Savoir-être", label: "Garder de la bande passante" },
+  { categorie: "Multi Tasking", type: "Savoir-être", label: "Faire l'IRIS en temps réel" },
+  { categorie: "SYREM", type: "Savoir-faire", label: "MRS" },
+  { categorie: "SYREM", type: "Connaissances", label: "Implication sur la sécurité des magentas et ecrans noirs" },
+  { categorie: "PEX", type: "", label: "compter les kilomètres après un incident (regulateur)" },
+  { categorie: "Administratif", type: "Savoir-faire", label: "Adaptation du cahier SIG" },
+  { categorie: "Respect des règles", type: "Connaissances", label: "Reglement d'exploitation RIM/REM" },
+  { categorie: "Respect des règles", type: "Connaissances", label: "Reglementation des véhicules spéciaux" },
+  { categorie: "IRIS/Qualité", type: "Savoir-faire", label: "Création et encodage complet de l'IRIS" },
+  { categorie: "IRIS/Qualité", type: "Savoir-faire", label: "Encoder les km perdus" },
+  { categorie: "IRIS/Qualité", type: "Savoir-faire", label: "Création IRIS pour APR" },
+  { categorie: "IRIS/Qualité", type: "Savoir-faire", label: "Assistance vicitme" },
+  { categorie: "Communication", type: "Savoir-faire", label: "Appeler les services de secours" },
+  { categorie: "Communication", type: "Savoir-faire", label: "Travailler avec le grader de garde" },
+  { categorie: "client et info-voyageur", type: "", label: "Orienté client dans le choix/validation du BABEL" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "Pose des questions si quelques chose n'est pas clair / apprentissage actif" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "cherche à comprendre les logiques" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "s'interesse aux cas particuler/ incidents / Théorie Vs Pratique" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "demande du feedback sur ses prestations" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "Essaye d'apprendre métier de Dispatcher" },
+  { categorie: "Envie d'apprendre", type: "Savoir-être", label: "Montre une volonté de gagner en autonomie" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Reste maître de ses émotions" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "est capable de détecter / anticiper les problématiques" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "ne génère/communique pas de stress aux autres collaborateurs" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Est capable de recevoir un feedback/une critique" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Garde la maitrise (pas d'hésiation)" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "n'oublie pas de communiquer les informations essentielles" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "est capable de détecter et communiquer ses limites" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Fait preuve de vigilance" },
+  { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Est orienté brain based safety" },
+];
+function groupVolets(criteresFlat) {
+  const volets = [];
+  for (const c of criteresFlat) {
+    let v = volets.find(v => v.titre === c.categorie);
+    if (!v) { v = { titre: c.categorie, criteres: [] }; volets.push(v); }
+    v.criteres.push({ type: c.type, label: c.label });
+  }
+  return volets;
+}
+const VOLETS_REGULATEUR = groupVolets(CRITERES_REGULATEUR);
+const VOLETS_DISPATCHEUR = groupVolets(CRITERES_DISPATCHEUR);
+
 function makeJours(n, startAt = 1) {
   return Array.from({ length: n }, (_, i) => ({
     numero: startAt + i, statut: i === 0 ? "disponible" : "verrouille",
-    date: null, moniteurNom: null, moniteurComplet: null,
-    criteres: CRITERES_EXEMPLE.map(() => null),
+    date: null, moniteurNom: null, moniteurComplet: null, poste: null,
+    commentaireHumain: "", commentaireTechnique: "", resumeSemaine: "", competencesGlobales: {}, criteres: {},
   }));
 }
 function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0"); return `${dd}/${mm}/${d.getFullYear()}`; }
 
-function CarnetJourDetail({ jourData, editable, currentUser, onUpdateList, onBack }) {
+function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateList, onBack }) {
   const { t } = useLang();
   const [confirmFin, setConfirmFin] = useState(false);
+  const [openVolet, setOpenVolet] = useState(null);
+  const [showAideCotation, setShowAideCotation] = useState(false);
   const started = jourData.statut === "en_cours" || jourData.statut === "termine";
   const finished = jourData.statut === "termine";
-  const canFillCriteria = editable && started && !finished;
+  const canFill = editable && started && !finished;
 
   const commencer = () => {
     onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? {
@@ -1751,15 +1992,18 @@ function CarnetJourDetail({ jourData, editable, currentUser, onUpdateList, onBac
     setConfirmFin(false);
     onBack();
   };
-  const setStatutCritere = (i, v) => {
-    if (!canFillCriteria) return;
-    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, criteres: j.criteres.map((x, idx) => idx === i ? v : x) } : j));
+  const setChampTexte = (champ, texte) => {
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, [champ]: texte } : j));
   };
-  const options = [
-    { value: "acquis", label: t("critere_acquis"), color: C.green, bg: C.greenSoft },
-    { value: "a_revoir", label: t("critere_a_revoir"), color: C.gold, bg: C.goldSoft },
-    { value: "non_evalue", label: t("critere_non_evalue"), color: C.inkSoft, bg: C.bg },
-  ];
+  const setStatutCritere = (key, v) => {
+    if (!canFill) return;
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, criteres: { ...j.criteres, [key]: j.criteres?.[key] === v ? undefined : v } } : j));
+  };
+  const setCompetenceGlobale = (vi, v) => {
+    if (!canFill) return;
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, competencesGlobales: { ...j.competencesGlobales, [vi]: j.competencesGlobales?.[vi] === v ? undefined : v } } : j));
+  };
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
@@ -1771,30 +2015,119 @@ function CarnetJourDetail({ jourData, editable, currentUser, onUpdateList, onBac
         <Btn variant="gold" onClick={commencer} disabled={!editable || started}>{t("commencer_jour_btn")}</Btn>
         <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.inkSoft }}>{jourData.date || ".../.../..."}</span>
         <span style={{ fontSize: 13, color: C.inkSoft }}>{t("moniteur_label")} <strong style={{ color: C.ink }}>{jourData.moniteurComplet || "—"}</strong></span>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.inkSoft }}>
+          {t("poste_label")}
+          <select disabled={!canFill} value={jourData.poste || ""} onChange={e => setChampTexte("poste", e.target.value || null)} style={{ ...inputStyle, width: "auto", padding: "4px 8px", fontSize: 13 }}>
+            <option value="">—</option>
+            {POSTES.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </span>
         <Btn variant="primary" onClick={() => setConfirmFin(true)} disabled={!editable || !started || finished} style={{ marginLeft: "auto" }}>{t("fin_journee_btn")}</Btn>
       </div>
 
       {!started && <div style={{ background: C.bg, color: C.inkSoft, fontSize: 12.5, padding: "10px 14px", borderRadius: 8, marginBottom: 18 }}>{t("carnet_pas_commence_note")}</div>}
-      {started && <div style={{ background: C.tealSoft, color: C.teal, fontSize: 12, fontWeight: 600, padding: "8px 14px", borderRadius: 8, marginBottom: 18 }}>{t("carnet_criteres_apercu_note")}</div>}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {CRITERES_EXEMPLE.map((critere, i) => (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "14px 16px", opacity: started ? 1 : 0.5 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: C.navy, marginBottom: 10 }}>{critere}</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {options.map(opt => (
-                <button key={opt.value} disabled={!canFillCriteria} onClick={() => setStatutCritere(i, opt.value)}
-                  style={{ padding: "6px 12px", borderRadius: 20, border: `1px solid ${jourData.criteres[i] === opt.value ? opt.color : C.line}`, background: jourData.criteres[i] === opt.value ? opt.bg : "#fff", color: jourData.criteres[i] === opt.value ? opt.color : C.inkSoft, fontSize: 12, fontWeight: 600, cursor: canFillCriteria ? "pointer" : "not-allowed" }}>
-                  {opt.label}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 18 }}>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("commentaire_humain_label")}</div>
+          <textarea disabled={!canFill} value={jourData.commentaireHumain || ""} onChange={e => setChampTexte("commentaireHumain", e.target.value)}
+            placeholder={t("commentaire_humain_placeholder")}
+            style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6 }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("commentaire_technicite_label")}</div>
+          <textarea disabled={!canFill} value={jourData.commentaireTechnique || ""} onChange={e => setChampTexte("commentaireTechnique", e.target.value)}
+            placeholder={t("commentaire_technicite_placeholder")}
+            style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6 }} />
+        </div>
+      </div>
+
+      {jourData.numero % 5 === 0 && (
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("resume_semaine_label")}</div>
+          <textarea disabled={!canFill} value={jourData.resumeSemaine || ""} onChange={e => setChampTexte("resumeSemaine", e.target.value)}
+            placeholder={t("resume_semaine_placeholder")}
+            style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6, borderColor: C.gold }} />
+        </div>
+      )}
+
+      <div style={{ marginBottom: 12, display: "flex", justifyContent: "flex-end" }}>
+        <Btn variant="ghost" icon={HelpCircle} onClick={() => setShowAideCotation(true)}>{t("aide_cotation_btn")}</Btn>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {volets.map((volet, vi) => {
+          const isOpen = openVolet === vi;
+          const notes = volet.criteres.map((_, ci) => jourData.criteres?.[`${vi}-${ci}`]).filter(v => v != null);
+          const globalVal = jourData.competencesGlobales?.[vi];
+          const calculatedVal = globalVal == null && notes.length > 0 ? Math.round((notes.reduce((a, b) => a + b, 0) / notes.length) * 10) / 10 : null;
+          return (
+            <div key={vi} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", opacity: started ? 1 : 0.6 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={() => setOpenVolet(isOpen ? null : vi)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, flex: 1, minWidth: 160, textAlign: "left" }}>
+                  {isOpen ? <ChevronUp size={15} color={C.inkSoft} /> : <ChevronDown size={15} color={C.inkSoft} />}
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: C.navy }}>{volet.titre}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: notes.length > 0 ? C.green : C.inkSoft }}>{t("volet_notes_count", { n: notes.length, total: volet.criteres.length })}</span>
                 </button>
-              ))}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {calculatedVal != null && <span style={{ fontSize: 11, fontWeight: 600, color: C.teal, whiteSpace: "nowrap" }}>{t("note_calculee_label", { v: calculatedVal })}</span>}
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    {COTATION_SCALE.map(opt => (
+                      <button key={opt.value} disabled={!canFill} onClick={() => setCompetenceGlobale(vi, opt.value)} title={opt.desc}
+                        style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${globalVal === opt.value ? opt.color : C.line}`, background: globalVal === opt.value ? opt.bg : "#fff", color: globalVal === opt.value ? opt.color : C.inkSoft, fontSize: 13, fontWeight: 700, cursor: canFill ? "pointer" : "not-allowed" }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {isOpen && (
+                <div style={{ borderTop: `1px solid ${C.line}`, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ fontSize: 11, color: C.inkSoft, fontStyle: "italic" }}>{t("volet_criteres_situationnels_note", { n: notes.length, total: volet.criteres.length })}</div>
+                  {volet.criteres.map((crit, ci) => {
+                    const key = `${vi}-${ci}`;
+                    const val = jourData.criteres?.[key];
+                    return (
+                      <div key={ci}>
+                        <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 6, display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
+                          {crit.type && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.inkSoft, background: C.bg, borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{crit.type}</span>}
+                          <span>{crit.label}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: 5 }}>
+                          {COTATION_SCALE.map(opt => (
+                            <button key={opt.value} disabled={!canFill} onClick={() => setStatutCritere(key, opt.value)} title={opt.desc}
+                              style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${val === opt.value ? opt.color : C.line}`, background: val === opt.value ? opt.bg : "#fff", color: val === opt.value ? opt.color : C.inkSoft, fontSize: 12, fontWeight: 700, cursor: canFill ? "pointer" : "not-allowed" }}>
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {confirmFin && (
         <ConfirmDialog tone="success" title={t("fin_journee_btn")} message={t("confirm_fin_journee_msg", { n: jourData.numero })}
           confirmLabel={t("fin_journee_btn")} onConfirm={finDeJournee} onCancel={() => setConfirmFin(false)} />
+      )}
+      {showAideCotation && (
+        <Modal title={t("aide_cotation_titre")} onClose={() => setShowAideCotation(false)} width={480}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {COTATION_SCALE.map(opt => (
+              <div key={opt.value} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 12px", borderRadius: 10, background: opt.bg }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "#fff", color: opt.color, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{opt.label}</div>
+                <div style={{ fontSize: 13, color: C.ink, lineHeight: 1.4 }}>{opt.descComplete}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+            <Btn variant="ghost" onClick={() => setShowAideCotation(false)}>{t("close")}</Btn>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -1806,28 +2139,28 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
   const tab2Editable = eleve.fonction === "Élève dispatcheur";
   const defaultTab = (eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur") ? "dispatcheur" : "regulateur";
   const [activeTab, setActiveTab] = useState(defaultTab);
-  const [viewingJour, setViewingJour] = useState(null);
-  const [error, setError] = useState("");
+  const [activeSubTab, setActiveSubTab] = useState("jours");
+  const [viewingJour, setViewingJour] = useState(null); // { section: "reg"|"regSolo"|"disp", numero }
   const showingTab2 = activeTab === "dispatcheur" && tab2Visible;
   const editable = showingTab2 ? tab2Editable : tab1Editable;
 
   const carnet = eleve.carnet || {};
   const joursReg = carnet.reg || makeJours(35, 1);
-  const joursRegSolo = carnet.regSolo || makeJours(10, 36);
+  const joursRegSolo = carnet.regSolo || makeJours(10, 1);
   const joursDisp = carnet.disp || makeJours(35, 1);
   const examen35Reussi = !!carnet.examen35;
 
-  // Toute modification écrit directement sur le profil de l'élève en base
-  // (colonne "carnet"), puis rafraîchit la liste — ça survit à une sortie
-  // du carnet ou à un rechargement de page, contrairement à un simple state local.
+  // Toute modification passe par ici : ça met à jour le profil de l'élève
+  // dans la liste globale (setUsers), donc ça survit à une sortie du carnet.
+  const [carnetError, setCarnetError] = useState("");
   const updateCarnet = async (patch) => {
-    setError("");
+    setCarnetError("");
     const newCarnet = { ...(eleve.carnet || {}), ...patch };
     try {
       const { error: err } = await supabase.from("profiles").update({ carnet: newCarnet }).eq("id", eleve.id);
       if (err) throw err;
       await setUsers();
-    } catch (e) { setError(e?.message || "Erreur inconnue."); }
+    } catch (e) { setCarnetError(e?.message || "Erreur inconnue."); }
   };
   const listSetters = {
     reg: (updater) => updateCarnet({ reg: typeof updater === "function" ? updater(joursReg) : updater }),
@@ -1839,12 +2172,13 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
   if (viewingJour) {
     const [list, setList] = sections[viewingJour.section];
     const jourData = list.find(j => j.numero === viewingJour.numero);
-    return <CarnetJourDetail jourData={jourData} editable={editable} currentUser={currentUser} onUpdateList={setList} onBack={() => setViewingJour(null)} />;
+    const volets = viewingJour.section === "disp" ? VOLETS_DISPATCHEUR : VOLETS_REGULATEUR;
+    return <CarnetJourDetail jourData={jourData} editable={editable} currentUser={currentUser} volets={volets} onUpdateList={setList} onBack={() => setViewingJour(null)} />;
   }
 
   const renderGrid = (section) => {
     const [list, setList] = sections[section];
-    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, criteres: CRITERES_EXEMPLE.map(() => null) }]);
+    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, commentaireHumain: "", commentaireTechnique: "", resumeSemaine: "", competencesGlobales: {}, criteres: {} }]);
     const removeJour = () => {
       if (list.length <= 1) return;
       const last = list[list.length - 1];
@@ -1859,9 +2193,11 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
             const bg = j.statut === "verrouille" ? C.bg : j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
             const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
             const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
+            const isSemaine = j.numero % 5 === 0;
             return (
               <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
-                style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7 }}>
+                title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
+                style={{ background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
                 <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
                 <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
@@ -1889,9 +2225,10 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 700, color: C.navy }}>{eleve.prenom} {eleve.nom}</div>
           <div style={{ fontSize: 12, color: C.inkSoft }}>{t("carnet_personnel_sous_titre")}</div>
         </div>
+        <Btn variant="ghost" icon={FileDown} onClick={() => {}} style={{ marginLeft: "auto" }}>{t("exporter_btn")}</Btn>
       </div>
 
-      {error && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{error}</div>}
+      {carnetError && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{carnetError}</div>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18, borderBottom: `1px solid ${C.line}` }}>
         <button onClick={() => setActiveTab("regulateur")} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 4px", marginRight: 20, fontSize: 13.5, fontWeight: 600, color: activeTab === "regulateur" ? C.navy : C.inkSoft, borderBottom: `2px solid ${activeTab === "regulateur" ? C.navy : "transparent"}` }}>
@@ -1911,21 +2248,140 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
         <span style={{ fontSize: 12, color: C.inkSoft }}>{activeTab === "regulateur" ? t("carnet_duree_regulateur") : t("carnet_duree_dispatcheur")}</span>
       </div>
 
-      {activeTab === "regulateur" ? (
-        <>
-          {renderGrid("reg")}
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: C.navy, marginBottom: 16, cursor: editable ? "pointer" : "default" }}>
-            <input type="checkbox" checked={examen35Reussi} disabled={!editable} onChange={e => updateCarnet({ examen35: e.target.checked })} />
-            {t("examen_35_label")}
-          </label>
-          {examen35Reussi && renderGrid("regSolo")}
-        </>
-      ) : renderGrid("disp")}
+      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        <button onClick={() => setActiveSubTab("jours")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${activeSubTab === "jours" ? C.navy : C.line}`, background: activeSubTab === "jours" ? C.navy : "#fff", color: activeSubTab === "jours" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_jours")}</button>
+        <button onClick={() => setActiveSubTab("graphiques")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${activeSubTab === "graphiques" ? C.navy : C.line}`, background: activeSubTab === "graphiques" ? C.navy : "#fff", color: activeSubTab === "graphiques" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_graphiques")}</button>
+      </div>
+
+      {activeSubTab === "jours" ? (
+        activeTab === "regulateur" ? (
+          <>
+            {renderGrid("reg")}
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: C.navy, marginBottom: 16, cursor: editable ? "pointer" : "default" }}>
+              <input type="checkbox" checked={examen35Reussi} disabled={!editable} onChange={e => updateCarnet({ examen35: e.target.checked })} />
+              {t("examen_35_label")}
+            </label>
+            {examen35Reussi && renderGrid("regSolo")}
+          </>
+        ) : renderGrid("disp")
+      ) : (() => {
+        const jours = activeTab === "regulateur" ? [...joursReg, ...joursRegSolo] : joursDisp;
+        const volets = activeTab === "regulateur" ? VOLETS_REGULATEUR : VOLETS_DISPATCHEUR;
+        const radarData = computeRadarCarnet(jours, volets);
+        const aDesDonnees = radarData.some(d => d.value > 0);
+        return (
+          <>
+            <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
+              <SectionTitle>{t("carnet_radar_titre")}</SectionTitle>
+              {!aDesDonnees ? <EmptyState icon={ClipboardList} title={t("pas_de_donnees_titre")} body={t("carnet_graphiques_apparaitront")} /> : (
+                <div style={{ height: 300, marginTop: 10 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData} outerRadius="75%">
+                      <PolarGrid stroke={C.line} />
+                      <PolarAngleAxis dataKey="axe" tick={{ fontSize: 11, fill: C.inkSoft, fontFamily: FONT_BODY }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fontSize: 9, fill: "#B8BCC4" }} />
+                      <Radar dataKey="value" stroke={C.gold} fill={C.gold} fillOpacity={0.35} />
+                      <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${C.line}`, fontSize: 12 }} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
+              {EVOLUTION_GRAPHS.map(g => {
+                const data = activeTab === "regulateur"
+                  ? [...computeEvolutionCarnet(joursReg, volets, g.categories), ...computeEvolutionCarnet(joursRegSolo, volets, g.categories, 35)]
+                  : computeEvolutionCarnet(joursDisp, volets, g.categories);
+                return (
+                  <div key={g.titre} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 700, color: C.navy, marginBottom: 12 }}>{g.titre}</div>
+                    {data.length === 0 ? <EmptyState icon={ClipboardList} title={t("pas_de_donnees_titre")} body={t("carnet_graphiques_apparaitront")} /> : (
+                      <div style={{ height: 340 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                            <CartesianGrid stroke={C.line} strokeDasharray="3 3" />
+                            <XAxis dataKey="jour" type="number" domain={["dataMin", "dataMax"]} allowDecimals={false} tick={{ fontSize: 9, fill: C.inkSoft }} />
+                            <YAxis domain={[0, 5]} tick={{ fontSize: 9, fill: "#B8BCC4" }} />
+                            <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${C.line}`, fontSize: 12 }} labelFormatter={(v) => `${t("jour_label")} ${v}`} />
+                            <Legend wrapperStyle={{ fontSize: 11 }} />
+                            {g.categories.map((cat, ci) => (
+                              <Line key={cat} type="monotone" dataKey={cat} stroke={EVOLUTION_COLORS[ci % EVOLUTION_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                            ))}
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
+// Regroupements du radar "Interfaces" (2 étages, comme dans la feuille Excel
+// "Radar" : moyenne des jours notés par catégorie, puis moyenne des
+// catégories du groupe). Les catégories citées mais absentes des volets
+// actuels (Hermès, CBTC, IVL, Crew Management) n'ont simplement pas de
+// données pour l'instant — l'axe reste à 0, comme dans le fichier d'origine.
+const RADAR_GROUPS = [
+  { axe: "Régulation", categories: ["Regulation"] },
+  { axe: "Interface Syrem", categories: ["SYREM", "PEX", "Factory Link", "GCTR"] },
+  { axe: "Interface Hermes", categories: ["Hermès", "Crew Management (Hermès)", "IVL"] },
+  { axe: "Safety", categories: ["Safety", "CBTC"] },
+  { axe: "Multi Tasking", categories: ["Multi Tasking"] },
+  { axe: "Admin/Qualité", categories: ["Généralités", "Administratif", "Respect des règles", "IRIS/Qualité"] },
+  { axe: "Communication", categories: ["Communication"] },
+  { axe: "Attitude", categories: ["client et info-voyageur", "Envie d'apprendre", "Gestion stress & Comportement"] },
+];
+const EVOLUTION_GRAPHS = [
+  { titre: "Régulation-Safety-Multitasking", categories: ["Regulation", "Safety", "Multi Tasking"] },
+  { titre: "Interfaces SYREM", categories: ["SYREM", "PEX", "Factory Link", "GCTR"] },
+  { titre: "Admin", categories: ["Généralités", "Respect des règles", "Administratif", "IRIS/Qualité"] },
+  { titre: "Comportement-Client", categories: ["Communication", "client et info-voyageur", "Envie d'apprendre", "Gestion stress & Comportement"] },
+];
+const EVOLUTION_COLORS = [C.navy, C.gold, C.teal, C.red];
+
+// Valeur "effective" d'une compétence pour un jour donné : la note directe
+// si le moniteur en a posé une, sinon la moyenne des sous-compétences
+// notées ce jour-là (s'il y en a). Sert à la fois à l'affichage dans le
+// carnet et aux calculs des graphiques.
+function competenceEffectiveValue(jourData, volet, vi) {
+  const explicite = jourData.competencesGlobales?.[vi];
+  if (explicite != null) return explicite;
+  const notes = volet.criteres.map((_, ci) => jourData.criteres?.[`${vi}-${ci}`]).filter(v => v != null);
+  if (notes.length === 0) return null;
+  return notes.reduce((a, b) => a + b, 0) / notes.length;
+}
+function moyenneCategorieCarnet(jours, volets, categorieTitre) {
+  const vi = volets.findIndex(v => v.titre === categorieTitre);
+  if (vi === -1) return null;
+  const volet = volets[vi];
+  const valeurs = jours.map(j => competenceEffectiveValue(j, volet, vi)).filter(v => v != null);
+  if (valeurs.length === 0) return null;
+  return valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
+}
+function computeRadarCarnet(jours, volets) {
+  return RADAR_GROUPS.map(g => {
+    const moyennes = g.categories.map(c => moyenneCategorieCarnet(jours, volets, c)).filter(v => v != null);
+    const value = moyennes.length ? moyennes.reduce((a, b) => a + b, 0) / moyennes.length : 0;
+    return { axe: g.axe, value: Math.round(value * 10) / 10 };
+  });
+}
+function computeEvolutionCarnet(jours, volets, categories, offsetJour = 0) {
+  return jours.map(j => {
+    const point = { jour: offsetJour + j.numero };
+    for (const cat of categories) {
+      const vi = volets.findIndex(v => v.titre === cat);
+      point[cat] = vi === -1 ? null : competenceEffectiveValue(j, volets[vi], vi);
+    }
+    return point;
+  });
+}
 const GRADUATION_MAP = { "Élève régulateur": "Régulateur", "Élève dispatcheur": "Dispatcheur" };
-function CarnetsEleves({ users, setUsers, questionnaires, categories, isAdmin, currentUser }) {
+function CarnetsEleves({ users, setUsers, questionnaires, questions, categories, isAdmin, currentUser }) {
   const { t, lang } = useLang();
   const [search, setSearch] = useState("");
   const [viewingEleve, setViewingEleve] = useState(null);
@@ -2059,6 +2515,132 @@ function CarnetsEleves({ users, setUsers, questionnaires, categories, isAdmin, c
           confirmLabel={t("debuter_formation_dp_btn")} onConfirm={() => startDPTraining(confirmStartDP)} onCancel={() => setConfirmStartDP(null)} />
       )}
     </div>
+  );
+}
+function QuestionPreviewModal({ question: q, categories, onClose }) {
+  const { t } = useLang();
+  const [lang, setLang] = useState("fr");
+  const [answer, setAnswer] = useState(null);
+
+  const handleImageClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const current = answer || [];
+    if (current.length >= (q.cibles || []).length) return;
+    setAnswer([...current, { x, y }]);
+  };
+  const resetPoints = () => setAnswer([]);
+
+  return (
+    <Modal title={t("previsualiser_titre")} onClose={onClose} width={640}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 4, background: C.bg, borderRadius: 8, padding: 3 }}>
+          {["fr", "nl"].map(l => (
+            <button key={l} onClick={() => setLang(l)} style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: lang === l ? "#fff" : "transparent", color: lang === l ? C.navy : C.inkSoft, fontWeight: 700, fontSize: 12.5, cursor: "pointer", boxShadow: lang === l ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>{l.toUpperCase()}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16, padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            {typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 16, fontWeight: 700, color: C.navy, background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 8, padding: "4px 10px" }}>Question #{q.numero}</span>}
+            <CategoryBadges allCategories={categories} cats={q.categories} />
+          </div>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.inkSoft }}>{q.points} pt{q.points > 1 ? "s" : ""}</span>
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: C.navy, lineHeight: 1.4, marginBottom: 20 }}>{qText(q, lang)}</div>
+
+        {q.media?.type === "audio" && <audio controls src={q.media.url} style={{ width: "100%", marginBottom: 20 }} />}
+        {q.media?.type === "video" && q.type !== "point" && <video controls src={q.media.url} style={{ maxWidth: "100%", borderRadius: 10, marginBottom: 20, border: `1px solid ${C.line}` }} />}
+        {q.media?.type === "image" && q.type !== "point" && q.type !== "legende" && <img src={q.media.url} style={{ maxWidth: "100%", borderRadius: 10, marginBottom: 20, border: `1px solid ${C.line}` }} />}
+
+        {(q.type === "qcm" || q.type === "vrai_faux") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {qChoix(q, lang).map((c, ci) => (
+              <label key={ci} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 15, padding: "12px 16px", borderRadius: 10, border: `1px solid ${answer === ci ? C.navy : C.line}`, background: answer === ci ? C.bg : "#fff", cursor: "pointer" }}>
+                <input type="radio" name={`preview-${q.id}`} checked={answer === ci} onChange={() => setAnswer(ci)} />{c}
+              </label>
+            ))}
+          </div>
+        )}
+        {q.type === "qcm_multi" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: -2 }}>Plusieurs réponses sont possibles.</div>
+            {qChoix(q, lang).map((c, ci) => {
+              const selected = Array.isArray(answer) && answer.includes(ci);
+              return (
+                <label key={ci} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 15, padding: "12px 16px", borderRadius: 10, border: `1px solid ${selected ? C.navy : C.line}`, background: selected ? C.bg : "#fff", cursor: "pointer" }}>
+                  <input type="checkbox" checked={selected} onChange={() => { const cur = Array.isArray(answer) ? answer : []; setAnswer(cur.includes(ci) ? cur.filter(x => x !== ci) : [...cur, ci]); }} />{c}
+                </label>
+              );
+            })}
+          </div>
+        )}
+        {q.type === "ouverte" && <textarea style={{ ...inputStyle, minHeight: 150, resize: "vertical", fontSize: 14 }} placeholder={t("write_answer_placeholder")} value={(answer && answer.text) || ""} onChange={e => setAnswer({ text: e.target.value })} />}
+        {q.type === "point" && q.media?.url && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t("click_on")} {(q.cibles || []).length} {t("locations")} — {(answer || []).length}/{(q.cibles || []).length} {t("select_count")}{(answer || []).length > 1 ? "s" : ""}</span>
+              {(answer || []).length > 0 && <Btn variant="ghost" icon={Undo2} onClick={resetPoints} style={{ padding: "5px 10px", fontSize: 12 }}>{t("reset")}</Btn>}
+            </div>
+            <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
+              <img src={q.media.url} onClick={handleImageClick} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, cursor: "crosshair", display: "block" }} />
+              {(answer || []).map((pt, pi) => (
+                <div key={pi} style={{ position: "absolute", left: `${pt.x}%`, top: `${pt.y}%`, width: 22, height: 22, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", boxShadow: "0 0 0 1px rgba(0,0,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{pi + 1}</div>
+              ))}
+            </div>
+          </div>
+        )}
+        {q.type === "legende" && q.media?.url && (
+          <div>
+            <div style={{ position: "relative", display: "inline-block", maxWidth: "100%", marginBottom: 16 }}>
+              <img src={q.media.url} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, display: "block" }} />
+              {(q.marqueurs || []).map((m, mi) => (
+                <div key={m.id} style={{ position: "absolute", left: `${m.x}%`, top: `${m.y}%`, width: 26, height: 26, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", boxShadow: "0 0 0 1px rgba(0,0,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{mi + 1}</div>
+              ))}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(q.marqueurs || []).map((m, mi) => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ width: 26, height: 26, borderRadius: "50%", background: C.goldSoft, color: C.navy, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, fontFamily: FONT_MONO, flexShrink: 0 }}>{mi + 1}</span>
+                  <input style={inputStyle} placeholder={`À quoi correspond le point ${mi + 1} ?`} value={(answer && answer[mi]) || ""} onChange={e => { const cur = Array.isArray(answer) ? [...answer] : Array((q.marqueurs || []).length).fill(""); cur[mi] = e.target.value; setAnswer(cur); }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {q.type === "relier" && <RelierQuestion q={q} value={answer} onChange={setAnswer} />}
+        {q.type === "action_reaction" && <ActionReactionPlayer q={q} value={answer} onChange={setAnswer} />}
+        {q.type === "ordre" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: -2 }}>Utilisez les flèches pour remettre ces actions dans le bon ordre.</div>
+            {(answer || (q.items || []).map(it => it.id)).map((itemId, i) => {
+              const currentOrder = answer || (q.items || []).map(it => it.id);
+              const item = (q.items || []).find(it => it.id === itemId);
+              const moveOrder = (dir) => {
+                const j = i + dir;
+                if (j < 0 || j >= currentOrder.length) return;
+                const next = [...currentOrder];
+                [next[i], next[j]] = [next[j], next[i]];
+                setAnswer(next);
+              };
+              return (
+                <div key={itemId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: `1px solid ${C.line}`, background: "#fff" }}>
+                  <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, fontWeight: 700, color: C.inkSoft, width: 20 }}>{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: 14 }}>{item ? itemText(item, lang) : ""}</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button onClick={() => moveOrder(-1)} disabled={i === 0} style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", opacity: i === 0 ? 0.3 : 1, display: "flex" }}><ChevronUp size={16} /></button>
+                    <button onClick={() => moveOrder(1)} disabled={i === currentOrder.length - 1} style={{ background: "none", border: "none", cursor: i === currentOrder.length - 1 ? "default" : "pointer", opacity: i === currentOrder.length - 1 ? 0.3 : 1, display: "flex" }}><ChevronDown size={16} /></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 function EleveDetailView({ eleve, questionnaires, categories, onBack }) {
@@ -2770,6 +3352,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
   const [filter, setFilter] = useState("Toutes");
   const [search, setSearch] = useState("");
   const [confirmQId, setConfirmQId] = useState(null);
+  const [previewing, setPreviewing] = useState(null);
   const [importing, setImporting] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [transferTarget, setTransferTarget] = useState("");
@@ -2884,6 +3467,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
                     {questionStats[q.id] ? `${questionStats[q.id].posed}/${questionStats[q.id].correct}` : "—"}
                   </span>
                 )}
+                <Btn variant="subtle" icon={Eye} onClick={() => setPreviewing(q)} style={{ padding: "6px 10px" }} />
                 <Btn variant="subtle" icon={Edit2} onClick={() => setModal(q)} style={{ padding: "6px 10px" }} />
                 <Btn variant="danger" icon={Trash2} onClick={() => setConfirmQId(q.id)} style={{ padding: "6px 10px" }} />
               </div>
@@ -2913,6 +3497,7 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
       {confirmBulkDelete && (
         <ConfirmDialog title={t("supprimer_questions_titre")} message={t("supprimer_questions_msg", { n: selected.size })} onConfirm={doBulkDelete} onCancel={() => setConfirmBulkDelete(false)} />
       )}
+      {previewing && <QuestionPreviewModal question={previewing} categories={categories} onClose={() => setPreviewing(null)} />}
     </div>
   );
 }
