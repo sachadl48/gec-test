@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from "react";
 import { supabase } from "./lib/supabaseClient.js";
 import * as XLSX from "xlsx";
@@ -1031,13 +1030,16 @@ function ExamMode({ questionnaire, questions, categories, questionLangues, onExi
     return a !== null && a !== undefined;
   };
   const answeredCount = answers.filter((_, i) => isAnswered(i)).length;
-  const allAnswered = answeredCount === qs.length;
+  const isResolved = (i) => isAnswered(i) || locked[i];
+  const allAnswered = qs.every((_, i) => isResolved(i));
   const goTo = (i) => { if (locked[i]) return; if (q.type === "action_reaction" && !isAnswered(idx) && i !== idx) return; setIdx(i); };
 
   const handleImageClick = (e) => {
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const point = e.changedTouches ? e.changedTouches[0] : e;
+    const x = ((point.clientX - rect.left) / rect.width) * 100;
+    const y = ((point.clientY - rect.top) / rect.height) * 100;
     const current = answers[idx] || [];
     if (current.length >= (q.cibles || []).length) return;
     setAnswer([...current, { x, y }]);
@@ -1117,7 +1119,7 @@ function ExamMode({ questionnaire, questions, categories, questionLangues, onExi
               {(answers[idx] || []).length > 0 && <Btn variant="ghost" icon={Undo2} onClick={resetPoints} style={{ padding: "5px 10px", fontSize: 12 }}>{t("reset")}</Btn>}
             </div>
             <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-              <img src={q.media.url} onClick={handleImageClick} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, cursor: "crosshair", display: "block" }} />
+              <img src={q.media.url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
               {(answers[idx] || []).map((pt, pi) => (
                 <div key={pi} style={{ position: "absolute", left: `${pt.x}%`, top: `${pt.y}%`, width: 22, height: 22, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", boxShadow: "0 0 0 1px rgba(0,0,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{pi + 1}</div>
               ))}
@@ -2524,9 +2526,11 @@ function QuestionPreviewModal({ question: q, categories, onClose }) {
   const [answer, setAnswer] = useState(null);
 
   const handleImageClick = (e) => {
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const point = e.changedTouches ? e.changedTouches[0] : e;
+    const x = ((point.clientX - rect.left) / rect.width) * 100;
+    const y = ((point.clientY - rect.top) / rect.height) * 100;
     const current = answer || [];
     if (current.length >= (q.cibles || []).length) return;
     setAnswer([...current, { x, y }]);
@@ -2587,7 +2591,7 @@ function QuestionPreviewModal({ question: q, categories, onClose }) {
               {(answer || []).length > 0 && <Btn variant="ghost" icon={Undo2} onClick={resetPoints} style={{ padding: "5px 10px", fontSize: 12 }}>{t("reset")}</Btn>}
             </div>
             <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-              <img src={q.media.url} onClick={handleImageClick} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, cursor: "crosshair", display: "block" }} />
+              <img src={q.media.url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
               {(answer || []).map((pt, pi) => (
                 <div key={pi} style={{ position: "absolute", left: `${pt.x}%`, top: `${pt.y}%`, width: 22, height: 22, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", boxShadow: "0 0 0 1px rgba(0,0,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{pi + 1}</div>
               ))}
@@ -3609,9 +3613,11 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
   };
   const handleImageClick = (e) => {
     if (form.type !== "point" && form.type !== "legende") return;
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const point = e.changedTouches ? e.changedTouches[0] : e;
+    const x = ((point.clientX - rect.left) / rect.width) * 100;
+    const y = ((point.clientY - rect.top) / rect.height) * 100;
     if (form.type === "point") setForm({ ...form, cibles: [...form.cibles, { x, y, rayon: 10 }] });
     else setForm({ ...form, marqueurs: [...form.marqueurs, { id: genId("mq"), x, y, reponse: "" }] });
   };
@@ -3726,7 +3732,7 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
           {form.media?.type === "image" ? (
             <div>
               <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-                <img src={form.media.url} onClick={handleImageClick} style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "crosshair", display: "block" }} />
+                <img src={form.media.url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
                 {form.cibles.map((c, i) => (
                   <div key={i} onClick={(e) => { e.stopPropagation(); removeCible(i); }} title="Cliquer pour supprimer" style={{ position: "absolute", left: `${c.x}%`, top: `${c.y}%`, width: `${c.rayon * 2}%`, paddingBottom: `${c.rayon * 2}%`, transform: "translate(-50%,-50%)", borderRadius: "50%", border: `2px solid ${C.gold}`, background: "rgba(200,155,60,0.3)", cursor: "pointer" }} />
                 ))}
@@ -3787,7 +3793,7 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
           {form.media?.type === "image" ? (
             <div>
               <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-                <img src={form.media.url} onClick={handleImageClick} style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "crosshair", display: "block" }} />
+                <img src={form.media.url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
                 {form.marqueurs.map((m, i) => (
                   <div key={m.id} onClick={(e) => { e.stopPropagation(); removeMarqueur(i); }} title="Cliquer pour supprimer" style={{ position: "absolute", left: `${m.x}%`, top: `${m.y}%`, width: 24, height: 24, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{i + 1}</div>
                 ))}
