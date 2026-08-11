@@ -59,7 +59,7 @@ async function callEdgeFunction(name, body) {
 
 /* ---------------------------------- MAPPING BASE DE DONNÉES ↔ APPLICATION ---------------------------------- */
 function rowToUser(row) {
-  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined };
+  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined, superAdmin: row.super_admin === true };
 }
 function rowToQuestion(row) {
   return {
@@ -190,6 +190,9 @@ const T = {
     carnet_personnel_bientot_body: "Le carnet de formation détaillé (suivi jour par jour par les moniteurs) arrive prochainement sur cette page.",
     voir_carnet_btn: "Voir carnet", carnet_onglet_modifiable: "Modifiable", carnet_onglet_lecture_seule: "Lecture seule",
     nav_questionnaires: "Questionnaires", nav_accounts: "Comptes moniteurs", nav_admin: "Administration", nav_staff: "Espace moniteur",
+    nav_admin_page: "Admin", admin_page_sub: "Réglages et outils réservés.",
+    admin_page_bientot_titre: "Bientôt disponible", admin_page_bientot_body: "Cette page est prête à accueillir de futurs réglages et outils réservés à l'administration.",
+    admin_plus_label: "Admin + (accès à la page Admin réservée)",
     student_badge: "Élève", questionnaires_done: "Questionnaires réalisés",
     agent_number: "N° agent", no_strength_yet: "Aucun point fort marqué pour l'instant.", no_weakness_yet: "Aucun point faible marqué pour l'instant.",
     my_questionnaires_intro: "Mes questionnaires",
@@ -357,6 +360,9 @@ const T = {
     carnet_personnel_bientot_body: "Het gedetailleerde opleidingsdossier (dagelijkse opvolging door de monitoren) komt binnenkort op deze pagina.",
     voir_carnet_btn: "Dossier bekijken", carnet_onglet_modifiable: "Bewerkbaar", carnet_onglet_lecture_seule: "Alleen lezen",
     nav_questionnaires: "Vragenlijsten", nav_accounts: "Monitoraccounts", nav_admin: "Beheer", nav_staff: "Monitorruimte",
+    nav_admin_page: "Admin", admin_page_sub: "Voorbehouden instellingen en tools.",
+    admin_page_bientot_titre: "Binnenkort beschikbaar", admin_page_bientot_body: "Deze pagina is klaar om toekomstige instellingen en tools voor het beheer te ontvangen.",
+    admin_plus_label: "Admin + (toegang tot de voorbehouden Admin-pagina)",
     student_badge: "Leerling", questionnaires_done: "Afgeronde vragenlijsten",
     agent_number: "Personeelsnr.", no_strength_yet: "Nog geen sterke punten vastgesteld.", no_weakness_yet: "Nog geen zwakke punten vastgesteld.",
     my_questionnaires_intro: "Mijn vragenlijsten",
@@ -1439,6 +1445,7 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
   const { t } = useLang();
   const [tab, setTab] = useState("apercu");
   const isAdmin = user.role === "admin";
+  const isSuperAdmin = user.superAdmin === true;
   const tabs = [
     { key: "apercu", label: t("nav_overview"), icon: Home },
     { key: "profils", label: t("nav_profiles"), icon: Users },
@@ -1447,6 +1454,7 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
     { key: "questionnaires", label: t("nav_questionnaires"), icon: ClipboardList },
     ...(isAdmin ? [{ key: "comptes", label: t("nav_accounts"), icon: ShieldCheck }] : []),
     ...(user.responsableTeam ? [{ key: "maTeam", label: t("nav_ma_team"), icon: ShieldCheck }] : []),
+    ...(isSuperAdmin ? [{ key: "admin", label: t("nav_admin_page"), icon: Lock }] : []),
   ];
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
@@ -1466,6 +1474,7 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
+          {tab === "admin" && isSuperAdmin && <AdminPage />}
           {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} requestPrint={requestPrint} />}
         </div>
       </div>
@@ -2063,7 +2072,6 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateLis
           const isOpen = openVolet === vi;
           const notes = volet.criteres.map((_, ci) => jourData.criteres?.[`${vi}-${ci}`]).filter(v => v != null);
           const globalVal = jourData.competencesGlobales?.[vi];
-          const calculatedVal = globalVal == null && notes.length > 0 ? Math.round((notes.reduce((a, b) => a + b, 0) / notes.length) * 10) / 10 : null;
           return (
             <div key={vi} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", opacity: started ? 1 : 0.6 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", gap: 10, flexWrap: "wrap" }}>
@@ -2073,7 +2081,6 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateLis
                   <span style={{ fontSize: 11, fontWeight: 600, color: notes.length > 0 ? C.green : C.inkSoft }}>{t("volet_notes_count", { n: notes.length, total: volet.criteres.length })}</span>
                 </button>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {calculatedVal != null && <span style={{ fontSize: 11, fontWeight: 600, color: C.teal, whiteSpace: "nowrap" }}>{t("note_calculee_label", { v: calculatedVal })}</span>}
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     {COTATION_SCALE.map(opt => (
                       <button key={opt.value} disabled={!canFill} onClick={() => setCompetenceGlobale(vi, opt.value)} title={opt.desc}
@@ -2347,16 +2354,11 @@ const EVOLUTION_GRAPHS = [
 ];
 const EVOLUTION_COLORS = [C.navy, C.gold, C.teal, C.red];
 
-// Valeur "effective" d'une compétence pour un jour donné : la note directe
-// si le moniteur en a posé une, sinon la moyenne des sous-compétences
-// notées ce jour-là (s'il y en a). Sert à la fois à l'affichage dans le
-// carnet et aux calculs des graphiques.
+// Valeur d'une compétence pour un jour donné : uniquement la note directe
+// posée par le moniteur sur le volet. Les sous-compétences (situationnelles)
+// restent notables individuellement mais n'influencent plus cette valeur.
 function competenceEffectiveValue(jourData, volet, vi) {
-  const explicite = jourData.competencesGlobales?.[vi];
-  if (explicite != null) return explicite;
-  const notes = volet.criteres.map((_, ci) => jourData.criteres?.[`${vi}-${ci}`]).filter(v => v != null);
-  if (notes.length === 0) return null;
-  return notes.reduce((a, b) => a + b, 0) / notes.length;
+  return jourData.competencesGlobales?.[vi] ?? null;
 }
 function moyenneCategorieCarnet(jours, volets, categorieTitre) {
   const vi = volets.findIndex(v => v.titre === categorieTitre);
@@ -4362,6 +4364,16 @@ function AnalysisView({ questionnaire, eleve, questions, categories, onClose, on
 }
 
 /* ------------------------- GESTION COMPTES (ADMIN) ------------------------- */
+function AdminPage() {
+  const { t } = useLang();
+  return (
+    <div>
+      <SectionTitle>{t("nav_admin_page")}</SectionTitle>
+      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("admin_page_sub")}</div>
+      <EmptyState icon={Lock} title={t("admin_page_bientot_titre")} body={t("admin_page_bientot_body")} />
+    </div>
+  );
+}
 function GestionComptes({ users, setUsers, currentUser }) {
   const { t } = useLang();
   const [modal, setModal] = useState(null);
@@ -4373,9 +4385,9 @@ function GestionComptes({ users, setUsers, currentUser }) {
     const pseudo = makePseudo(data.nom, data.prenom, users, data.id);
     try {
       if (data.id) {
-        await callEdgeFunction("manage-user", { action: "update", userId: data.id, pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "" });
+        await callEdgeFunction("manage-user", { action: "update", userId: data.id, pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false });
       } else {
-        await callEdgeFunction("manage-user", { action: "create", pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, role: data.role, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "" });
+        await callEdgeFunction("manage-user", { action: "create", pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, role: data.role, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false });
       }
       await setUsers();
       setModal(null);
@@ -4402,7 +4414,7 @@ function GestionComptes({ users, setUsers, currentUser }) {
             {moniteurs.map(m => (
               <tr key={m.id} style={{ borderTop: `1px solid ${C.line}` }}>
                 <td style={{ padding: "12px 16px" }}>{m.prenom} {m.nom}</td>
-                <td style={{ padding: "12px 16px" }}><Badge color={m.role === "admin" ? C.gold : C.teal} bg={m.role === "admin" ? C.goldSoft : C.tealSoft}>{m.role === "admin" ? t("role_admin") : t("role_moniteur")}</Badge></td>
+                <td style={{ padding: "12px 16px" }}><Badge color={m.superAdmin ? C.red : m.role === "admin" ? C.gold : C.teal} bg={m.superAdmin ? C.redSoft : m.role === "admin" ? C.goldSoft : C.tealSoft}>{m.superAdmin ? "Admin +" : m.role === "admin" ? t("role_admin") : t("role_moniteur")}</Badge></td>
                 <td style={{ padding: "12px 16px", fontSize: 12.5, color: m.responsableTeam ? C.ink : C.inkSoft }}>{m.responsableTeam || "—"}</td>
                 <td style={{ padding: "12px 16px", fontFamily: FONT_MONO, fontSize: 12.5 }}>{m.numeroAgent}</td>
                 <td style={{ padding: "12px 16px", color: C.inkSoft, fontFamily: FONT_MONO, fontSize: 12.5 }}>{m.pseudo}</td>
@@ -4412,22 +4424,22 @@ function GestionComptes({ users, setUsers, currentUser }) {
           </tbody>
         </table>
       </div>
-      {modal !== null && <CompteModal initial={modal} users={users} onClose={() => setModal(null)} onSave={save} />}
+      {modal !== null && <CompteModal initial={modal} users={users} canGrantSuperAdmin={currentUser.superAdmin === true} onClose={() => setModal(null)} onSave={save} />}
       {confirmTarget && (
         <ConfirmDialog title={t("supprimer_compte_titre")} message={t("supprimer_compte_msg", { nom: `${confirmTarget.prenom} ${confirmTarget.nom}` })} onConfirm={() => { remove(confirmId); setConfirmId(null); }} onCancel={() => setConfirmId(null)} />
       )}
     </div>
   );
 }
-function CompteModal({ initial, users, onClose, onSave }) {
+function CompteModal({ initial, users, canGrantSuperAdmin, onClose, onSave }) {
   const { t } = useLang();
-  const [form, setForm] = useState({ nom: initial.nom || "", prenom: initial.prenom || "", numeroAgent: initial.numeroAgent || "", role: initial.role || "moniteur", langue: initial.langue || "fr", responsableTeam: initial.responsableTeam || "", id: initial.id });
+  const [form, setForm] = useState({ nom: initial.nom || "", prenom: initial.prenom || "", numeroAgent: initial.numeroAgent || "", role: initial.role || "moniteur", langue: initial.langue || "fr", responsableTeam: initial.responsableTeam || "", superAdmin: initial.superAdmin || false, id: initial.id });
   const pseudoPreview = makePseudo(form.nom, form.prenom, users, initial.id) || "—";
   return (
     <Modal title={initial.id ? t("modifier_compte") : t("ajouter_compte")} onClose={onClose}>
       <Field label={t("prenom_label")}><input style={inputStyle} value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })} /></Field>
       <Field label={t("nom_label")}><input style={inputStyle} value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} /></Field>
-      <Field label={t("col_role")}><select style={inputStyle} value={form.role} onChange={e => setForm({ ...form, role: e.target.value, responsableTeam: e.target.value === "admin" ? form.responsableTeam : "" })}><option value="moniteur">{t("role_moniteur")}</option><option value="admin">{t("administrateur_option")}</option></select></Field>
+      <Field label={t("col_role")}><select style={inputStyle} value={form.role} onChange={e => setForm({ ...form, role: e.target.value, responsableTeam: e.target.value === "admin" ? form.responsableTeam : "", superAdmin: e.target.value === "admin" ? form.superAdmin : false })}><option value="moniteur">{t("role_moniteur")}</option><option value="admin">{t("administrateur_option")}</option></select></Field>
       <Field label={t("numero_agent_label")}><input style={inputStyle} value={form.numeroAgent} onChange={e => setForm({ ...form, numeroAgent: e.target.value })} /></Field>
       <Field label={t("role_linguistique_label")} hint={t("role_linguistique_hint")}>
         <select style={inputStyle} value={form.langue} onChange={e => setForm({ ...form, langue: e.target.value })}>
@@ -4442,6 +4454,12 @@ function CompteModal({ initial, users, onClose, onSave }) {
             {TEAMS.map(tm => <option key={tm} value={tm}>{tm}</option>)}
           </select>
         </Field>
+      )}
+      {form.role === "admin" && canGrantSuperAdmin && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: C.navy, marginBottom: 16, cursor: "pointer" }}>
+          <input type="checkbox" checked={form.superAdmin} onChange={e => setForm({ ...form, superAdmin: e.target.checked })} />
+          {t("admin_plus_label")}
+        </label>
       )}
       <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 12.5, color: C.inkSoft, marginBottom: 8 }}>
         {t("identifiant_connexion")} : <strong style={{ fontFamily: FONT_MONO, color: C.ink }}>{pseudoPreview}</strong><br />
