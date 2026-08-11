@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from "react";
 import { supabase } from "./lib/supabaseClient.js";
 import * as XLSX from "xlsx";
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid
+  ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend
 } from "recharts";
 
 /* ---------------------------------- TOKENS ---------------------------------- */
