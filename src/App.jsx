@@ -2675,6 +2675,118 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
     </div>
   );
 }
+// ============================================================
+// Export du carnet vers le modèle Excel "Carnet_d_élève.xlsx"
+// ============================================================
+const EXCEL_ROW_MAP_REGULATEUR = {
+  "Regulation": { headerRow: 7, criteriaRows: [8, 9, 10, 11, 12] },
+  "Safety": { headerRow: 14, criteriaRows: [15, 16, 17, 18] },
+  "Multi Tasking": { headerRow: 19, criteriaRows: [20, 21, 22, 23] },
+  "SYREM Généralité": { headerRow: 24, criteriaRows: [25, 26, 27, 28, 29, 30, 31, 32] },
+  "PEX": { headerRow: 33, criteriaRows: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50] },
+  "Factory Link": { headerRow: 51, criteriaRows: [52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65] },
+  "GCTR": { headerRow: 66, criteriaRows: [67, 68, 69, 70, 71, 72, 73, 74, 75] },
+  "Généralités": { headerRow: 76, criteriaRows: [77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90] },
+  "Administratif": { headerRow: 91, criteriaRows: [92, 93, 94, 95] },
+  "Respect des règles": { headerRow: 97, criteriaRows: [98, 99, 100] },
+  "IRIS/Qualité": { headerRow: 101, criteriaRows: [102, 103, 104, 105, 106, 107] },
+  "Communication": { headerRow: 108, criteriaRows: [109, 110, 111, 112, 113, 114] },
+  "client et info-voyageur": { headerRow: 115, criteriaRows: [116, 117, 118, 119] },
+  "Envie d'apprendre": { headerRow: 120, criteriaRows: [121, 122, 123, 124, 125, 126] },
+  "Gestion stress & Comportement": { headerRow: 127, criteriaRows: [128, 129, 130, 131, 132, 133, 134, 135] },
+  "Hermès": { headerRow: 137, criteriaRows: [138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190] },
+  "Crew Management (Hermès)": { headerRow: 191, criteriaRows: [192, 193, 194, 195, 196] },
+};
+
+const EXCEL_ROW_MAP_DISPATCHEUR = {
+  "Gestion d'incident": { headerRow: 7, criteriaRows: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] },
+  "Safety": { headerRow: 23, criteriaRows: [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48] },
+  "Travaux / Travaux de nuit": { headerRow: 49, criteriaRows: [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62] },
+  "Multi Tasking": { headerRow: 64, criteriaRows: [65, 66, 67, 68] },
+  "SYREM Généralité": { headerRow: 70, criteriaRows: [71, 72] },
+  "PEX": { headerRow: 74, criteriaRows: [75] },
+  "Factory Link": { headerRow: 77, criteriaRows: [] },
+  "GCTR": { headerRow: 80, criteriaRows: [] },
+  "Généralités": { headerRow: 83, criteriaRows: [] },
+  "Administratif": { headerRow: 86, criteriaRows: [87] },
+  "Respect des règles": { headerRow: 90, criteriaRows: [91, 92] },
+  "IRIS/Qualité": { headerRow: 94, criteriaRows: [95, 96, 97, 98] },
+  "Communication": { headerRow: 100, criteriaRows: [101, 102] },
+  "client et info-voyageur": { headerRow: 104, criteriaRows: [105] },
+  "Envie d'apprendre": { headerRow: 107, criteriaRows: [108, 109, 110, 111, 112, 113] },
+  "Gestion stress & Comportement": { headerRow: 114, criteriaRows: [115, 116, 117, 118, 119, 120, 121, 122, 123] },
+  "Hermès": { headerRow: 124, criteriaRows: [] },
+  "Crew Management (Hermès)": { headerRow: 127, criteriaRows: [] },
+};
+
+function colForJour(n) {
+  return XLSX.utils.encode_col(2 + n); // jour 1 = colonne D (index 3, encode_col est 0-indexé)
+}
+function setCellIfDefined(ws, addr, value) {
+  if (value === null || value === undefined) return;
+  XLSX.utils.sheet_add_aoa(ws, [[value]], { origin: addr });
+}
+function fillCompetencesSheet(ws, jours, rowMap, volets) {
+  for (const jourData of jours) {
+    const col = colForJour(jourData.numero);
+    volets.forEach((volet, vi) => {
+      const info = rowMap[volet.titre];
+      if (!info) return;
+      const globalVal = jourData.competencesGlobales?.[vi];
+      setCellIfDefined(ws, `${col}${info.headerRow}`, globalVal ?? null);
+      volet.criteres.forEach((crit, ci) => {
+        const rowNum = info.criteriaRows[ci];
+        if (rowNum == null) return;
+        const val = jourData.criteres?.[`${vi}-${ci}`];
+        setCellIfDefined(ws, `${col}${rowNum}`, val ?? null);
+      });
+    });
+  }
+}
+function fillCommentaireJournalier(wsCJ, jours, rowOffset) {
+  for (const jourData of jours) {
+    const row = 5 + rowOffset + (jourData.numero - 1);
+    if (jourData.moniteurNom) setCellIfDefined(wsCJ, `A${row}`, jourData.moniteurNom);
+    if (jourData.date) setCellIfDefined(wsCJ, `B${row}`, jourData.date);
+    if (jourData.poste) {
+      setCellIfDefined(wsCJ, `C${row}`, jourData.poste);
+      setCellIfDefined(wsCJ, `D${row}`, "DTM");
+    }
+    if (jourData.commentaireHumain) setCellIfDefined(wsCJ, `E${row}`, jourData.commentaireHumain);
+    if (jourData.commentaireTechnique) setCellIfDefined(wsCJ, `F${row}`, jourData.commentaireTechnique);
+    if (jourData.incidentsRencontres) setCellIfDefined(wsCJ, `G${row}`, jourData.incidentsRencontres);
+    if (jourData.resumeSemaine) setCellIfDefined(wsCJ, `H${row}`, jourData.resumeSemaine);
+  }
+}
+
+// Fonction principale : construit et déclenche le téléchargement du carnet
+// Excel rempli pour un élève donné. Best-effort : les jours jamais commencés
+// n'écrivent simplement rien (la case reste telle que dans le modèle).
+async function exportCarnetExcel(eleve) {
+  const resp = await fetch("/carnet-modele.xlsx");
+  const buf = await resp.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+
+  const wsCJ = wb.Sheets["Commentaire_Journalier"];
+  const wsReg = wb.Sheets["Régulateur"];
+  const wsDisp = wb.Sheets["Dispatcher"];
+
+  const carnet = eleve.carnet || {};
+  const joursReg = carnet.reg || [];
+  const joursRegSolo = (carnet.regSolo || []).map(j => ({ ...j, numero: j.numero + 35 }));
+  const joursDisp = carnet.disp || [];
+
+  if (wsReg) fillCompetencesSheet(wsReg, [...joursReg, ...joursRegSolo], EXCEL_ROW_MAP_REGULATEUR, VOLETS_REGULATEUR);
+  if (wsDisp) fillCompetencesSheet(wsDisp, joursDisp, EXCEL_ROW_MAP_DISPATCHEUR, VOLETS_DISPATCHEUR);
+
+  if (wsCJ) {
+    fillCommentaireJournalier(wsCJ, [...joursReg, ...joursRegSolo], 0);
+    fillCommentaireJournalier(wsCJ, joursDisp, joursReg.length + joursRegSolo.length);
+  }
+
+  XLSX.writeFile(wb, `Carnet_${eleve.prenom}_${eleve.nom}.xlsx`);
+}
+
 function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
   const { t, lang } = useLang();
   const isSuperAdmin = currentUser?.superAdmin === true;
@@ -2771,7 +2883,7 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 700, color: C.navy }}>{eleve.prenom} {eleve.nom}</div>
           <div style={{ fontSize: 12, color: C.inkSoft }}>{t("carnet_personnel_sous_titre")}</div>
         </div>
-        <Btn variant="ghost" icon={FileDown} onClick={() => {}} style={{ marginLeft: "auto" }}>{t("exporter_btn")}</Btn>
+        <Btn variant="ghost" icon={FileDown} onClick={() => exportCarnetExcel(eleve).catch(e => alert("Erreur lors de l'export : " + (e?.message || "inconnue")))} style={{ marginLeft: "auto" }}>{t("exporter_btn")}</Btn>
       </div>
 
       {carnetError && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{carnetError}</div>}
