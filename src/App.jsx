@@ -23,6 +23,7 @@ const C = {
   goldSoft: "#F3E7CC", teal: "#2F7A78", tealSoft: "#DCEDEB", red: "#C1443C",
   redSoft: "#F7E1DE", green: "#3E8E57", greenSoft: "#E1EFE3",
   blue: "#3B6FA0", blueSoft: "#DCE6F0",
+  rose: "#B0637F", roseSoft: "#F0DFE5", grey: "#6B7280", greySoft: "#E4E5E8",
 };
 const FONT_DISPLAY = "'Space Grotesk', 'Arial Narrow', sans-serif";
 const FONT_BODY = "'Inter', -apple-system, sans-serif";
@@ -208,6 +209,7 @@ const T = {
     charger_plus_btn: "Charger {n} de plus",
     jeu_stations_intro: "Associez le bon numéro de station à son nom, dans les deux sens. Choisissez un mode pour commencer.",
     jeu_stations_titre: "Jeu des stations",
+    record_jeu_stations_label: "Record jeu des stations",
     journal_activite_sub: "{n} action(s) enregistrée(s) (créations, modifications, suppressions) sur le site.",
     journal_activite_titre: "Journal d'activité",
     journal_vide_body: "Le journal se remplira au fur et à mesure des actions sur le site.",
@@ -422,6 +424,7 @@ const T = {
     charger_plus_btn: "{n} meer laden",
     jeu_stations_intro: "Koppel het juiste stationsnummer aan zijn naam, in beide richtingen. Kies een modus om te beginnen.",
     jeu_stations_titre: "Stationsspel",
+    record_jeu_stations_label: "Record stationsspel",
     journal_activite_sub: "{n} actie(s) geregistreerd (aanmaken, wijzigen, verwijderen) op de site.",
     journal_activite_titre: "Activiteitenlog",
     journal_vide_body: "Het logboek vult zich naarmate er acties op de site plaatsvinden.",
@@ -1501,9 +1504,10 @@ function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
           <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 700, color: C.navy }}>{t("jeu_stations_titre")}</div>
         </div>
-        <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 12, maxWidth: 480 }}>{t("jeu_stations_intro")}</div>
-        <RecordBanner />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 560 }}>
+        <div style={{ maxWidth: 560, margin: "0 auto" }}>
+          <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 12, textAlign: "center" }}>{t("jeu_stations_intro")}</div>
+          <RecordBanner />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <button onClick={() => startMode("libre")} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_libre_titre")}</div>
             <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_libre_desc")}</div>
@@ -1512,6 +1516,7 @@ function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_chrono_titre")}</div>
             <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_chrono_desc", { n: CHRONO_DUREE })}</div>
           </button>
+          </div>
         </div>
       </div>
     );
@@ -1520,7 +1525,7 @@ function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
   if (finished) {
     const isNewBest = mode === "chrono" && score > meilleurScore;
     return (
-      <div style={{ maxWidth: 480 }}>
+      <div style={{ maxWidth: 480, margin: "0 auto" }}>
         <RecordBanner />
         <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16, padding: 32, textAlign: "center" }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("resultats_titre")}</div>
@@ -1537,7 +1542,7 @@ function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
   }
 
   return (
-    <div style={{ maxWidth: 520 }}>
+    <div style={{ maxWidth: 520, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -1773,7 +1778,7 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
         </div>
         <div style={{ padding: "24px 28px", minWidth: 0 }}>
           <SaveErrorBanner visible={saveError} />
-          {tab === "apercu" && <Apercu users={users} questions={questions} questionnaires={questionnaires} categories={categories} />}
+          {tab === "apercu" && <Apercu users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} currentUser={user} />}
           {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} currentUser={user} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
           {tab === "carnets" && <CarnetsEleves users={users} setUsers={setUsers} questionnaires={questionnaires} categories={categories} isAdmin={isAdmin} currentUser={user} />}
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} />}
@@ -1788,13 +1793,29 @@ function StaffView({ user, users, setUsers, questions, setQuestions, questionnai
 }
 
 function StatCard({ label, value, accent }) { return <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "16px 18px" }}><div style={{ fontSize: 12, color: C.inkSoft, fontWeight: 600 }}>{label}</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700, color: accent || C.navy, marginTop: 6 }}>{value}</div></div>; }
-function Apercu({ users, questions, questionnaires, categories }) {
+function Apercu({ users, questions, questionnaires, setQuestionnaires, categories, currentUser }) {
   const { t } = useLang();
+  const [reviewing, setReviewing] = useState(null);
   const eleves = users.filter(u => u.role === "eleve");
   const aValider = questionnaires.filter(q => q.statut === "en attente de validation");
   const gradedAll = questionnaires.filter(q => q.statut === "validé" && !q.supprime);
   const catStats = computeCategoryStats(gradedAll, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
+
+  if (reviewing) {
+    return (
+      <AnalysisView questionnaire={reviewing} eleve={users.find(u => u.id === reviewing.eleveId)} questions={questions} categories={categories}
+        onClose={() => setReviewing(null)}
+        onValidate={(reponsesFinal, scoreParCategorie, scoreGlobal, remarks, manualGrades, overrides, categorieCounts) => {
+          setQuestionnaires(questionnaires.map(q => q.id === reviewing.id ? {
+            ...q, statut: "validé", reponses: reponsesFinal, scoreParCategorie, scoreGlobal, categorieCounts,
+            remarques: remarks, manualGrades, overrides, correcteurId: currentUser?.id || null,
+            dateValidation: new Date().toISOString().slice(0, 10),
+          } : q));
+          setReviewing(null);
+        }} />
+    );
+  }
   return (
     <div>
       <SectionTitle>{t("apercu_title")}</SectionTitle>
@@ -1825,7 +1846,7 @@ function Apercu({ users, questions, questionnaires, categories }) {
         <SectionTitle>{t("qn_attente_titre")}</SectionTitle>
         {aValider.length === 0 ? <EmptyState icon={ClipboardCheck} title={t("rien_a_valider_titre")} body={t("rien_a_valider_body")} /> : (
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-            {aValider.map(q => { const e = users.find(u => u.id === q.eleveId); return <div key={q.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", border: `1px solid ${C.line}`, borderRadius: 9, fontSize: 13.5 }}><span><strong>{q.titre}</strong> — {e?.prenom} {e?.nom}</span><StatusBadge statut={q.statut} /></div>; })}
+            {aValider.map(q => { const e = users.find(u => u.id === q.eleveId); return <div key={q.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: `1px solid ${C.line}`, borderRadius: 9, fontSize: 13.5 }}><span><strong>{q.titre}</strong> — {e?.prenom} {e?.nom}</span><Btn variant="gold" icon={Eye} onClick={() => setReviewing(q)} style={{ padding: "5px 12px", fontSize: 12.5 }}>{t("analyser_btn")}</Btn></div>; })}
           </div>
         )}
       </div>
@@ -2151,54 +2172,6 @@ const CRITERES_REGULATEUR = [
   { categorie: "Multi Tasking", type: "", label: "Identifier les anomalies de la GCTR/Crew Management et respecter les concepts de régulation tout en gérant ses appels" },
   { categorie: "Multi Tasking", type: "", label: "Garder de la bande passante" },
   { categorie: "Multi Tasking", type: "", label: "Remplir le cahier en temps réel" },
-  { categorie: "SYREM", type: "Connaissances", label: "CAI (rôle, definition,quand l’enlever,…)" },
-  { categorie: "SYREM", type: "Savoir-faire", label: "TAG" },
-  { categorie: "SYREM", type: "Savoir-faire", label: "TP (via flèche ET fenêtre TP)" },
-  { categorie: "SYREM", type: "Savoir-faire", label: "Coupure 900v en urgence" },
-  { categorie: "SYREM", type: "Savoir-faire", label: "OS Marché sur l’écran (disptacher) PO" },
-  { categorie: "SYREM", type: "Connaissances", label: "Magenta impact" },
-  { categorie: "SYREM", type: "Connaissances", label: "Architecture et ecran Noir / Magenta" },
-  { categorie: "SYREM", type: "Connaissances", label: "information disponibles (nbre de train, fenêtre TP)" },
-  { categorie: "PEX", type: "Connaissances", label: "Connaitre la signification des couleurs et logo’s" },
-  { categorie: "PEX", type: "", label: "Savoire lire et réguler via le PEX" },
-  { categorie: "PEX", type: "Connaissances", label: "Connaissance des différents segment d’une course de depart/arrivée" },
-  { categorie: "PEX", type: "Connaissances", label: "Pouvoir comprendre les bugs (train non-associé, course en blanc, creation impossible d’une course)" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Glisser les courses" },
-  { categorie: "PEX", type: "Savoir-faire", label: "TAG & Dépassement terminus" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Remise à horaire" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Associer course/train" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Décharger/recharger PEX" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Gérer / Effectuer les entrées/sorties dépôts" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Gérer les APR" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Supprimer courses avec/sans compensation" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Train tourné / Création de courses" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Créer un train renfort / Train d'essai" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Gérer les conséquence d'un TP sans fleche" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Gérer le retard dans le PEX" },
-  { categorie: "PEX", type: "Savoir-faire", label: "Garage / Dégarage sur ligne" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Position T à Simonis" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Position G à Schuman S33" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Position R3/R6 Gare de l'ouest" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Positionnement des écrans" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "introduction itinéraires de sorties et rentrées dépôt" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Basculer de calculateur" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Tracer iti voies de garage" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Tracer iti contre-sens" },
-  { categorie: "Factory Link", type: "Connaissances", label: "Connaitre logique des iti (enregistrement, cycle, one shoot,...)" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Mettre une MRS" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "Mettre une limitation 25km/h" },
-  { categorie: "Factory Link", type: "Savoir-faire", label: "TAG Herman debroux / Fleche info voyageur" },
-  { categorie: "Factory Link", type: "", label: "NTR" },
-  { categorie: "Factory Link", type: "Connaissances", label: "Alarmes" },
-  { categorie: "GCTR", type: "Savoir-faire", label: "Création de services" },
-  { categorie: "GCTR", type: "Savoir-faire", label: "Associer les conducteurs sur les services" },
-  { categorie: "GCTR", type: "Savoir-faire", label: "Permutation de service" },
-  { categorie: "GCTR", type: "Savoir-faire", label: "Utilisation des filtres (trouver une dispo,…)" },
-  { categorie: "GCTR", type: "Savoir-faire", label: "Rechercher un service ou matricule" },
-  { categorie: "GCTR", type: "Savoir-faire", label: "Gérer demandes de récupération d’heure" },
-  { categorie: "GCTR", type: "Savoir-faire", label: "Gestion des alarmes" },
-  { categorie: "GCTR", type: "Connaissances", label: "Compréhension alarmes (géographique, double segment, break)" },
-  { categorie: "GCTR", type: "Savoir-faire", label: "Gérer les absences" },
   { categorie: "Généralités", type: "Connaissances", label: "Interconnexion réseau (quai centraux, SNCB, correspondances, etc)" },
   { categorie: "Généralités", type: "Connaissances", label: "Rôles des différents acteurs dans la salle et niveau Traffic" },
   { categorie: "Généralités", type: "Connaissances", label: "Connaitre les numéros de téléphones" },
@@ -2250,6 +2223,112 @@ const CRITERES_REGULATEUR = [
   { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "n'oublie pas de communiquer les informations essentielles" },
   { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "est capable de détecter et communiquer ses limites" },
   { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Fait preuve de vigilance" },
+  { categorie: "SYREM Généralité", type: "Connaissances", label: "CAI (rôle, definition,quand l’enlever,…)" },
+  { categorie: "SYREM Généralité", type: "Savoir-faire", label: "TAG" },
+  { categorie: "SYREM Généralité", type: "Savoir-faire", label: "TP (via flèche ET fenêtre TP)" },
+  { categorie: "SYREM Généralité", type: "Savoir-faire", label: "Coupure 900v en urgence" },
+  { categorie: "SYREM Généralité", type: "Savoir-faire", label: "OS Marché sur l’écran (disptacher) PO" },
+  { categorie: "SYREM Généralité", type: "Connaissances", label: "Magenta impact" },
+  { categorie: "SYREM Généralité", type: "Connaissances", label: "Architecture et ecran Noir / Magenta" },
+  { categorie: "SYREM Généralité", type: "Connaissances", label: "information disponibles (nbre de train, fenêtre TP)" },
+  { categorie: "PEX", type: "Connaissances", label: "Connaitre la signification des couleurs et logo’s" },
+  { categorie: "PEX", type: "", label: "Savoire lire et réguler via le PEX" },
+  { categorie: "PEX", type: "Connaissances", label: "Connaissance des différents segment d’une course de depart/arrivée" },
+  { categorie: "PEX", type: "Connaissances", label: "Pouvoir comprendre les bugs (train non-associé, course en blanc, creation impossible d’une course)" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Glisser les courses" },
+  { categorie: "PEX", type: "Savoir-faire", label: "TAG & Dépassement terminus" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Remise à horaire" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Associer course/train" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Décharger/recharger PEX" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Gérer / Effectuer les entrées/sorties dépôts" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Gérer les APR" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Supprimer courses avec/sans compensation" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Train tourné / Création de courses" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Créer un train renfort / Train d'essai" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Gérer les conséquence d'un TP sans fleche" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Gérer le retard dans le PEX" },
+  { categorie: "PEX", type: "Savoir-faire", label: "Garage / Dégarage sur ligne" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Position T à Simonis" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Position G à Schuman S33" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Position R3/R6 Gare de l'ouest" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Positionnement des écrans" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "introduction itinéraires de sorties et rentrées dépôt" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Basculer de calculateur" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Tracer iti voies de garage" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Tracer iti contre-sens" },
+  { categorie: "Factory Link", type: "Connaissances", label: "Connaitre logique des iti (enregistrement, cycle, one shoot,...)" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Mettre une MRS" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "Mettre une limitation 25km/h" },
+  { categorie: "Factory Link", type: "Savoir-faire", label: "TAG Herman debroux / Fleche info voyageur" },
+  { categorie: "Factory Link", type: "", label: "NTR" },
+  { categorie: "Factory Link", type: "Connaissances", label: "Alarmes" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Création de services" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Associer les conducteurs sur les services" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Permutation de service" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Utilisation des filtres (trouver une dispo,…)" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Rechercher un service ou matricule" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Gérer demandes de récupération d’heure" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Gestion des alarmes" },
+  { categorie: "GCTR", type: "Connaissances", label: "Compréhension alarmes (géographique, double segment, break)" },
+  { categorie: "GCTR", type: "Savoir-faire", label: "Gérer les absences" },
+  { categorie: "Hermès", type: "Connaissances", label: "ATS Hermès (généralités)" },
+  { categorie: "Hermès", type: "Connaissances", label: "Track Driagram" },
+  { categorie: "Hermès", type: "Connaissances", label: "Train Graph" },
+  { categorie: "Hermès", type: "Connaissances", label: "Data Table" },
+  { categorie: "Hermès", type: "Connaissances", label: "Crew Management" },
+  { categorie: "Hermès", type: "Connaissances", label: "Vue Synoptique" },
+  { categorie: "Hermès", type: "Connaissances", label: "TCO" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Reséquençage" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TP" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Avec Flèche" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Avec Mission" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TP antenne Érasme" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TP antenne Stockel" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TP antenne Hermann Debroux" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TP tronçon commun" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Mission" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TAG Gare de l’Ouest" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TAG Hermann Debroux" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Géographie et horaire" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Dégarage" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Horaire hors Tronçon Commun" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Gestion de la Data Table" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Utilisation des filtres" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Utilisation des rich link" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Lire la data Table, trouver les infos" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Retard sur feu vert" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Train Graph" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Lecture du parcours d'un train Vs Horaire" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Vérifier les modification faites" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TAG Gare de l’Ouest" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "TAG Hermann Debroux" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Régulation (identique à SyReM)" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Alternance" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "MRR suite à un service bloqué" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Mode régulation (Horaire / Intervalle / hors Régulation)" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Sorties dépôt L 1-5" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Imagerie Delta" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Dégarages L 1-5" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Dégarage plus tôt que prévue (Veeweyde G)" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Rentrées dépôt L 1-5" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Garages L 1-5" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Trains demandés" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Trains retirés du service" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Trains manquants" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Supprimer" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Suspendre" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Blocage divergence" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "APR" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Charger / Décharger horaire" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Trains demandés" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "Blocage divergence" },
+  { categorie: "Hermès", type: "Savoir-faire", label: "APR" },
+  { categorie: "Hermès", type: "Connaissances", label: "Bug informatiques (à développer avec l'expérience)" },
+  { categorie: "Crew Management (Hermès)", type: "Savoir-faire", label: "Crew Management (GCTR)" },
+  { categorie: "Crew Management (Hermès)", type: "Savoir-faire", label: "Donner des segments de conduite" },
+  { categorie: "Crew Management (Hermès)", type: "Savoir-faire", label: "Mise en absence" },
+  { categorie: "Crew Management (Hermès)", type: "Savoir-faire", label: "Créer un service" },
+  { categorie: "Crew Management (Hermès)", type: "Savoir-faire", label: "Modifier un service" },
 ];
 const CRITERES_DISPATCHEUR = [
   { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Gérer les priorités en incident (Disp)" },
@@ -2309,9 +2388,7 @@ const CRITERES_DISPATCHEUR = [
   { categorie: "Multi Tasking", type: "Savoir-être", label: "retenir les informations des conversations radio reçues et prendre les actions nécessaires" },
   { categorie: "Multi Tasking", type: "Savoir-être", label: "Garder de la bande passante" },
   { categorie: "Multi Tasking", type: "Savoir-être", label: "Faire l'IRIS en temps réel" },
-  { categorie: "SYREM", type: "Savoir-faire", label: "MRS" },
-  { categorie: "SYREM", type: "Connaissances", label: "Implication sur la sécurité des magentas et ecrans noirs" },
-  { categorie: "PEX", type: "", label: "compter les kilomètres après un incident (regulateur)" },
+  { categorie: "Généralités", type: null, label: null },
   { categorie: "Administratif", type: "Savoir-faire", label: "Adaptation du cahier SIG" },
   { categorie: "Respect des règles", type: "Connaissances", label: "Reglement d'exploitation RIM/REM" },
   { categorie: "Respect des règles", type: "Connaissances", label: "Reglementation des véhicules spéciaux" },
@@ -2337,18 +2414,42 @@ const CRITERES_DISPATCHEUR = [
   { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "est capable de détecter et communiquer ses limites" },
   { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Fait preuve de vigilance" },
   { categorie: "Gestion stress & Comportement", type: "Savoir-être", label: "Est orienté brain based safety" },
+  { categorie: "SYREM Généralité", type: "Savoir-faire", label: "MRS" },
+  { categorie: "SYREM Généralité", type: "Connaissances", label: "Implication sur la sécurité des magentas et ecrans noirs" },
+  { categorie: "PEX", type: "", label: "compter les kilomètres après un incident (regulateur)" },
+  { categorie: "Factory Link", type: null, label: null },
+  { categorie: "GCTR", type: null, label: null },
+  { categorie: "Hermès", type: null, label: null },
+  { categorie: "Crew Management (Hermès)", type: null, label: null },
 ];
 function groupVolets(criteresFlat) {
   const volets = [];
   for (const c of criteresFlat) {
     let v = volets.find(v => v.titre === c.categorie);
     if (!v) { v = { titre: c.categorie, criteres: [] }; volets.push(v); }
-    v.criteres.push({ type: c.type, label: c.label });
+    if (c.label) v.criteres.push({ type: c.type, label: c.label });
   }
   return volets;
 }
 const VOLETS_REGULATEUR = groupVolets(CRITERES_REGULATEUR);
 const VOLETS_DISPATCHEUR = groupVolets(CRITERES_DISPATCHEUR);
+// Regroupements purement visuels (bandeau vertical coloré) dans le carnet —
+// distincts par parcours, car certaines compétences (ex. "Communication")
+// n'appartiennent pas au même groupe selon qu'on est régulateur ou dispatcheur.
+const VOLET_CLUSTERS_REGULATEUR = [
+  { label: "Gestion d'incident", color: C.rose, bg: C.roseSoft, categories: ["Regulation", "Safety", "Multi Tasking"] },
+  { label: "Généralité", color: C.blue, bg: C.blueSoft, categories: ["Généralités", "Administratif", "Respect des règles", "IRIS/Qualité"] },
+  { label: "Communication", color: C.gold, bg: C.goldSoft, categories: ["Communication", "client et info-voyageur", "Envie d'apprendre", "Gestion stress & Comportement"] },
+  { label: "SYREM", color: C.grey, bg: C.greySoft, categories: ["SYREM Généralité", "PEX", "Factory Link", "GCTR"] },
+  { label: "Hermès", color: C.green, bg: C.greenSoft, categories: ["Hermès", "Crew Management (Hermès)"] },
+];
+const VOLET_CLUSTERS_DISPATCHEUR = [
+  { label: "Gestion d'incident", color: C.rose, bg: C.roseSoft, categories: ["Gestion d'incident", "Safety", "Travaux / Travaux de nuit", "Multi Tasking"] },
+  { label: "Généralité", color: C.blue, bg: C.blueSoft, categories: ["Généralités", "Administratif", "Respect des règles", "IRIS/Qualité"] },
+  { label: "Communication", color: C.gold, bg: C.goldSoft, categories: ["Communication", "client et info-voyageur", "Envie d'apprendre", "Gestion stress & Comportement"] },
+  { label: "SYREM", color: C.grey, bg: C.greySoft, categories: ["SYREM Généralité", "PEX", "Factory Link", "GCTR"] },
+  { label: "Hermès", color: C.green, bg: C.greenSoft, categories: ["Hermès", "Crew Management (Hermès)"] },
+];
 
 function makeJours(n, startAt = 1) {
   return Array.from({ length: n }, (_, i) => ({
@@ -2359,7 +2460,7 @@ function makeJours(n, startAt = 1) {
 }
 function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0"); return `${dd}/${mm}/${d.getFullYear()}`; }
 
-function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateList, onBack }) {
+function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUpdateList, onBack }) {
   const { t } = useLang();
   const [confirmFin, setConfirmFin] = useState(false);
   const [confirmAnnuler, setConfirmAnnuler] = useState(false);
@@ -2466,57 +2567,87 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, onUpdateLis
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {volets.map((volet, vi) => {
-          const isOpen = openVolet === vi;
-          const notes = volet.criteres.map((_, ci) => jourData.criteres?.[`${vi}-${ci}`]).filter(v => v != null);
-          const globalVal = jourData.competencesGlobales?.[vi];
-          return (
-            <div key={vi} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", opacity: started ? 1 : 0.6 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", gap: 10, flexWrap: "wrap" }}>
-                <button onClick={() => setOpenVolet(isOpen ? null : vi)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, flex: 1, minWidth: 160, textAlign: "left" }}>
-                  {isOpen ? <ChevronUp size={15} color={C.inkSoft} /> : <ChevronDown size={15} color={C.inkSoft} />}
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: C.navy }}>{volet.titre}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: notes.length > 0 ? C.green : C.inkSoft }}>{t("volet_notes_count", { n: notes.length, total: volet.criteres.length })}</span>
-                </button>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                    {COTATION_SCALE.map(opt => (
-                      <button key={opt.value} disabled={!canFill} onClick={() => setCompetenceGlobale(vi, opt.value)} title={opt.desc}
-                        style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${globalVal === opt.value ? opt.color : C.line}`, background: globalVal === opt.value ? opt.bg : "#fff", color: globalVal === opt.value ? opt.color : C.inkSoft, fontSize: 13, fontWeight: 700, cursor: canFill ? "pointer" : "not-allowed" }}>
-                        {opt.label}
-                      </button>
-                    ))}
+        {(() => {
+          const clusterDefs = track === "dispatcheur" ? VOLET_CLUSTERS_DISPATCHEUR : VOLET_CLUSTERS_REGULATEUR;
+          const clusterOfTitle = (titre) => clusterDefs.find(cl => cl.categories.includes(titre));
+          const renderCard = (volet, vi) => {
+            const isOpen = openVolet === vi;
+            const notes = volet.criteres.map((_, ci) => jourData.criteres?.[`${vi}-${ci}`]).filter(v => v != null);
+            const globalVal = jourData.competencesGlobales?.[vi];
+            return (
+              <div key={vi} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", opacity: started ? 1 : 0.6 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", gap: 10, flexWrap: "wrap" }}>
+                  {volet.criteres.length > 0 ? (
+                    <button onClick={() => setOpenVolet(isOpen ? null : vi)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, flex: 1, minWidth: 160, textAlign: "left" }}>
+                      {isOpen ? <ChevronUp size={15} color={C.inkSoft} /> : <ChevronDown size={15} color={C.inkSoft} />}
+                      <span style={{ fontSize: 13.5, fontWeight: 700, color: C.navy }}>{volet.titre}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: notes.length > 0 ? C.green : C.inkSoft }}>{t("volet_notes_count", { n: notes.length, total: volet.criteres.length })}</span>
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 160 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 700, color: C.navy }}>{volet.titre}</span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      {COTATION_SCALE.map(opt => (
+                        <button key={opt.value} disabled={!canFill} onClick={() => setCompetenceGlobale(vi, opt.value)} title={opt.desc}
+                          style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${globalVal === opt.value ? opt.color : C.line}`, background: globalVal === opt.value ? opt.bg : "#fff", color: globalVal === opt.value ? opt.color : C.inkSoft, fontSize: 13, fontWeight: 700, cursor: canFill ? "pointer" : "not-allowed" }}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
+                {isOpen && (
+                  <div style={{ borderTop: `1px solid ${C.line}`, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ fontSize: 11, color: C.inkSoft, fontStyle: "italic" }}>{t("volet_criteres_situationnels_note", { n: notes.length, total: volet.criteres.length })}</div>
+                    {volet.criteres.map((crit, ci) => {
+                      const key = `${vi}-${ci}`;
+                      const val = jourData.criteres?.[key];
+                      return (
+                        <div key={ci}>
+                          <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 6, display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
+                            {crit.type && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.inkSoft, background: C.bg, borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{crit.type}</span>}
+                            <span>{crit.label}</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 5 }}>
+                            {COTATION_SCALE.map(opt => (
+                              <button key={opt.value} disabled={!canFill} onClick={() => setStatutCritere(key, opt.value)} title={opt.desc}
+                                style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${val === opt.value ? opt.color : C.line}`, background: val === opt.value ? opt.bg : "#fff", color: val === opt.value ? opt.color : C.inkSoft, fontSize: 12, fontWeight: 700, cursor: canFill ? "pointer" : "not-allowed" }}>
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              {isOpen && (
-                <div style={{ borderTop: `1px solid ${C.line}`, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ fontSize: 11, color: C.inkSoft, fontStyle: "italic" }}>{t("volet_criteres_situationnels_note", { n: notes.length, total: volet.criteres.length })}</div>
-                  {volet.criteres.map((crit, ci) => {
-                    const key = `${vi}-${ci}`;
-                    const val = jourData.criteres?.[key];
-                    return (
-                      <div key={ci}>
-                        <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 6, display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-                          {crit.type && <span style={{ fontSize: 9.5, fontWeight: 700, color: C.inkSoft, background: C.bg, borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{crit.type}</span>}
-                          <span>{crit.label}</span>
-                        </div>
-                        <div style={{ display: "flex", gap: 5 }}>
-                          {COTATION_SCALE.map(opt => (
-                            <button key={opt.value} disabled={!canFill} onClick={() => setStatutCritere(key, opt.value)} title={opt.desc}
-                              style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${val === opt.value ? opt.color : C.line}`, background: val === opt.value ? opt.bg : "#fff", color: val === opt.value ? opt.color : C.inkSoft, fontSize: 12, fontWeight: 700, cursor: canFill ? "pointer" : "not-allowed" }}>
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+            );
+          };
+
+          const elements = [];
+          let i = 0;
+          while (i < volets.length) {
+            const cluster = clusterOfTitle(volets[i].titre);
+            if (!cluster) { elements.push(renderCard(volets[i], i)); i++; continue; }
+            const group = [];
+            let j = i;
+            while (j < volets.length && clusterOfTitle(volets[j].titre) === cluster) { group.push(j); j++; }
+            elements.push(
+              <div key={`cluster-${i}`} style={{ display: "flex", gap: 10 }}>
+                <div style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", background: cluster.color, color: "#fff", fontSize: 14, fontWeight: 700, letterSpacing: ".04em", padding: "12px 8px", borderRadius: 9, textAlign: "center", flexShrink: 0 }}>{cluster.label}</div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {group.map(gi => renderCard(volets[gi], gi))}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+            i = j;
+          }
+          return elements;
+        })()}
       </div>
       {confirmFin && (
         <ConfirmDialog tone="success" title={t("fin_journee_btn")} message={t("confirm_fin_journee_msg", { n: jourData.numero })}
@@ -2587,7 +2718,8 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
     const [list, setList] = sections[viewingJour.section];
     const jourData = list.find(j => j.numero === viewingJour.numero);
     const volets = viewingJour.section === "disp" ? VOLETS_DISPATCHEUR : VOLETS_REGULATEUR;
-    return <CarnetJourDetail jourData={jourData} editable={editable} currentUser={currentUser} volets={volets} onUpdateList={setList} onBack={() => setViewingJour(null)} />;
+    const track = viewingJour.section === "disp" ? "dispatcheur" : "regulateur";
+    return <CarnetJourDetail jourData={jourData} editable={editable} currentUser={currentUser} volets={volets} track={track} onUpdateList={setList} onBack={() => setViewingJour(null)} />;
   }
 
   const renderGrid = (section) => {
@@ -2706,7 +2838,9 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
               {EVOLUTION_GRAPHS.map((g, gi) => {
-                const categories = gi === 0 && activeTab === "dispatcheur" ? ["Gestion d'incident", "Safety", "Multi Tasking"] : g.categories;
+                const categories = gi === 0 && activeTab === "dispatcheur" ? ["Gestion d'incident", "Safety", "Multi Tasking", "Travaux / Travaux de nuit"]
+                  : gi === 1 ? ["SYREM Généralité", "PEX", "Factory Link", "GCTR"]
+                  : g.categories;
                 const data = activeTab === "regulateur"
                   ? [...computeEvolutionCarnet(joursReg, volets, categories), ...computeEvolutionCarnet(joursRegSolo, volets, categories, 35)]
                   : computeEvolutionCarnet(joursDisp, volets, categories);
@@ -2782,7 +2916,9 @@ function moyenneCategorieCarnet(jours, volets, categorieTitre) {
 }
 function computeRadarCarnet(jours, volets) {
   return RADAR_GROUPS.map(g => {
-    const moyennes = g.categories.map(c => moyenneCategorieCarnet(jours, volets, c)).filter(v => v != null);
+    const categories = g.axe === "Interface Syrem"
+      ? ["SYREM Généralité", "PEX", "Factory Link", "GCTR"] : g.categories;
+    const moyennes = categories.map(c => moyenneCategorieCarnet(jours, volets, c)).filter(v => v != null);
     const value = moyennes.length ? moyennes.reduce((a, b) => a + b, 0) / moyennes.length : 0;
     return { axe: g.axe, value: Math.round(value * 10) / 10 };
   });
@@ -3088,10 +3224,11 @@ function EleveDetailView({ eleve, questionnaires, categories, onBack }) {
         <Btn variant="ghost" onClick={onBack}>{t("retour_profils")}</Btn>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         <StatCard label={t("stat_qn_attribues")} value={mine.length} />
         <StatCard label={t("qn_valides_label")} value={graded.length} />
         <StatCard label={t("en_attente_encours")} value={mine.length - graded.length} />
+        <StatCard label={t("record_jeu_stations_label")} value={eleve.jeuStationsMeilleurScore || 0} />
       </div>
 
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
@@ -5064,7 +5201,7 @@ function buildProfileBodyHTML({ eleve, questionnaires, questions, categories }) 
       <div><div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">${escapeHtml(eleve.prenom)} ${escapeHtml(eleve.nom)}</div>
       <div style="font-size:13px;color:#5B6577;margin-top:4px;">N° agent : ${escapeHtml(eleve.numeroAgent)} · Fonction : ${escapeHtml(eleve.fonction || "Élève")}</div></div>
     </div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;"><tbody><tr><td style="padding:8px 0;color:#5B6577;width:260px;">Questionnaires répondus (validés)</td><td style="padding:8px 0;font-weight:700;">${validated.length}</td></tr></tbody></table>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;"><tbody><tr><td style="padding:8px 0;color:#5B6577;width:260px;">Questionnaires répondus (validés)</td><td style="padding:8px 0;font-weight:700;">${validated.length}</td></tr><tr><td style="padding:8px 0;color:#5B6577;">Record jeu des stations</td><td style="padding:8px 0;font-weight:700;">${eleve.jeuStationsMeilleurScore || 0}</td></tr></tbody></table>
 
     <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;margin-bottom:10px;">Points forts & points faibles (vue globale)</div>
     <div style="text-align:center;margin-bottom:24px;">${validated.length ? buildRadarSVG(radarData, 320) : `<div style="font-size:12px;color:#5B6577;">Pas encore de questionnaire validé.</div>`}</div>
