@@ -2729,8 +2729,9 @@ function colLetterFromIndex(idx) {
   return s;
 }
 function colLetterToNum(letter) {
+  const lettersOnly = letter.match(/^[A-Z]+/)[0];
   let n = 0;
-  for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64);
+  for (const ch of lettersOnly) n = n * 26 + (ch.charCodeAt(0) - 64);
   return n;
 }
 function escapeXmlText(s) {
