@@ -2461,6 +2461,29 @@ function makeJours(n, startAt = 1) {
 }
 function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0"); return `${dd}/${mm}/${d.getFullYear()}`; }
 
+// Zone de texte à état local + sauvegarde différée (600ms après la dernière
+// frappe, ou immédiatement en quittant le champ). Sans ça, chaque caractère
+// tapé déclenchait une écriture réseau vers Supabase ; en tapant vite, des
+// réponses pouvaient arriver dans le désordre et faire "reculer" le texte
+// affiché, donnant l'impression de lettres perdues.
+function DebouncedTextarea({ value, onCommit, disabled, placeholder, style }) {
+  const [local, setLocal] = useState(value || "");
+  const timerRef = useRef(null);
+  const dirtyRef = useRef(false);
+  useEffect(() => { if (!dirtyRef.current) setLocal(value || ""); }, [value]);
+  const handleChange = (e) => {
+    const v = e.target.value;
+    dirtyRef.current = true;
+    setLocal(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => { onCommit(v); dirtyRef.current = false; }, 600);
+  };
+  const handleBlur = () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (dirtyRef.current) { onCommit(local); dirtyRef.current = false; }
+  };
+  return <textarea disabled={disabled} value={local} onChange={handleChange} onBlur={handleBlur} placeholder={placeholder} style={style} />;
+}
 function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUpdateList, onBack }) {
   const { t } = useLang();
   const [confirmFin, setConfirmFin] = useState(false);
@@ -2535,20 +2558,20 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("commentaire_humain_label")}</div>
-            <textarea disabled={!canFill} value={jourData.commentaireHumain || ""} onChange={e => setChampTexte("commentaireHumain", e.target.value)}
+            <DebouncedTextarea disabled={!canFill} value={jourData.commentaireHumain} onCommit={v => setChampTexte("commentaireHumain", v)}
               placeholder={t("commentaire_humain_placeholder")}
               style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6 }} />
           </div>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("incidents_rencontres_label")}</div>
-            <textarea disabled={!canFill} value={jourData.incidentsRencontres || ""} onChange={e => setChampTexte("incidentsRencontres", e.target.value)}
+            <DebouncedTextarea disabled={!canFill} value={jourData.incidentsRencontres} onCommit={v => setChampTexte("incidentsRencontres", v)}
               placeholder={t("incidents_rencontres_placeholder")}
               style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6 }} />
           </div>
         </div>
         <div>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("commentaire_technicite_label")}</div>
-          <textarea disabled={!canFill} value={jourData.commentaireTechnique || ""} onChange={e => setChampTexte("commentaireTechnique", e.target.value)}
+          <DebouncedTextarea disabled={!canFill} value={jourData.commentaireTechnique} onCommit={v => setChampTexte("commentaireTechnique", v)}
             placeholder={t("commentaire_technicite_placeholder")}
             style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6 }} />
         </div>
@@ -2557,7 +2580,7 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
       {jourData.numero % 5 === 0 && (
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: C.gold, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 6 }}>{t("resume_semaine_label")}</div>
-          <textarea disabled={!canFill} value={jourData.resumeSemaine || ""} onChange={e => setChampTexte("resumeSemaine", e.target.value)}
+          <DebouncedTextarea disabled={!canFill} value={jourData.resumeSemaine} onCommit={v => setChampTexte("resumeSemaine", v)}
             placeholder={t("resume_semaine_placeholder")}
             style={{ ...inputStyle, minHeight: 80, resize: "vertical", opacity: started ? 1 : 0.6, borderColor: C.gold }} />
         </div>
