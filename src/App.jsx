@@ -119,7 +119,7 @@ function questionnaireToRow(qn) {
 }
 
 /* ---------------------------------- OUTILS DIVERS ---------------------------------- */
-function genId(prefix) { return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`; }
+export function genId(prefix) { return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`; }
 function formatLogValue(v) {
   if (v === null || v === undefined || v === "") return "vide";
   if (typeof v === "boolean") return v ? "oui" : "non";
@@ -173,20 +173,20 @@ const QUESTIONNAIRE_LOG_FIELDS = { statut: "Statut", scoreGlobal: "Score", suppr
 function stripAccents(str) { return (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
 function normalizeText(str) { return stripAccents(str || "").toLowerCase().trim().replace(/\s+/g, ""); }
 function findCategoryMatch(name, categories) { return categories.find(c => normalizeText(c) === normalizeText(name)) || null; }
-function qText(q, langue) {
+export function qText(q, langue) {
   if (langue === "nl" && q.enonceNl && q.enonceNl.trim()) return q.enonceNl;
   return q.enonceFr || q.enonce || "";
 }
-function qChoix(q, langue) {
+export function qChoix(q, langue) {
   if (langue === "nl" && q.choixNl && q.choixNl.length && q.choixNl.every(c => c && c.trim())) return q.choixNl;
   return q.choixFr || q.choix || [];
 }
-function itemText(item, langue) {
+export function itemText(item, langue) {
   if (!item) return "";
   if (langue === "nl" && item.texteNl && item.texteNl.trim()) return item.texteNl;
   return item.texteFr || item.texte || "";
 }
-function paireText(p, side, langue) {
+export function paireText(p, side, langue) {
   if (!p) return "";
   const fr = side === "gauche" ? p.gaucheFr : p.droiteFr;
   const nl = side === "gauche" ? p.gaucheNl : p.droiteNl;
@@ -194,7 +194,7 @@ function paireText(p, side, langue) {
   if (langue === "nl" && nl && nl.trim()) return nl;
   return fr || legacy || "";
 }
-function arNodeText(node, langue) {
+export function arNodeText(node, langue) {
   if (!node) return "";
   if (langue === "nl" && node.texteNl && node.texteNl.trim()) return node.texteNl;
   return node.texteFr || node.texte || "";
@@ -708,9 +708,9 @@ function fonctionColor(fonction) {
 }
 
 /* ---------------------------------- HELPERS ---------------------------------- */
-function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+export function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function initials(prenom, nom) { return `${prenom?.[0] || ""}${nom?.[0] || ""}`.toUpperCase(); }
-function getResultReached(root, path) {
+export function getResultReached(root, path) {
   let current = root;
   for (const actionId of (path || [])) {
     if (!current || current.type !== "evenement") return null;
@@ -740,12 +740,12 @@ function walkTrail(root, path) {
   }
   return trail;
 }
-function countTreeResults(node) {
+export function countTreeResults(node) {
   if (!node) return 0;
   if (node.type === "resultat") return 1;
   return (node.enfants || []).reduce((s, c) => s + countTreeResults(c), 0);
 }
-function validateActionTree(node) {
+export function validateActionTree(node) {
   if (!node || !node.texteFr || !node.texteFr.trim() || !node.texteNl || !node.texteNl.trim()) return false;
   if (node.type === "resultat") return typeof node.pourcentage === "number" && node.pourcentage >= 0 && node.pourcentage <= 100;
   if (node.type === "evenement") return (node.enfants || []).length > 0 && node.enfants.every(validateActionTree);
@@ -764,7 +764,7 @@ function scoreQcmMulti(q, raw) {
   const incorrectCount = sel.filter(i => !good.includes(i)).length;
   return Math.max(0, correctCount * pointsPerAnswerOf(q) - incorrectCount);
 }
-function correctPlacementsOrdre(q, raw) {
+export function correctPlacementsOrdre(q, raw) {
   const items = q.items || [];
   const order = Array.isArray(raw) ? raw : [];
   return items.filter((it, i) => order[i] === it.id).length;
@@ -772,7 +772,7 @@ function correctPlacementsOrdre(q, raw) {
 function scoreOrdre(q, raw) {
   return correctPlacementsOrdre(q, raw) * pointsPerAnswerOf(q);
 }
-function matchedCiblesCount(q, clicks) {
+export function matchedCiblesCount(q, clicks) {
   const used = new Set(); let m = 0;
   (q.cibles || []).forEach(cible => {
     let idx2 = -1;
@@ -799,7 +799,7 @@ function isFullyCorrect(q, raw, manualPoints, overridePoints) {
   if (q.type === "ouverte") return !!(raw && typeof raw.points === "number" && raw.points === q.points);
   return false;
 }
-function computeCategoryStats(validatedQuestionnaires, categories) {
+export function computeCategoryStats(validatedQuestionnaires, categories) {
   const stats = {};
   categories.forEach(cat => { stats[cat] = { correct: 0, total: 0 }; });
   validatedQuestionnaires.forEach(qn => {
@@ -2176,7 +2176,7 @@ const COTATION_SCALE = [
   { value: 4, label: "4", desc: "Bien", descComplete: "Bien, peu de remarque, au-dessus de la moyenne", color: C.green, bg: C.greenSoft },
   { value: 5, label: "5", desc: "Excellent", descComplete: "Excellent, exceptionnel, très bien", color: C.blue, bg: C.blueSoft },
 ];
-const CRITERES_REGULATEUR = [
+export const CRITERES_REGULATEUR = [
   { categorie: "Regulation", type: "Connaissances", label: "Les concepts de régulation" },
   { categorie: "Regulation", type: "Savoir-faire", label: "Repérer les trains en retard (trou, vecteurs)" },
   { categorie: "Regulation", type: "Savoir-faire", label: "TP (via flèche ET fenêtre TP)" },
@@ -2348,7 +2348,7 @@ const CRITERES_REGULATEUR = [
   { categorie: "Crew Management (Hermès)", type: "Savoir-faire", label: "Créer un service" },
   { categorie: "Crew Management (Hermès)", type: "Savoir-faire", label: "Modifier un service" },
 ];
-const CRITERES_DISPATCHEUR = [
+export const CRITERES_DISPATCHEUR = [
   { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Gérer les priorités en incident (Disp)" },
   { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Placement des mises au rouge de sécurité en incident" },
   { categorie: "Gestion d'incident", type: "Savoir-faire", label: "Tester / Basculer vers le fall back" },
@@ -2440,7 +2440,7 @@ const CRITERES_DISPATCHEUR = [
   { categorie: "Hermès", type: null, label: null },
   { categorie: "Crew Management (Hermès)", type: null, label: null },
 ];
-function groupVolets(criteresFlat) {
+export function groupVolets(criteresFlat) {
   const volets = [];
   for (const c of criteresFlat) {
     let v = volets.find(v => v.titre === c.categorie);
@@ -2449,8 +2449,8 @@ function groupVolets(criteresFlat) {
   }
   return volets;
 }
-const VOLETS_REGULATEUR = groupVolets(CRITERES_REGULATEUR);
-const VOLETS_DISPATCHEUR = groupVolets(CRITERES_DISPATCHEUR);
+export const VOLETS_REGULATEUR = groupVolets(CRITERES_REGULATEUR);
+export const VOLETS_DISPATCHEUR = groupVolets(CRITERES_DISPATCHEUR);
 // Regroupements purement visuels (bandeau vertical coloré) dans le carnet —
 // distincts par parcours, car certaines compétences (ex. "Communication")
 // n'appartiennent pas au même groupe selon qu'on est régulateur ou dispatcheur.
@@ -2543,13 +2543,16 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
   const setChampTexte = (champ, texte) => {
     onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, [champ]: texte } : j));
   };
-  const setStatutCritere = (key, v) => {
+  const setStatutCritere = (volet, vi, ci, v) => {
     if (!canFill) return;
-    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, criteres: { ...j.criteres, [key]: j.criteres?.[key] === v ? undefined : v } } : j));
+    const key = `${volet.titre}-${ci}`;
+    const actuel = getCritereValeur(jourData, volet, vi, ci);
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, criteres: { ...j.criteres, [key]: actuel === v ? undefined : v } } : j));
   };
-  const setCompetenceGlobale = (vi, v) => {
+  const setCompetenceGlobale = (volet, vi, v) => {
     if (!canFill) return;
-    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, competencesGlobales: { ...j.competencesGlobales, [vi]: j.competencesGlobales?.[vi] === v ? undefined : v } } : j));
+    const actuel = getCompetenceGlobale(jourData, volet, vi);
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, competencesGlobales: { ...j.competencesGlobales, [volet.titre]: actuel === v ? undefined : v } } : j));
   };
 
   return (
@@ -2626,8 +2629,8 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
           const clusterOfTitle = (titre) => clusterDefs.find(cl => cl.categories.includes(titre));
           const renderCard = (volet, vi) => {
             const isOpen = openVolet === vi;
-            const notes = volet.criteres.map((_, ci) => jourData.criteres?.[`${vi}-${ci}`]).filter(v => v != null);
-            const globalVal = jourData.competencesGlobales?.[vi];
+            const notes = volet.criteres.map((_, ci) => getCritereValeur(jourData, volet, vi, ci)).filter(v => v != null);
+            const globalVal = getCompetenceGlobale(jourData, volet, vi);
             return (
               <div key={vi} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", opacity: started ? 1 : 0.6 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", gap: 10, flexWrap: "wrap" }}>
@@ -2645,7 +2648,7 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                       {COTATION_SCALE.map(opt => (
-                        <button key={opt.value} disabled={!canFill} onClick={() => setCompetenceGlobale(vi, opt.value)} title={opt.desc}
+                        <button key={opt.value} disabled={!canFill} onClick={() => setCompetenceGlobale(volet, vi, opt.value)} title={opt.desc}
                           style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${globalVal === opt.value ? opt.color : C.line}`, background: globalVal === opt.value ? opt.bg : "#fff", color: globalVal === opt.value ? opt.color : C.inkSoft, fontSize: 13, fontWeight: 700, cursor: canFill ? "pointer" : "not-allowed" }}>
                           {opt.label}
                         </button>
@@ -2657,8 +2660,7 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
                   <div style={{ borderTop: `1px solid ${C.line}`, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
                     <div style={{ fontSize: 11, color: C.inkSoft, fontStyle: "italic" }}>{t("volet_criteres_situationnels_note", { n: notes.length, total: volet.criteres.length })}</div>
                     {volet.criteres.map((crit, ci) => {
-                      const key = `${vi}-${ci}`;
-                      const val = jourData.criteres?.[key];
+                      const val = getCritereValeur(jourData, volet, vi, ci);
                       return (
                         <div key={ci}>
                           <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 6, display: "flex", gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
@@ -2667,7 +2669,7 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
                           </div>
                           <div style={{ display: "flex", gap: 5 }}>
                             {COTATION_SCALE.map(opt => (
-                              <button key={opt.value} disabled={!canFill} onClick={() => setStatutCritere(key, opt.value)} title={opt.desc}
+                              <button key={opt.value} disabled={!canFill} onClick={() => setStatutCritere(volet, vi, ci, opt.value)} title={opt.desc}
                                 style={{ width: 26, height: 26, borderRadius: 7, border: `1px solid ${val === opt.value ? opt.color : C.line}`, background: val === opt.value ? opt.bg : "#fff", color: val === opt.value ? opt.color : C.inkSoft, fontSize: 12, fontWeight: 700, cursor: canFill ? "pointer" : "not-allowed" }}>
                                 {opt.label}
                               </button>
@@ -2732,7 +2734,7 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
 // ============================================================
 // Export du carnet vers le modèle Excel "Carnet_d_élève.xlsx"
 // ============================================================
-const EXCEL_ROW_MAP_REGULATEUR = {
+export const EXCEL_ROW_MAP_REGULATEUR = {
   "Regulation": { headerRow: 7, criteriaRows: [8, 9, 10, 11, 12] },
   "Safety": { headerRow: 14, criteriaRows: [15, 16, 17, 18] },
   "Multi Tasking": { headerRow: 19, criteriaRows: [20, 21, 22, 23] },
@@ -2752,7 +2754,7 @@ const EXCEL_ROW_MAP_REGULATEUR = {
   "Crew Management (Hermès)": { headerRow: 191, criteriaRows: [192, 193, 194, 195, 196] },
 };
 
-const EXCEL_ROW_MAP_DISPATCHEUR = {
+export const EXCEL_ROW_MAP_DISPATCHEUR = {
   "Gestion d'incident": { headerRow: 7, criteriaRows: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22] },
   "Safety": { headerRow: 23, criteriaRows: [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48] },
   "Travaux / Travaux de nuit": { headerRow: 49, criteriaRows: [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62] },
@@ -2773,15 +2775,15 @@ const EXCEL_ROW_MAP_DISPATCHEUR = {
   "Crew Management (Hermès)": { headerRow: 127, criteriaRows: [] },
 };
 
-function colForJour(n) {
+export function colForJour(n) {
   return colLetterFromIndex(2 + n); // jour 1 = colonne D (index 3, 0-indexé)
 }
-function colLetterFromIndex(idx) {
+export function colLetterFromIndex(idx) {
   let s = "", n = idx + 1;
   while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
   return s;
 }
-function colLetterToNum(letter) {
+export function colLetterToNum(letter) {
   const lettersOnly = letter.match(/^[A-Z]+/)[0];
   let n = 0;
   for (const ch of lettersOnly) n = n * 26 + (ch.charCodeAt(0) - 64);
@@ -2790,7 +2792,7 @@ function colLetterToNum(letter) {
 function escapeXmlText(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
-function cellXml(addr, styleAttr, value, isText) {
+export function cellXml(addr, styleAttr, value, isText) {
   const style = styleAttr ? ` s="${styleAttr}"` : "";
   if (isText) return `<c r="${addr}"${style} t="inlineStr"><is><t xml:space="preserve">${escapeXmlText(value)}</t></is></c>`;
   return `<c r="${addr}"${style}><v>${value}</v></c>`;
@@ -2798,7 +2800,7 @@ function cellXml(addr, styleAttr, value, isText) {
 // Modifie une ligne XML de feuille pour y injecter/remplacer une cellule
 // précise, en conservant le style existant de la cellule (attribut s="...")
 // et en respectant l'ordre des colonnes attendu par Excel.
-function setCellInRow(rowXml, addr, value, isText) {
+export function setCellInRow(rowXml, addr, value, isText) {
   const cellRe = /<c r="([A-Z]+\d+)"([^>]*?)(\/>|>(.*?)<\/c>)/gs;
   const cells = [];
   let m, found = false;
@@ -2817,7 +2819,7 @@ function setCellInRow(rowXml, addr, value, isText) {
   const rowOpen = rowXml.match(/^<row[^>]*>/)[0];
   return rowOpen + cells.map(c => c.xml).join("") + "</row>";
 }
-function setCellInSheetXml(sheetXml, addr, value, isText) {
+export function setCellInSheetXml(sheetXml, addr, value, isText) {
   if (value === null || value === undefined) return sheetXml;
   const rowNum = addr.match(/\d+/)[0];
   const rowRe = new RegExp(`<row r="${rowNum}"[^>]*>.*?</row>`, "s");
@@ -2825,23 +2827,23 @@ function setCellInSheetXml(sheetXml, addr, value, isText) {
   if (!m) return sheetXml; // ligne hors du modèle (au-delà de ce qui était prévu) : ignorée silencieusement
   return sheetXml.replace(rowRe, setCellInRow(m[0], addr, value, isText));
 }
-function fillCompetencesSheet(sheetXml, jours, rowMap, volets) {
+export function fillCompetencesSheet(sheetXml, jours, rowMap, volets) {
   for (const jourData of jours) {
     const col = colForJour(jourData.numero);
     volets.forEach((volet, vi) => {
       const info = rowMap[volet.titre];
       if (!info) return;
-      sheetXml = setCellInSheetXml(sheetXml, `${col}${info.headerRow}`, jourData.competencesGlobales?.[vi], false);
+      sheetXml = setCellInSheetXml(sheetXml, `${col}${info.headerRow}`, getCompetenceGlobale(jourData, volet, vi), false);
       volet.criteres.forEach((crit, ci) => {
         const rowNum = info.criteriaRows[ci];
         if (rowNum == null) return;
-        sheetXml = setCellInSheetXml(sheetXml, `${col}${rowNum}`, jourData.criteres?.[`${vi}-${ci}`], false);
+        sheetXml = setCellInSheetXml(sheetXml, `${col}${rowNum}`, getCritereValeur(jourData, volet, vi, ci), false);
       });
     });
   }
   return sheetXml;
 }
-function fillCommentaireJournalier(sheetXml, jours, rowOffset) {
+export function fillCommentaireJournalier(sheetXml, jours, rowOffset) {
   for (const jourData of jours) {
     const row = 5 + rowOffset + (jourData.numero - 1);
     sheetXml = setCellInSheetXml(sheetXml, `A${row}`, jourData.moniteurNom, true);
@@ -2865,7 +2867,7 @@ function fillCommentaireJournalier(sheetXml, jours, rowOffset) {
 // Retrouve, pour un nom de feuille donné, le chemin de son fichier XML interne
 // (xl/worksheets/sheetN.xml) — passe par workbook.xml + les relations plutôt
 // que de supposer un numéro fixe, au cas où l'ordre des feuilles changerait.
-async function resolveCarnetSheetPath(zip, sheetName) {
+export async function resolveCarnetSheetPath(zip, sheetName) {
   const workbookXml = await zip.file("xl/workbook.xml").async("string");
   const sheetMatch = workbookXml.match(new RegExp(`<sheet[^>]*name="${sheetName}"[^>]*r:id="(rId\\d+)"`));
   if (!sheetMatch) return null;
@@ -3156,10 +3158,23 @@ const EVOLUTION_COLORS = [C.navy, C.gold, C.teal, C.red];
 // Valeur d'une compétence pour un jour donné : uniquement la note directe
 // posée par le moniteur sur le volet. Les sous-compétences (situationnelles)
 // restent notables individuellement mais n'influencent plus cette valeur.
-function competenceEffectiveValue(jourData, volet, vi) {
-  return jourData.competencesGlobales?.[vi] ?? null;
+// Lecture d'une note, avec repli automatique vers l'ancien format (indexé
+// par position) si la nouvelle clé stable (nom de la compétence) n'existe
+// pas encore pour ce jour. Ça permet de migrer en douceur : les notes déjà
+// enregistrées continuent de s'afficher normalement, sans opération de
+// masse risquée, et toute nouvelle écriture passe par la clé stable.
+export function getCompetenceGlobale(jourData, volet, vi) {
+  const parNom = jourData.competencesGlobales?.[volet.titre];
+  return parNom !== undefined ? parNom : jourData.competencesGlobales?.[vi];
 }
-function moyenneCategorieCarnet(jours, volets, categorieTitre) {
+export function getCritereValeur(jourData, volet, vi, ci) {
+  const parNom = jourData.criteres?.[`${volet.titre}-${ci}`];
+  return parNom !== undefined ? parNom : jourData.criteres?.[`${vi}-${ci}`];
+}
+function competenceEffectiveValue(jourData, volet, vi) {
+  return getCompetenceGlobale(jourData, volet, vi) ?? null;
+}
+export function moyenneCategorieCarnet(jours, volets, categorieTitre) {
   const vi = volets.findIndex(v => v.titre === categorieTitre);
   if (vi === -1) return null;
   const volet = volets[vi];
@@ -3167,7 +3182,7 @@ function moyenneCategorieCarnet(jours, volets, categorieTitre) {
   if (valeurs.length === 0) return null;
   return valeurs.reduce((a, b) => a + b, 0) / valeurs.length;
 }
-function computeRadarCarnet(jours, volets) {
+export function computeRadarCarnet(jours, volets) {
   return RADAR_GROUPS.map(g => {
     const categories = g.axe === "Interface Syrem"
       ? ["SYREM Généralité", "PEX", "Factory Link", "GCTR"] : g.categories;
@@ -3176,7 +3191,7 @@ function computeRadarCarnet(jours, volets) {
     return { axe: g.axe, value: Math.round(value * 10) / 10 };
   });
 }
-function computeEvolutionCarnet(jours, volets, categories, offsetJour = 0) {
+export function computeEvolutionCarnet(jours, volets, categories, offsetJour = 0) {
   return jours.map(j => {
     const point = { jour: offsetJour + j.numero };
     for (const cat of categories) {
