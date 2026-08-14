@@ -186,6 +186,19 @@ function itemText(item, langue) {
   if (langue === "nl" && item.texteNl && item.texteNl.trim()) return item.texteNl;
   return item.texteFr || item.texte || "";
 }
+function paireText(p, side, langue) {
+  if (!p) return "";
+  const fr = side === "gauche" ? p.gaucheFr : p.droiteFr;
+  const nl = side === "gauche" ? p.gaucheNl : p.droiteNl;
+  const legacy = side === "gauche" ? p.gauche : p.droite;
+  if (langue === "nl" && nl && nl.trim()) return nl;
+  return fr || legacy || "";
+}
+function arNodeText(node, langue) {
+  if (!node) return "";
+  if (langue === "nl" && node.texteNl && node.texteNl.trim()) return node.texteNl;
+  return node.texteFr || node.texte || "";
+}
 function makePseudo(nom, prenom, users = [], excludeId = null) {
   const base = (stripAccents(nom).trim().toLowerCase().replace(/[^a-z]/g, "")) +
     (stripAccents(prenom).trim().toLowerCase().charAt(0).replace(/[^a-z]/g, ""));
@@ -259,6 +272,8 @@ const T = {
     resume_semaine_label: "Résumé de la semaine", resume_semaine_placeholder: "Résumé de la semaine et objectifs de la semaine suivante, à partager avec le candidat...",
     incidents_rencontres_label: "Incident(s) rencontré(s)", incidents_rencontres_placeholder: "Incidents survenus durant la journée...",
     annuler_jour_btn: "Annulé", reouvrir_jour_btn: "Réouvrir jour",
+    carnet_verrouille_note: "Jour ouvert par {nom} — seul(e) cette personne peut noter et commenter.",
+    carnet_verrouille_deblocable: "Jour ouvert par {nom} depuis plus de 8h — vous pouvez le clôturer, mais pas y noter à sa place.",
     confirm_annuler_jour_msg: "Le jour {n} sera remis à zéro (date, moniteur, poste, commentaires et notes effacés). Cette action est irréversible.",
     sous_onglet_graphiques: "Graphiques d'évolution des compétences", sous_onglet_jours: "Jours",
     volet_criteres_situationnels_note: "Critères ci-dessous : à noter uniquement si une situation spécifique s'est présentée aujourd'hui.",
@@ -474,6 +489,8 @@ const T = {
     resume_semaine_label: "Weekoverzicht", resume_semaine_placeholder: "Samenvatting van de week en doelstellingen voor volgende week, te delen met de kandidaat...",
     incidents_rencontres_label: "Ondervonden incident(en)", incidents_rencontres_placeholder: "Incidenten tijdens de dag...",
     annuler_jour_btn: "Annuleren", reouvrir_jour_btn: "Dag heropenen",
+    carnet_verrouille_note: "Dag geopend door {nom} — enkel deze persoon kan noteren en becommentariëren.",
+    carnet_verrouille_deblocable: "Dag geopend door {nom}, meer dan 8u geleden — u kunt de dag afsluiten, maar niet in zijn/haar plaats noteren.",
     confirm_annuler_jour_msg: "Dag {n} wordt gereset (datum, monitor, post, opmerkingen en beoordelingen gewist). Deze actie is onomkeerbaar.",
     sous_onglet_graphiques: "Evolutiegrafieken van de competenties", sous_onglet_jours: "Dagen",
     volet_criteres_situationnels_note: "Onderstaande criteria: enkel beoordelen als er zich vandaag een specifieke situatie heeft voorgedaan.",
@@ -729,7 +746,7 @@ function countTreeResults(node) {
   return (node.enfants || []).reduce((s, c) => s + countTreeResults(c), 0);
 }
 function validateActionTree(node) {
-  if (!node || !node.texte || !node.texte.trim()) return false;
+  if (!node || !node.texteFr || !node.texteFr.trim() || !node.texteNl || !node.texteNl.trim()) return false;
   if (node.type === "resultat") return typeof node.pourcentage === "number" && node.pourcentage >= 0 && node.pourcentage <= 100;
   if (node.type === "evenement") return (node.enfants || []).length > 0 && node.enfants.every(validateActionTree);
   if (node.type === "action") return (node.enfants || []).length === 1 && validateActionTree(node.enfants[0]);
@@ -1008,7 +1025,7 @@ function LoginPage({ onLogin }) {
 /* ---------------------------------- MODE EXAMEN (ÉLÈVE) ---------------------------------- */
 function formatTime(s) { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${String(sec).padStart(2, "0")}`; }
 
-function ActionReactionPlayer({ q, value, onChange }) {
+function ActionReactionPlayer({ q, value, onChange, langue }) {
   const path = Array.isArray(value) ? value : [];
   const trail = walkTrail(q.arbre, path);
   const last = trail[trail.length - 1];
@@ -1024,7 +1041,7 @@ function ActionReactionPlayer({ q, value, onChange }) {
       <div style={{ fontSize: 10.5, fontWeight: 700, color: AR_COLOR[node.type], textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 5 }}>
         {AR_LABEL[node.type]}
       </div>
-      <div style={{ fontSize: 13.5, lineHeight: 1.4 }}>{node.texte}</div>
+      <div style={{ fontSize: 13.5, lineHeight: 1.4 }}>{arNodeText(node, langue)}</div>
       {clickable && <div style={{ marginTop: 8, fontSize: 11.5, color: C.navy, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}>Choisir <ChevronRight size={12} /></div>}
     </div>
   );
@@ -1056,7 +1073,7 @@ function ActionReactionPlayer({ q, value, onChange }) {
   );
 }
 
-function RelierQuestion({ q, value, onChange }) {
+function RelierQuestion({ q, value, onChange, langue }) {
   const shuffledRight = useMemo(() => shuffle(q.paires), [q.id]);
   const [selectedLeft, setSelectedLeft] = useState(null);
   const answer = value && value.length === q.paires.length ? value : Array(q.paires.length).fill(null);
@@ -1086,7 +1103,7 @@ function RelierQuestion({ q, value, onChange }) {
             return (
               <button key={p.id} onClick={() => clickLeft(i)} style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", padding: "10px 12px", borderRadius: 9, border: `1.5px solid ${selectedLeft === i ? C.navy : linked ? colorFor(i) : C.line}`, background: selectedLeft === i ? C.bg : "#fff", cursor: "pointer", fontSize: 13.5 }}>
                 <span style={{ width: 20, height: 20, borderRadius: "50%", background: linked ? colorFor(i) : C.bg, color: linked ? "#fff" : C.inkSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
-                {p.gauche}
+                {paireText(p, "gauche", langue)}
               </button>
             );
           })}
@@ -1098,7 +1115,7 @@ function RelierQuestion({ q, value, onChange }) {
             return (
               <button key={p.id} onClick={() => clickRight(p.id)} style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", padding: "10px 12px", borderRadius: 9, border: `1.5px solid ${linked ? colorFor(leftIdx) : C.line}`, background: "#fff", cursor: "pointer", fontSize: 13.5 }}>
                 {linked && <span style={{ width: 20, height: 20, borderRadius: "50%", background: colorFor(leftIdx), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{leftIdx + 1}</span>}
-                {p.droite}
+                {paireText(p, "droite", langue)}
               </button>
             );
           })}
@@ -1292,8 +1309,8 @@ function ExamMode({ questionnaire, questions, categories, questionLangues, onExi
             </div>
           </div>
         )}
-        {q.type === "relier" && <RelierQuestion q={q} value={answers[idx]} onChange={setAnswer} />}
-        {q.type === "action_reaction" && <ActionReactionPlayer q={q} value={answers[idx]} onChange={setAnswer} />}
+        {q.type === "relier" && <RelierQuestion q={q} value={answers[idx]} onChange={setAnswer} langue={(questionLangues && questionLangues[idx]) || "fr"} />}
+        {q.type === "action_reaction" && <ActionReactionPlayer q={q} value={answers[idx]} onChange={setAnswer} langue={(questionLangues && questionLangues[idx]) || "fr"} />}
         {q.type === "ordre" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: -2 }}>Utilisez les flèches pour remettre ces actions dans le bon ordre.</div>
@@ -2455,7 +2472,7 @@ const VOLET_CLUSTERS_DISPATCHEUR = [
 function makeJours(n, startAt = 1) {
   return Array.from({ length: n }, (_, i) => ({
     numero: startAt + i, statut: i === 0 ? "disponible" : "verrouille",
-    date: null, moniteurNom: null, moniteurComplet: null, poste: null,
+    date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null,
     commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {},
   }));
 }
@@ -2492,11 +2509,17 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
   const [showAideCotation, setShowAideCotation] = useState(false);
   const started = jourData.statut === "en_cours" || jourData.statut === "termine";
   const finished = jourData.statut === "termine";
-  const canFill = editable && started && !finished;
+  // Rétrocompatibilité : un jour déjà en cours avant l'ajout de cette
+  // fonctionnalité n'a pas de "ouvertParId" — dans ce cas, pas de
+  // restriction (on ne verrouille pas rétroactivement du travail en cours).
+  const isOwner = !jourData.ouvertParId || jourData.ouvertParId === currentUser?.id;
+  const heuresEcoulees = jourData.ouvertAt ? (Date.now() - new Date(jourData.ouvertAt).getTime()) / 3600000 : 0;
+  const canForceClose = started && !finished && !isOwner && heuresEcoulees >= 8;
+  const canFill = editable && started && !finished && isOwner;
 
   const commencer = () => {
     onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? {
-      ...j, statut: "en_cours", date: formatDateJour(new Date()),
+      ...j, statut: "en_cours", date: formatDateJour(new Date()), ouvertAt: new Date().toISOString(), ouvertParId: currentUser?.id || null,
       moniteurNom: currentUser?.nom || "", moniteurComplet: `${currentUser?.prenom || ""} ${currentUser?.nom || ""}`.trim(),
     } : j));
   };
@@ -2507,7 +2530,7 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
   };
   const annulerJour = () => {
     onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? {
-      ...j, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null,
+      ...j, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null,
       commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "",
       competencesGlobales: {}, criteres: {},
     } : j));
@@ -2515,7 +2538,7 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
     onBack();
   };
   const reouvrirJour = () => {
-    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, statut: "en_cours" } : j));
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, statut: "en_cours", ouvertParId: currentUser?.id || null, ouvertAt: new Date().toISOString() } : j));
   };
   const setChampTexte = (champ, texte) => {
     onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, [champ]: texte } : j));
@@ -2547,10 +2570,17 @@ function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUp
             {POSTES.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </span>
-        <Btn variant="primary" onClick={() => setConfirmFin(true)} disabled={!editable || !started || finished} style={{ marginLeft: "auto" }}>{t("fin_journee_btn")}</Btn>
-        {started && !finished && <Btn variant="danger" icon={Ban} onClick={() => setConfirmAnnuler(true)} disabled={!editable}>{t("annuler_jour_btn")}</Btn>}
+        <Btn variant="primary" onClick={() => setConfirmFin(true)} disabled={!editable || !started || finished || (!isOwner && !canForceClose)} style={{ marginLeft: "auto" }}>{t("fin_journee_btn")}</Btn>
+        {started && !finished && <Btn variant="danger" icon={Ban} onClick={() => setConfirmAnnuler(true)} disabled={!editable || !isOwner}>{t("annuler_jour_btn")}</Btn>}
         {finished && <Btn variant="ghost" icon={Undo2} onClick={reouvrirJour} disabled={!editable}>{t("reouvrir_jour_btn")}</Btn>}
       </div>
+
+      {started && !finished && !isOwner && (
+        <div style={{ background: canForceClose ? C.goldSoft : C.redSoft, color: canForceClose ? C.gold : C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
+          <Lock size={14} style={{ flexShrink: 0 }} />
+          {canForceClose ? t("carnet_verrouille_deblocable", { nom: jourData.moniteurComplet || "?" }) : t("carnet_verrouille_note", { nom: jourData.moniteurComplet || "?" })}
+        </div>
+      )}
 
       {!started && <div style={{ background: C.bg, color: C.inkSoft, fontSize: 12.5, padding: "10px 14px", borderRadius: 8, marginBottom: 18 }}>{t("carnet_pas_commence_note")}</div>}
 
@@ -2947,7 +2977,7 @@ function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
 
   const renderGrid = (section) => {
     const [list, setList] = sections[section];
-    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {} }]);
+    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null, commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {} }]);
     const removeJour = () => {
       if (list.length <= 1) return;
       const last = list[list.length - 1];
@@ -3393,8 +3423,8 @@ function QuestionPreviewModal({ question: q, categories, onClose }) {
             </div>
           </div>
         )}
-        {q.type === "relier" && <RelierQuestion q={q} value={answer} onChange={setAnswer} />}
-        {q.type === "action_reaction" && <ActionReactionPlayer q={q} value={answer} onChange={setAnswer} />}
+        {q.type === "relier" && <RelierQuestion q={q} value={answer} onChange={setAnswer} langue={lang} />}
+        {q.type === "action_reaction" && <ActionReactionPlayer q={q} value={answer} onChange={setAnswer} langue={lang} />}
         {q.type === "ordre" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: -2 }}>Utilisez les flèches pour remettre ces actions dans le bon ordre.</div>
@@ -4294,8 +4324,8 @@ function GestionQuestions({ questions, setQuestions, categories, setCategories, 
   );
 }
 function ActionReactionNode({ node, onUpdate, onDelete, isRoot }) {
-  const addActionChild = () => onUpdate({ ...node, enfants: [...(node.enfants || []), { id: genId("ar"), type: "action", texte: "", enfants: [] }] });
-  const addTypedChild = (type) => onUpdate({ ...node, enfants: [{ id: genId("ar"), type, texte: "", pourcentage: type === "resultat" ? 50 : undefined, enfants: [] }] });
+  const addActionChild = () => onUpdate({ ...node, enfants: [...(node.enfants || []), { id: genId("ar"), type: "action", texteFr: "", texteNl: "", enfants: [] }] });
+  const addTypedChild = (type) => onUpdate({ ...node, enfants: [{ id: genId("ar"), type, texteFr: "", texteNl: "", pourcentage: type === "resultat" ? 50 : undefined, enfants: [] }] });
   const updateChild = (idx, child) => { const enfants = [...node.enfants]; enfants[idx] = child; onUpdate({ ...node, enfants }); };
   const deleteChild = (idx) => onUpdate({ ...node, enfants: node.enfants.filter((_, i) => i !== idx) });
   const color = AR_COLOR[node.type];
@@ -4308,12 +4338,20 @@ function ActionReactionNode({ node, onUpdate, onDelete, isRoot }) {
         )}
         <div style={{ fontSize: 10.5, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 5 }}>{AR_LABEL[node.type]}</div>
         <textarea
-          value={node.texte}
-          onChange={e => onUpdate({ ...node, texte: e.target.value })}
+          value={node.texteFr}
+          onChange={e => onUpdate({ ...node, texteFr: e.target.value })}
           onInput={e => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
           ref={el => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-          placeholder={node.type === "evenement" ? "Décrivez la situation..." : node.type === "action" ? "Décrivez l'action choisie..." : "Décrivez le résultat final..."}
-          style={{ ...inputStyle, minHeight: 54, fontSize: 12.5, resize: "none", padding: "6px 8px", overflow: "hidden" }}
+          placeholder={(node.type === "evenement" ? "Décrivez la situation... (FR)" : node.type === "action" ? "Décrivez l'action choisie... (FR)" : "Décrivez le résultat final... (FR)")}
+          style={{ ...inputStyle, minHeight: 40, fontSize: 12.5, resize: "none", padding: "6px 8px", overflow: "hidden", marginBottom: 5 }}
+        />
+        <textarea
+          value={node.texteNl}
+          onChange={e => onUpdate({ ...node, texteNl: e.target.value })}
+          onInput={e => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+          ref={el => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+          placeholder={(node.type === "evenement" ? "Beschrijf de situatie... (NL)" : node.type === "action" ? "Beschrijf de gekozen actie... (NL)" : "Beschrijf het eindresultaat... (NL)")}
+          style={{ ...inputStyle, minHeight: 40, fontSize: 12.5, resize: "none", padding: "6px 8px", overflow: "hidden" }}
         />
         {node.type === "resultat" && (
           <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
@@ -4347,6 +4385,18 @@ function ActionReactionNode({ node, onUpdate, onDelete, isRoot }) {
   );
 }
 
+// Migre récursivement un arbre Action/Réaction depuis l'ancien format
+// (un seul champ "texte") vers le nouveau format bilingue, sans rien perdre :
+// le texte existant devient la version FR par défaut.
+function migrateArbreBilingue(node) {
+  if (!node) return node;
+  return {
+    ...node,
+    texteFr: node.texteFr ?? node.texte ?? "",
+    texteNl: node.texteNl ?? "",
+    enfants: (node.enfants || []).map(migrateArbreBilingue),
+  };
+}
 function QuestionEditor({ initial, categories, onClose, onSave }) {
   const { t, lang } = useLang();
   const initChoixFr = initial.choixFr ? [...initial.choixFr] : (initial.choix ? [...initial.choix] : ["", ""]);
@@ -4359,8 +4409,10 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
     bonnesReponses: initial.bonnesReponses ? [...initial.bonnesReponses] : [],
     reponseAttendue: initial.reponseAttendue || "", cibles: initial.cibles || [],
     marqueurs: initial.marqueurs && initial.marqueurs.length ? [...initial.marqueurs] : [],
-    paires: initial.paires && initial.paires.length ? [...initial.paires] : [{ id: genId("pr"), gauche: "", droite: "" }, { id: genId("pr"), gauche: "", droite: "" }],
-    arbre: initial.arbre || { id: genId("ar"), type: "evenement", texte: "", enfants: [] },
+    paires: initial.paires && initial.paires.length
+      ? initial.paires.map(p => ({ id: p.id, gaucheFr: p.gaucheFr ?? p.gauche ?? "", gaucheNl: p.gaucheNl ?? "", droiteFr: p.droiteFr ?? p.droite ?? "", droiteNl: p.droiteNl ?? "" }))
+      : [{ id: genId("pr"), gaucheFr: "", gaucheNl: "", droiteFr: "", droiteNl: "" }, { id: genId("pr"), gaucheFr: "", gaucheNl: "", droiteFr: "", droiteNl: "" }],
+    arbre: initial.arbre ? migrateArbreBilingue(initial.arbre) : { id: genId("ar"), type: "evenement", texteFr: "", texteNl: "", enfants: [] },
     items: initial.items && initial.items.length ? initial.items.map(it => ({ id: it.id, texteFr: it.texteFr ?? it.texte ?? "", texteNl: it.texteNl ?? "" })) : [{ id: genId("it"), texteFr: "", texteNl: "" }, { id: genId("it"), texteFr: "", texteNl: "" }],
     reference: initial.reference || "",
     pointsParBonneReponse: initial.pointsParBonneReponse ?? 1,
@@ -4412,7 +4464,7 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
   const updateCibleRayon = (i, rayon) => setForm({ ...form, cibles: form.cibles.map((c, ci) => ci === i ? { ...c, rayon } : c) });
   const removeMarqueur = (i) => setForm({ ...form, marqueurs: form.marqueurs.filter((_, mi) => mi !== i) });
   const updateMarqueurReponse = (i, reponse) => setForm({ ...form, marqueurs: form.marqueurs.map((m, mi) => mi === i ? { ...m, reponse } : m) });
-  const addPaire = () => { if (form.paires.length >= 10) return; setForm({ ...form, paires: [...form.paires, { id: genId("pr"), gauche: "", droite: "" }] }); };
+  const addPaire = () => { if (form.paires.length >= 10) return; setForm({ ...form, paires: [...form.paires, { id: genId("pr"), gaucheFr: "", gaucheNl: "", droiteFr: "", droiteNl: "" }] }); };
   const removePaire = (i) => { if (form.paires.length <= 2) return; setForm({ ...form, paires: form.paires.filter((_, pi) => pi !== i) }); };
   const updatePaire = (i, field, v) => setForm({ ...form, paires: form.paires.map((p, pi) => pi === i ? { ...p, [field]: v } : p) });
 
@@ -4423,7 +4475,7 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
     && (form.type !== "legende" || (form.media?.type === "image" && form.marqueurs.length > 0 && form.marqueurs.every(m => m.reponse.trim())))
     && ((form.type !== "qcm" && form.type !== "vrai_faux") || (form.choixFr.every(c => c.trim()) && form.choixNl.every(c => c.trim())))
     && (form.type !== "qcm_multi" || (form.choixFr.every(c => c.trim()) && form.choixNl.every(c => c.trim()) && form.bonnesReponses.length > 0))
-    && (form.type !== "relier" || form.paires.every(p => p.gauche.trim() && p.droite.trim()))
+    && (form.type !== "relier" || form.paires.every(p => p.gaucheFr.trim() && p.gaucheNl.trim() && p.droiteFr.trim() && p.droiteNl.trim()))
     && (form.type !== "action_reaction" || validateActionTree(form.arbre))
     && (form.type !== "ordre" || (form.items.length >= 2 && form.items.every(it => it.texteFr.trim() && it.texteNl.trim()) && form.pointsParBonneReponse > 0))
     && (!form.minuteurActif || (form.minMin * 60 + form.minSec) > 0);
@@ -4537,14 +4589,23 @@ function QuestionEditor({ initial, categories, onClose, onSave }) {
       )}
       {form.type === "relier" && (
         <Field label={t("paires_relier_label", { n: form.paires.length })} hint={t("paires_relier_hint")}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {form.paires.map((p, i) => (
-              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft, minWidth: 16 }}>{i + 1}</span>
-                <input style={inputStyle} placeholder={t("element_gauche_placeholder")} value={p.gauche} onChange={e => updatePaire(i, "gauche", e.target.value)} />
-                <Link2 size={14} color={C.inkSoft} style={{ flexShrink: 0 }} />
-                <input style={inputStyle} placeholder={t("element_droite_placeholder")} value={p.droite} onChange={e => updatePaire(i, "droite", e.target.value)} />
-                {form.paires.length > 2 && <Btn variant="danger" icon={Trash2} onClick={() => removePaire(i)} style={{ padding: "6px 8px" }} />}
+              <div key={p.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft, minWidth: 16, marginTop: 8 }}>{i + 1}</span>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input style={inputStyle} placeholder={`${t("element_gauche_placeholder")} (FR)`} value={p.gaucheFr} onChange={e => updatePaire(i, "gaucheFr", e.target.value)} />
+                    <Link2 size={14} color={C.inkSoft} style={{ flexShrink: 0 }} />
+                    <input style={inputStyle} placeholder={`${t("element_droite_placeholder")} (FR)`} value={p.droiteFr} onChange={e => updatePaire(i, "droiteFr", e.target.value)} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input style={inputStyle} placeholder={`${t("element_gauche_placeholder")} (NL)`} value={p.gaucheNl} onChange={e => updatePaire(i, "gaucheNl", e.target.value)} />
+                    <Link2 size={14} color="transparent" style={{ flexShrink: 0 }} />
+                    <input style={inputStyle} placeholder={`${t("element_droite_placeholder")} (NL)`} value={p.droiteNl} onChange={e => updatePaire(i, "droiteNl", e.target.value)} />
+                  </div>
+                </div>
+                {form.paires.length > 2 && <Btn variant="danger" icon={Trash2} onClick={() => removePaire(i)} style={{ padding: "6px 8px", marginTop: 2 }} />}
               </div>
             ))}
           </div>
@@ -5027,8 +5088,8 @@ function AnalysisView({ questionnaire, eleve, questions, categories, onClose, on
                         return (
                           <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "6px 10px", background: ok ? C.greenSoft : C.redSoft, borderRadius: 6 }}>
                             {ok ? <CheckCircle2 size={13} color={C.green} /> : <XCircle size={13} color={C.red} />}
-                            <span style={{ fontWeight: 600 }}>{p.gauche}</span> → <span>{chosen ? chosen.droite : t("sans_reponse")}</span>
-                            {!ok && <span style={{ color: C.inkSoft }}>{t("attendu_deux_points", { v: p.droite })}</span>}
+                            <span style={{ fontWeight: 600 }}>{paireText(p, "gauche", langFor(i))}</span> → <span>{chosen ? paireText(chosen, "droite", langFor(i)) : t("sans_reponse")}</span>
+                            {!ok && <span style={{ color: C.inkSoft }}>{t("attendu_deux_points", { v: paireText(p, "droite", langFor(i)) })}</span>}
                           </div>
                         );
                       })}
@@ -5038,7 +5099,7 @@ function AnalysisView({ questionnaire, eleve, questions, categories, onClose, on
                     <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
                       {walkTrail(q.arbre, Array.isArray(a) ? a : []).map(node => (
                         <div key={node.id} style={{ padding: "6px 10px", borderRadius: 6, fontSize: 12.5, background: node.type === "resultat" ? (node.pourcentage === 100 ? C.greenSoft : node.pourcentage === 0 ? C.redSoft : C.goldSoft) : C.bg }}>
-                          <strong style={{ textTransform: "uppercase", fontSize: 10.5, letterSpacing: ".03em", color: AR_COLOR[node.type] }}>{AR_LABEL[node.type]}</strong> — {node.texte}{node.type === "resultat" && ` (${node.pourcentage}%)`}
+                          <strong style={{ textTransform: "uppercase", fontSize: 10.5, letterSpacing: ".03em", color: AR_COLOR[node.type] }}>{AR_LABEL[node.type]}</strong> — {arNodeText(node, langFor(i))}{node.type === "resultat" && ` (${node.pourcentage}%)`}
                         </div>
                       ))}
                       {!getResultReached(q.arbre, Array.isArray(a) ? a : []) && <div style={{ fontSize: 12.5, color: C.red }}>{t("parcours_inacheve")}</div>}
@@ -5472,7 +5533,7 @@ function buildQuestionnairesBodyHTML({ items, questions, categories }) {
     if (q.type === "point") { const clicks = Array.isArray(raw) ? raw : (raw ? [raw] : []); return `${matchedCiblesCount(q, clicks)}/${(q.cibles || []).length} cible(s) trouvée(s), ${clicks.length - matchedCiblesCount(q, clicks)} erreur(s)`; }
     if (q.type === "legende") { const vals = Array.isArray(raw) ? raw : []; return vals.length ? vals.map((v, li) => `${li + 1}. ${v || "—"}`).join(" · ") : "Sans réponse"; }
     if (q.type === "relier") { const total = (q.paires || []).length; const n = (q.paires || []).filter((p, li) => raw && raw[li] === p.id).length; return `${n}/${total} paire(s) correcte(s)`; }
-    if (q.type === "action_reaction") { const result = getResultReached(q.arbre, Array.isArray(raw) ? raw : []); return result ? `Résultat : ${result.texte} (${result.pourcentage}%)` : "Parcours inachevé"; }
+    if (q.type === "action_reaction") { const result = getResultReached(q.arbre, Array.isArray(raw) ? raw : []); return result ? `Résultat : ${arNodeText(result, langue)} (${result.pourcentage}%)` : "Parcours inachevé"; }
     if (q.type === "ordre") { const order = Array.isArray(raw) ? raw : []; const total = (q.items || []).length; return `${correctPlacementsOrdre(q, order)}/${total} action(s) bien placée(s) : ${order.map(id => itemText((q.items || []).find(it => it.id === id), langue)).join(" → ")}`; }
     return "—";
   };
@@ -5669,6 +5730,21 @@ export default function App() {
       .channel(`questionnaires-staff-${session.id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "questionnaires" }, (payload) => {
         setQuestionnairesState(prev => prev.map(q => q.id === payload.new.id ? rowToQuestionnaire(payload.new) : q));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.id, session?.role]);
+
+  // Synchro en direct des profils (carnet compris) : quand un autre membre
+  // du staff ouvre/ferme un jour de carnet — ou modifie tout autre champ
+  // d'un profil — ça se reflète immédiatement, sans devoir rafraîchir.
+  // Réservé au staff, comme les questionnaires ci-dessus.
+  useEffect(() => {
+    if (!session || session.role === "eleve") return;
+    const channel = supabase
+      .channel(`profiles-staff-${session.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, (payload) => {
+        setUsersState(prev => prev.map(u => u.id === payload.new.id ? rowToUser(payload.new) : u));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
