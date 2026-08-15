@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { qText, qChoix, itemText, paireText, arNodeText } from "./App.jsx";
+import { qText, qChoix, itemText, paireText, arNodeText } from "./utils/bilingual.js";
 
 describe("qText (énoncé de question)", () => {
   it("retourne le FR par défaut", () => {

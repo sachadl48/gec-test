@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   colForJour, colLetterToNum, setCellInRow, setCellInSheetXml,
   fillCompetencesSheet, fillCommentaireJournalier,
-  EXCEL_ROW_MAP_REGULATEUR, EXCEL_ROW_MAP_DISPATCHEUR,
-  VOLETS_REGULATEUR, VOLETS_DISPATCHEUR,
-} from "./App.jsx";
+} from "./utils/excelExport.js";
+import { EXCEL_ROW_MAP_REGULATEUR, EXCEL_ROW_MAP_DISPATCHEUR } from "./data/excelRowMap.js";
+import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "./data/competences.js";
 
 describe("colForJour (numéro de jour -> lettre de colonne Excel)", () => {
   // Non-régression : jour 1 doit tomber en colonne D, pas E. Un bug de

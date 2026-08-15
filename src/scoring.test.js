@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { correctPlacementsOrdre, matchedCiblesCount, computeCategoryStats, getResultReached, countTreeResults, validateActionTree } from "./App.jsx";
+import { correctPlacementsOrdre, matchedCiblesCount, computeCategoryStats, getResultReached, countTreeResults, validateActionTree } from "./utils/scoring.js";
 
 describe("correctPlacementsOrdre (question type 'ordre')", () => {
   const q = { items: [{ id: "a" }, { id: "b" }, { id: "c" }] };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getCompetenceGlobale, getCritereValeur } from "./App.jsx";
+import { getCompetenceGlobale, getCritereValeur } from "./utils/carnetKeys.js";
 
 const volet = { titre: "Regulation", criteres: [{}, {}] };
 
