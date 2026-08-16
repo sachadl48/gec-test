@@ -22,3 +22,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true },
 });
+
+// Appelle une Edge Function Supabase authentifiée avec le jeton de la
+// session en cours (ou la clé anonyme si personne n'est connecté).
+export async function callEdgeFunction(name, body) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session?.access_token || supabaseAnonKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Une erreur est survenue.");
+  return json;
+}

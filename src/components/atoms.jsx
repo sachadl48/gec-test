@@ -159,3 +159,4 @@ export function MediaField({ media, onChange, imageOnly = false }) {
     </div>
   );
 }
+export function StatCard({ label, value, accent }) { return <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "16px 18px" }}><div style={{ fontSize: 12, color: C.inkSoft, fontWeight: 600 }}>{label}</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700, color: accent || C.navy, marginTop: 6 }}>{value}</div></div>; }

@@ -1,4 +1,5 @@
 import { ListChecks, CheckSquare, ToggleLeft, AlignLeft, MapPin, Link2, ListOrdered, GitBranch, ArrowUpDown } from "lucide-react";
+import { C } from "../theme.js";
 
 // Métadonnées des différents types de questions (libellé FR/NL, icône).
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
@@ -16,3 +17,7 @@ export const TYPE_META = {
   ordre: { label: "Mettre dans l'ordre", labelNl: "In de juiste volgorde zetten", icon: ArrowUpDown },
 };
 export function typeLabel(type, lang) { return (lang === "nl" ? TYPE_META[type]?.labelNl : TYPE_META[type]?.label) || TYPE_META[type]?.label || type; }
+
+// Couleurs et libellés des 3 types de nœuds d'un scénario Action/Réaction.
+export const AR_COLOR = { evenement: C.teal, action: C.navy2, resultat: C.green };
+export const AR_LABEL = { evenement: "Événement", action: "Action", resultat: "Résultat" };
