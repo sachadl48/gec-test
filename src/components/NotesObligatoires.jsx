@@ -3,7 +3,6 @@ import { Plus, Edit2, Trash2, Eye, FileDown, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient.js";
 import { C, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
-import { genId } from "../utils/id.js";
 import { logActivity } from "../utils/activityLog.js";
 import { Btn, Field, inputStyle, Modal, SectionTitle, EmptyState, ConfirmDialog } from "./atoms.jsx";
 
@@ -52,7 +51,7 @@ export function NotesObligatoires({ questions, currentUser }) {
     try {
       let pdfFrPath = form.pdfFrPath;
       let pdfNlPath = form.pdfNlPath;
-      const baseId = form.id || genId("note");
+      const baseId = form.id || crypto.randomUUID();
 
       if (form.pdfFrFile) {
         pdfFrPath = `${baseId}/fr-${Date.now()}.pdf`;
