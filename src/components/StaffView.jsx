@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
 } from "recharts";
 import { Home, Users, BookCheck, HelpCircle, ClipboardList, ClipboardCheck, ShieldCheck, Lock, Eye } from "lucide-react";
-import { C, FONT_BODY, FONT_DISPLAY } from "../theme.js";
+import { C, FONT_BODY } from "../theme.js";
 import { useLang } from "../lang.jsx";
 import { computeCategoryStats } from "../utils/scoring.js";
 import { Btn, SectionTitle, EmptyState, Header, SaveErrorBanner, StatCard } from "./atoms.jsx";

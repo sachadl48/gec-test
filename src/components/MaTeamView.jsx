@@ -9,7 +9,7 @@ import { fonctionColor, fonctionLabel } from "../data/fonctions.js";
 import { callEdgeFunction } from "../lib/supabaseClient.js";
 import { makePseudo } from "../utils/userAccount.js";
 import { initials, computeCategoryStats } from "../utils/scoring.js";
-import { Btn, Field, inputStyle, Badge, SectionTitle, EmptyState, ConfirmDialog, StatCard } from "./atoms.jsx";
+import { Btn, inputStyle, Badge, SectionTitle, EmptyState, ConfirmDialog, StatCard } from "./atoms.jsx";
 import { EleveDetailView, ProfilModal } from "./profileShared.jsx";
 import { AnalysisView } from "./GestionQuestionnaires.jsx";
 
