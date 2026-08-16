@@ -122,3 +122,32 @@ export function computeCategoryEvolution(validatedQuestionnaires, categories) {
   });
   return result;
 }
+
+// Un questionnaire est "réussi" si, pour chaque catégorie concernée par ses
+// questions, le score obtenu atteint le seuil configuré pour cette
+// catégorie — exactement la même règle que celle déjà utilisée pour les
+// questionnaires classiques (catégorie par catégorie), appliquée ici pour
+// donner un verdict global unique (utilisé par les notes obligatoires : une
+// note complète a un statut binaire réussi/à relire, pas un score nuancé).
+export function questionnaireReussi(questionnaire, categoryConfig) {
+  const scoreParCategorie = questionnaire?.scoreParCategorie;
+  if (!scoreParCategorie || Object.keys(scoreParCategorie).length === 0) return null; // pas encore corrigé
+  return Object.entries(scoreParCategorie).every(([cat, score]) => {
+    const seuil = categoryConfig?.[cat]?.seuil ?? 60;
+    return score >= seuil;
+  });
+}
+
+// Pour une note obligatoire donnée, retrouve la tentative la plus récente
+// de cet élève (s'il y en a une) et son statut : null = jamais commencée
+// ou en cours (pas encore corrigée), true = réussie, false = échouée (à
+// relire). Centralisé ici car utilisé à la fois dans l'affichage du
+// carnet (lecture seule, côté staff) et dans la vue élève (interactive).
+export function statutNoteObligatoire(note, questionnaires, eleveId, categoryConfig) {
+  const tentatives = questionnaires
+    .filter(q => q.noteId === note.id && q.eleveId === eleveId)
+    .sort((a, b) => new Date(b.dateAttribution) - new Date(a.dateAttribution));
+  const derniere = tentatives[0] || null;
+  if (!derniere) return { statut: null, derniere: null };
+  return { statut: questionnaireReussi(derniere, categoryConfig), derniere };
+}

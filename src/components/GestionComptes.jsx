@@ -122,10 +122,10 @@ export function GestionComptes({ users, setUsers, currentUser }) {
     const before = data.id ? users.find(u => u.id === data.id) : null;
     try {
       if (data.id) {
-        await callEdgeFunction("manage-user", { action: "update", userId: data.id, pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false });
+        await callEdgeFunction("manage-user", { action: "update", userId: data.id, pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false, email: data.email || null });
         logActivity("Profil", diffEntities([before], [{ ...before, ...data, pseudo }], u => `${u.prenom} ${u.nom}`, USER_LOG_FIELDS), auteurLog);
       } else {
-        await callEdgeFunction("manage-user", { action: "create", pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, role: data.role, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false });
+        await callEdgeFunction("manage-user", { action: "create", pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, role: data.role, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false, email: data.email || null });
         logActivity("Profil", [{ action: "creation", description: `${data.prenom} ${data.nom}` }], auteurLog);
       }
       await setUsers();
@@ -177,7 +177,7 @@ export function GestionComptes({ users, setUsers, currentUser }) {
 }
 export function CompteModal({ initial, users, canGrantSuperAdmin, onClose, onSave }) {
   const { t } = useLang();
-  const [form, setForm] = useState({ nom: initial.nom || "", prenom: initial.prenom || "", numeroAgent: initial.numeroAgent || "", role: initial.role || "moniteur", langue: initial.langue || "fr", responsableTeam: initial.responsableTeam || "", superAdmin: initial.superAdmin || false, id: initial.id });
+  const [form, setForm] = useState({ nom: initial.nom || "", prenom: initial.prenom || "", numeroAgent: initial.numeroAgent || "", role: initial.role || "moniteur", langue: initial.langue || "fr", responsableTeam: initial.responsableTeam || "", superAdmin: initial.superAdmin || false, email: initial.email || "", id: initial.id });
   const pseudoPreview = makePseudo(form.nom, form.prenom, users, initial.id) || "—";
   return (
     <Modal title={initial.id ? t("modifier_compte") : t("ajouter_compte")} onClose={onClose}>
@@ -190,6 +190,9 @@ export function CompteModal({ initial, users, canGrantSuperAdmin, onClose, onSav
           <option value="fr">Français</option>
           <option value="nl">Nederlands</option>
         </select>
+      </Field>
+      <Field label={t("email_label")} hint={t("email_hint")}>
+        <input type="email" style={inputStyle} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="prenom.nom@exemple.be" />
       </Field>
       {form.role === "admin" && (
         <Field label={t("responsable_team_label")} hint={t("responsable_team_hint")}>

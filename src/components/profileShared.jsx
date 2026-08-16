@@ -96,7 +96,7 @@ export function EleveDetailView({ eleve, questionnaires, categories, onBack }) {
 }
 export function ProfilModal({ initial, users, isAdmin, onClose, onSave }) {
   const { t, lang } = useLang();
-  const [form, setForm] = useState({ nom: initial.nom || "", prenom: initial.prenom || "", numeroAgent: initial.numeroAgent || "", fonction: initial.fonction || "Élève régulateur", langue: initial.langue || "fr", team: initial.team || "", id: initial.id });
+  const [form, setForm] = useState({ nom: initial.nom || "", prenom: initial.prenom || "", numeroAgent: initial.numeroAgent || "", fonction: initial.fonction || "Élève régulateur", langue: initial.langue || "fr", team: initial.team || "", email: initial.email || "", id: initial.id });
   const pseudoPreview = makePseudo(form.nom, form.prenom, users, initial.id) || "—";
   return (
     <Modal title={initial.id ? t("modifier_profil") : t("ajouter_eleve")} onClose={onClose}>
@@ -114,6 +114,9 @@ export function ProfilModal({ initial, users, isAdmin, onClose, onSave }) {
           <option value="">{t("team_aucune")}</option>
           {TEAMS.map(tm => <option key={tm} value={tm}>{tm}</option>)}
         </select>
+      </Field>
+      <Field label={t("email_label")} hint={t("email_hint")}>
+        <input type="email" style={inputStyle} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="prenom.nom@exemple.be" />
       </Field>
       <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 12.5, color: C.inkSoft, marginBottom: 8 }}>
         {t("identifiant_connexion")} : <strong style={{ fontFamily: FONT_MONO, color: C.ink }}>{pseudoPreview}</strong><br />

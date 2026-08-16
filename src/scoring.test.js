@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { correctPlacementsOrdre, matchedCiblesCount, computeCategoryStats, getResultReached, countTreeResults, validateActionTree } from "./utils/scoring.js";
+import { correctPlacementsOrdre, matchedCiblesCount, computeCategoryStats, getResultReached, countTreeResults, validateActionTree, questionnaireReussi } from "./utils/scoring.js";
 
 describe("correctPlacementsOrdre (question type 'ordre')", () => {
   const q = { items: [{ id: "a" }, { id: "b" }, { id: "c" }] };
@@ -77,5 +77,30 @@ describe("arbre Action/Réaction (getResultReached, countTreeResults, validateAc
     const incomplet = JSON.parse(JSON.stringify(arbre));
     incomplet.enfants[0].texteNl = "";
     expect(validateActionTree(incomplet)).toBe(false);
+  });
+});
+
+describe("questionnaireReussi (verdict global d'un questionnaire, pour les notes obligatoires)", () => {
+  const categoryConfig = { Safety: { seuil: 60 }, Regulation: { seuil: 80 } };
+
+  it("retourne null si pas encore corrigé (pas de scoreParCategorie)", () => {
+    expect(questionnaireReussi({ scoreParCategorie: null }, categoryConfig)).toBeNull();
+    expect(questionnaireReussi({}, categoryConfig)).toBeNull();
+  });
+
+  it("réussi si toutes les catégories atteignent leur seuil", () => {
+    const qn = { scoreParCategorie: { Safety: 70, Regulation: 90 } };
+    expect(questionnaireReussi(qn, categoryConfig)).toBe(true);
+  });
+
+  it("échoué si une seule catégorie n'atteint pas son seuil", () => {
+    const qn = { scoreParCategorie: { Safety: 70, Regulation: 50 } }; // Regulation sous 80
+    expect(questionnaireReussi(qn, categoryConfig)).toBe(false);
+  });
+
+  it("utilise un seuil par défaut de 60 si la catégorie n'a pas de config", () => {
+    const qn = { scoreParCategorie: { Inconnue: 65 } };
+    expect(questionnaireReussi(qn, categoryConfig)).toBe(true);
+    expect(questionnaireReussi({ scoreParCategorie: { Inconnue: 50 } }, categoryConfig)).toBe(false);
   });
 });

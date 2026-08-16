@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
 } from "recharts";
-import { ClipboardList, Eye, Gamepad2, PlayCircle, TrendingDown, TrendingUp } from "lucide-react";
+import { ClipboardList, Eye, FileDown, Gamepad2, PlayCircle, TrendingDown, TrendingUp } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
 import { fonctionColor } from "../data/fonctions.js";
 import { supabase, callEdgeFunction } from "../lib/supabaseClient.js";
 import { rowToQuestion } from "../lib/mappers.js";
-import { initials, computeCategoryStats } from "../utils/scoring.js";
+import { initials, computeCategoryStats, statutNoteObligatoire } from "../utils/scoring.js";
 import {
   Btn, Badge, StatusBadge, SectionTitle, EmptyState, Header, LoadingScreen, SaveErrorBanner,
 } from "./atoms.jsx";
@@ -23,7 +23,7 @@ import { AnalysisView } from "./GestionQuestionnaires.jsx";
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
-export function EleveView({ user, users, setUsers, questionnaires, categories, onLogout, submitReponses, confirmRead, saveError }) {
+export function EleveView({ user, users, setUsers, questionnaires, refreshQuestionnaires, categories, categoryConfig, onLogout, submitReponses, confirmRead, saveError }) {
   const { t } = useLang();
   const [playing, setPlaying] = useState(null);
   const [examStarted, setExamStarted] = useState(false);
@@ -32,6 +32,50 @@ export function EleveView({ user, users, setUsers, questionnaires, categories, o
   const [activeQuestions, setActiveQuestions] = useState(null);
   const [fetchError, setFetchError] = useState("");
   const [dtmRecord, setDtmRecord] = useState(null);
+  const [notesObligatoires, setNotesObligatoires] = useState([]);
+  const [readingNote, setReadingNote] = useState(null); // { note, url } | null
+  const [noteError, setNoteError] = useState("");
+  const [startingNote, setStartingNote] = useState(false);
+
+  const filiereNotes = user.fonction === "Élève régulateur" || user.fonction === "Élève dispatcheur" ? user.fonction : null;
+  useEffect(() => {
+    if (!filiereNotes) { setNotesObligatoires([]); return; }
+    let cancelled = false;
+    supabase.from("notes_obligatoires").select("*").eq("filiere", filiereNotes).order("ordre", { ascending: true })
+      .then(({ data }) => { if (!cancelled) setNotesObligatoires(data || []); });
+    return () => { cancelled = true; };
+  }, [filiereNotes]);
+
+  const ouvrirNote = async (note) => {
+    setNoteError("");
+    try {
+      const path = user.langue === "nl" ? note.pdf_nl_path : note.pdf_fr_path;
+      const { data, error } = await supabase.storage.from("notes-pdf").createSignedUrl(path, 3600);
+      if (error) throw error;
+      setReadingNote({ note, url: data.signedUrl });
+    } catch (e) { setNoteError(e?.message || "Impossible d'ouvrir le PDF."); }
+  };
+
+  const demarrerQuestionnaireNote = async () => {
+    if (!readingNote) return;
+    setNoteError("");
+    setStartingNote(true);
+    try {
+      // Si une tentative est déjà en cours (non terminée) pour cette note,
+      // on la reprend plutôt que d'en créer une nouvelle en double.
+      const enCours = mine.find(q => q.noteId === readingNote.note.id && q.statut === "en cours");
+      if (enCours) {
+        setPlaying(enCours);
+      } else {
+        const { id } = await callEdgeFunction("start-note-questionnaire", { noteId: readingNote.note.id });
+        await refreshQuestionnaires();
+        setPlaying({ id, eleveId: user.id, titre: readingNote.note.titre, questionIds: readingNote.note.question_ids, statut: "en cours" });
+      }
+      setReadingNote(null);
+    } catch (e) { setNoteError(e?.message || "Impossible de démarrer le questionnaire."); }
+    setStartingNote(false);
+  };
+
   useEffect(() => {
     supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
   }, []);
@@ -63,6 +107,25 @@ export function EleveView({ user, users, setUsers, questionnaires, categories, o
       } catch (e) { setFetchError(e.message || "Impossible de charger les questions."); }
     })();
   }, [playing?.id, viewing?.id]);
+
+  if (readingNote) {
+    const dejaReussie = statutNoteObligatoire(readingNote.note, questionnaires, user.id, categoryConfig).statut === true;
+    return (
+      <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
+        <Header user={user} onLogout={onLogout} />
+        <div style={{ padding: "24px 28px" }}>
+          {noteError && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{noteError}</div>}
+          <SectionTitle>{readingNote.note.titre}</SectionTitle>
+          <div style={{ height: 8 }} />
+          <iframe src={`${readingNote.url}#toolbar=0`} title={readingNote.note.titre} style={{ width: "100%", height: "65vh", border: `1px solid ${C.line}`, borderRadius: 10, marginBottom: 16 }} />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <Btn variant="ghost" onClick={() => setReadingNote(null)}>{t("fermer_btn")}</Btn>
+            {!dejaReussie && <Btn variant="primary" icon={PlayCircle} onClick={demarrerQuestionnaireNote} disabled={startingNote}>{startingNote ? t("chargement") + "…" : t("suivant_btn")}</Btn>}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (playing && !examStarted) {
     return (
@@ -111,15 +174,40 @@ export function EleveView({ user, users, setUsers, questionnaires, categories, o
       <div style={{ padding: "24px 28px" }}>
         <SaveErrorBanner visible={saveError} />
         <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20 }}>
-          <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22, height: "fit-content" }}>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, marginBottom: 14 }}>{initials(user.prenom, user.nom)}</div>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.navy }}>{user.prenom} {user.nom}</div>
-            <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.inkSoft, marginTop: 4 }}>{t("agent_number")} : {user.numeroAgent}</div>
-            <div style={{ marginTop: 14 }}><Badge {...fonctionColor(user.fonction)}>{user.fonction || t("student_badge")}</Badge></div>
-            <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}` }}>
-              <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 4 }}>{t("questionnaires_done")}</div>
-              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: C.navy }}>{graded.length}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22, height: "fit-content" }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: C.navy, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, marginBottom: 14 }}>{initials(user.prenom, user.nom)}</div>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.navy }}>{user.prenom} {user.nom}</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.inkSoft, marginTop: 4 }}>{t("agent_number")} : {user.numeroAgent}</div>
+              <div style={{ marginTop: 14 }}><Badge {...fonctionColor(user.fonction)}>{user.fonction || t("student_badge")}</Badge></div>
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}` }}>
+                <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 4 }}>{t("questionnaires_done")}</div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: C.navy }}>{graded.length}</div>
+              </div>
             </div>
+            {notesObligatoires.length > 0 && (
+              <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22 }}>
+                <SectionTitle>{t("notes_a_lire_titre")}</SectionTitle>
+                {noteError && <div style={{ background: C.redSoft, color: C.red, fontSize: 12, fontWeight: 600, padding: "8px 10px", borderRadius: 8, marginTop: 8 }}>{noteError}</div>}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                  {notesObligatoires.map(note => {
+                    const { statut } = statutNoteObligatoire(note, questionnaires, user.id, categoryConfig);
+                    const bg = statut === true ? C.greenSoft : statut === false ? C.redSoft : "#fff";
+                    const border = statut === true ? C.green : statut === false ? C.red : C.line;
+                    const color = statut === true ? C.green : statut === false ? C.red : C.inkSoft;
+                    return (
+                      <button key={note.id} onClick={() => ouvrirNote(note)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: bg, border: `1px solid ${border}`, borderRadius: 10, cursor: "pointer", textAlign: "left", width: "100%" }}>
+                        <FileDown size={14} color={color} style={{ flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: C.ink }}>{note.titre}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color, whiteSpace: "nowrap" }}>
+                          {statut === true ? t("note_statut_reussie") : statut === false ? t("note_statut_a_relire") : t("note_statut_a_faire")}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <button onClick={() => setShowGame(true)} style={{ background: C.navy, borderRadius: 14, border: "none", padding: 20, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>

@@ -160,3 +160,4 @@ export function MediaField({ media, onChange, imageOnly = false }) {
   );
 }
 export function StatCard({ label, value, accent }) { return <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "16px 18px" }}><div style={{ fontSize: 12, color: C.inkSoft, fontWeight: 600 }}>{label}</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700, color: accent || C.navy, marginTop: 6 }}>{value}</div></div>; }
+export function pillStyle(active) { return { padding: "8px 14px", borderRadius: 20, border: `1px solid ${active ? C.navy : C.line}`, background: active ? C.navy : "#fff", color: active ? "#fff" : C.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }; }

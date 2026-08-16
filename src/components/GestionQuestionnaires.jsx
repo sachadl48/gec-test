@@ -13,7 +13,7 @@ import { qText, qChoix, itemText, paireText, arNodeText } from "../utils/bilingu
 import { normalizeText } from "../utils/userAccount.js";
 import { shuffle, getResultReached, walkTrail, scoreQcmMulti, scoreOrdre, scorePoint } from "../utils/scoring.js";
 import {
-  Btn, Field, inputStyle, Badge, StatusBadge, CategoryBadges, TypeBadge, Modal, EmptyState, SectionTitle,
+  Btn, Field, inputStyle, Badge, StatusBadge, CategoryBadges, TypeBadge, Modal, EmptyState, SectionTitle, pillStyle,
 } from "./atoms.jsx";
 
 // Toute la gestion des questionnaires côté staff : attribution à un ou
@@ -39,7 +39,6 @@ export function GestionQuestionnaires({ users, questions, questionnaires, setQue
     </div>
   );
 }
-function pillStyle(active) { return { padding: "8px 14px", borderRadius: 20, border: `1px solid ${active ? C.navy : C.line}`, background: active ? C.navy : "#fff", color: active ? "#fff" : C.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }; }
 
 function resolveQuestionLangues(mode, eleveLangue, count) {
   const base = eleveLangue === "nl" ? "nl" : "fr";

@@ -13,12 +13,13 @@ import { fonctionColor, fonctionLabel } from "../data/fonctions.js";
 import { COTATION_SCALE, VOLET_CLUSTERS_REGULATEUR, VOLET_CLUSTERS_DISPATCHEUR, EVOLUTION_GRAPHS, EVOLUTION_COLORS, POSTES } from "../data/carnetDisplay.js";
 import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "../data/competences.js";
 import { supabase } from "../lib/supabaseClient.js";
-import { initials } from "../utils/scoring.js";
+import { initials, statutNoteObligatoire } from "../utils/scoring.js";
 import { getCompetenceGlobale, getCritereValeur, computeRadarCarnet, computeEvolutionCarnet } from "../utils/carnetKeys.js";
 import { exportCarnetExcel } from "../utils/excelExport.js";
 import { logActivity } from "../utils/activityLog.js";
+import { NotesObligatoires } from "./NotesObligatoires.jsx";
 import {
-  Btn, Field, inputStyle, Badge, Modal, EmptyState, ConfirmDialog, SectionTitle,
+  Btn, Field, inputStyle, Badge, Modal, EmptyState, ConfirmDialog, SectionTitle, pillStyle,
 } from "./atoms.jsx";
 import { EleveDetailView } from "./profileShared.jsx";
 
@@ -292,7 +293,54 @@ export function CarnetJourDetail({ jourData, editable, currentUser, volets, trac
   );
 }
 
-export function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack }) {
+// Affichage (lecture seule) du statut des notes obligatoires d'un élève,
+// pour la filière du carnet en cours de consultation. Le statut se déduit
+// directement de la table questionnaires (dernier questionnaire lié à
+// chaque note, via note_id) — aucune table de suivi séparée n'est
+// nécessaire, on réutilise ce qui existe déjà.
+function NotesCarnetSection({ eleve, filiere, questionnaires, categoryConfig }) {
+  const { t } = useLang();
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    supabase.from("notes_obligatoires").select("*").eq("filiere", filiere).order("ordre", { ascending: true })
+      .then(({ data }) => { if (!cancelled) { setNotes(data || []); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [filiere]);
+
+  if (loading) return null;
+  if (notes.length === 0) return null;
+
+  const statutNote = (note) => statutNoteObligatoire(note, questionnaires, eleve.id, categoryConfig).statut;
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <SectionTitle>{t("notes_obligatoires_titre")}</SectionTitle>
+      <div style={{ height: 8 }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {notes.map(note => {
+          const statut = statutNote(note);
+          const bg = statut === true ? C.greenSoft : statut === false ? C.redSoft : "#fff";
+          const border = statut === true ? C.green : statut === false ? C.red : C.line;
+          const color = statut === true ? C.green : statut === false ? C.red : C.inkSoft;
+          return (
+            <div key={note.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: bg, border: `1px solid ${border}`, borderRadius: 10 }}>
+              <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: C.ink }}>{note.titre}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color }}>
+                {statut === true ? t("note_statut_reussie") : statut === false ? t("note_statut_a_relire") : t("note_statut_a_faire")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, categoryConfig, currentUser, onBack }) {
   const { t, lang } = useLang();
   const isSuperAdmin = currentUser?.superAdmin === true;
   const [confirmResetTab, setConfirmResetTab] = useState(false);
@@ -428,8 +476,14 @@ export function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack })
               {t("examen_35_label")}
             </label>
             {examen35Reussi && renderGrid("regSolo")}
+            <NotesCarnetSection eleve={eleve} filiere="Élève régulateur" questionnaires={questionnaires} categoryConfig={categoryConfig} />
           </>
-        ) : renderGrid("disp")
+        ) : (
+          <>
+            {renderGrid("disp")}
+            <NotesCarnetSection eleve={eleve} filiere="Élève dispatcheur" questionnaires={questionnaires} categoryConfig={categoryConfig} />
+          </>
+        )
       ) : (() => {
         const jours = activeTab === "regulateur" ? [...joursReg, ...joursRegSolo] : joursDisp;
         const volets = activeTab === "regulateur" ? VOLETS_REGULATEUR : VOLETS_DISPATCHEUR;
@@ -496,8 +550,9 @@ export function CarnetPersonnel({ eleve, users, setUsers, currentUser, onBack })
 }
 
 const GRADUATION_MAP = { "Élève régulateur": "Régulateur", "Élève dispatcheur": "Dispatcheur" };
-export function CarnetsEleves({ users, setUsers, questionnaires, questions, categories, isAdmin, currentUser }) {
+export function CarnetsEleves({ users, setUsers, questionnaires, questions, categories, categoryConfig, isAdmin, currentUser }) {
   const { t, lang } = useLang();
+  const [subtab, setSubtab] = useState("liste"); // "liste" | "notes"
   const [search, setSearch] = useState("");
   const [viewingEleve, setViewingEleve] = useState(null);
   const [viewingCarnet, setViewingCarnet] = useState(null);
@@ -547,7 +602,7 @@ export function CarnetsEleves({ users, setUsers, questionnaires, questions, cate
 
   if (viewingCarnet) {
     const fresh = users.find(u => u.id === viewingCarnet.id) || viewingCarnet;
-    return <CarnetPersonnel eleve={fresh} users={users} setUsers={setUsers} currentUser={currentUser} onBack={() => setViewingCarnet(null)} />;
+    return <CarnetPersonnel eleve={fresh} users={users} setUsers={setUsers} questionnaires={questionnaires} categoryConfig={categoryConfig} currentUser={currentUser} onBack={() => setViewingCarnet(null)} />;
   }
   if (viewingEleve) {
     const fresh = users.find(u => u.id === viewingEleve.id) || viewingEleve;
@@ -603,6 +658,16 @@ export function CarnetsEleves({ users, setUsers, questionnaires, questions, cate
     <div>
       <SectionTitle>{t("carnets_titre")}</SectionTitle>
       <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("carnets_sub")}</div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <button onClick={() => setSubtab("liste")} style={pillStyle(subtab === "liste")}>{t("sous_onglet_liste_eleves")}</button>
+        <button onClick={() => setSubtab("notes")} style={pillStyle(subtab === "notes")}>{t("notes_obligatoires_titre")}</button>
+      </div>
+
+      {subtab === "notes" ? (
+        <NotesObligatoires questions={questions} currentUser={currentUser} />
+      ) : (
+        <>
       {error && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{error}</div>}
       <div style={{ position: "relative", marginBottom: 16, maxWidth: 320 }}>
         <Search size={15} style={{ position: "absolute", left: 11, top: 11, color: C.inkSoft }} />
@@ -632,6 +697,8 @@ export function CarnetsEleves({ users, setUsers, questionnaires, questions, cate
       {confirmStartDP && (
         <ConfirmDialog tone="success" title={t("debuter_formation_dp_btn")} message={t("debuter_formation_dp_msg", { nom: `${confirmStartDP.prenom} ${confirmStartDP.nom}` })}
           confirmLabel={t("debuter_formation_dp_btn")} onConfirm={() => startDPTraining(confirmStartDP)} onCancel={() => setConfirmStartDP(null)} />
+      )}
+        </>
       )}
     </div>
   );

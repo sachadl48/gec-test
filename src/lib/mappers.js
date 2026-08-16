@@ -4,7 +4,7 @@
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
 export function rowToUser(row) {
-  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined, superAdmin: row.super_admin === true, jeuStationsMeilleurScore: row.jeu_stations_meilleur_score || 0 };
+  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined, superAdmin: row.super_admin === true, jeuStationsMeilleurScore: row.jeu_stations_meilleur_score || 0, email: row.email || "" };
 }
 export function rowToQuestion(row) {
   return {
@@ -45,6 +45,7 @@ export function rowToQuestionnaire(row) {
     questionLangues: row.question_langues || undefined, langueMode: row.langue_mode || undefined,
     supprime: !!row.supprime, justificationSuppression: row.justification_suppression || undefined,
     supprimePar: row.supprime_par || undefined, dateSuppression: row.date_suppression || undefined,
+    noteId: row.note_id || undefined,
   };
 }
 export function questionnaireToRow(qn) {
@@ -58,5 +59,6 @@ export function questionnaireToRow(qn) {
     question_langues: qn.questionLangues ?? null, langue_mode: qn.langueMode ?? null,
     supprime: !!qn.supprime, justification_suppression: qn.justificationSuppression || null,
     supprime_par: qn.supprimePar || null, date_suppression: qn.dateSuppression || null,
+    note_id: qn.noteId || null,
   };
 }
