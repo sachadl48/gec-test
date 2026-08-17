@@ -348,7 +348,7 @@ export default function App() {
         const catsRes = await supabase.from("categories").select("*");
         if (catsRes.error) throw catsRes.error;
         setCategoriesState(catsRes.data.map(c => c.nom));
-        setCategoryConfigState(Object.fromEntries(catsRes.data.map(c => [c.nom, { seuil: c.seuil, fonctions: c.fonctions }])));
+        setCategoryConfigState(Object.fromEntries(catsRes.data.map(c => [c.nom, { seuil: c.seuil, fonctions: c.fonctions, description: c.description || "" }])));
 
         if (session.role === "eleve") {
           const qnRes = await supabase.from("questionnaires").select("*").eq("eleve_id", session.id);
@@ -548,7 +548,7 @@ export default function App() {
       const removed = old.filter(c => !newArr.includes(c));
       const added = newArr.filter(c => !old.includes(c));
       for (const c of removed) await supabase.from("categories").delete().eq("nom", c);
-      for (const c of added) await supabase.from("categories").insert({ nom: c, seuil: categoryConfig[c]?.seuil ?? 60, fonctions: categoryConfig[c]?.fonctions || [...FONCTIONS] });
+      for (const c of added) await supabase.from("categories").insert({ nom: c, seuil: categoryConfig[c]?.seuil ?? 60, fonctions: categoryConfig[c]?.fonctions || [...FONCTIONS], description: categoryConfig[c]?.description || null });
       setSaveError("");
       logActivity("Catégorie", [
         ...removed.map(c => ({ action: "suppression", description: c })),
@@ -562,7 +562,7 @@ export default function App() {
     try {
       for (const cat of Object.keys(newConfig)) {
         if (JSON.stringify(old[cat]) !== JSON.stringify(newConfig[cat])) {
-          await supabase.from("categories").update({ seuil: newConfig[cat].seuil, fonctions: newConfig[cat].fonctions }).eq("nom", cat);
+          await supabase.from("categories").update({ seuil: newConfig[cat].seuil, fonctions: newConfig[cat].fonctions, description: newConfig[cat].description ?? null }).eq("nom", cat);
         }
       }
       setSaveError("");
