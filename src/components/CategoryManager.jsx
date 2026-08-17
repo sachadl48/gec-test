@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Tag, CheckCircle2, X, Edit2, Lock, Plus } from "lucide-react";
+import { Tag, CheckCircle2, X, Edit2, Lock, Plus, Info } from "lucide-react";
 import { C } from "../theme.js";
 import { useLang } from "../lang.jsx";
 import { FONCTIONS, fonctionLabel } from "../data/fonctions.js";
 import { catColor } from "../utils/categoryColor.js";
 import { findCategoryMatch } from "../utils/userAccount.js";
-import { Btn, inputStyle, SectionTitle, ConfirmDialog, InfoDialog } from "./atoms.jsx";
+import { Btn, inputStyle, SectionTitle, ConfirmDialog, InfoDialog, Modal } from "./atoms.jsx";
 
 // Page "Gestion des catégories" : liste, seuil de réussite et fonctions
 // concernées par catégorie, ajout/suppression/renommage.
@@ -16,6 +16,9 @@ export function CategoryManager({ categories, setCategories, categoryConfig, set
   const { t, lang } = useLang();
   const [newCat, setNewCat] = useState("");
   const [newSeuil, setNewSeuil] = useState(60);
+  const [newDescription, setNewDescription] = useState("");
+  const [descPopup, setDescPopup] = useState(null);
+  const [descDraft, setDescDraft] = useState("");
   const [confirmCat, setConfirmCat] = useState(null);
   const [blockedCat, setBlockedCat] = useState(null);
   const [duplicateMatch, setDuplicateMatch] = useState(null);
@@ -57,10 +60,12 @@ export function CategoryManager({ categories, setCategories, categoryConfig, set
     const match = findCategoryMatch(v, categories);
     if (match) { setDuplicateMatch(match); return; }
     setCategories([...categories, v]);
-    setCategoryConfig({ ...categoryConfig, [v]: { seuil: Number(newSeuil) || 60, fonctions: [...FONCTIONS] } });
-    setNewCat(""); setNewSeuil(60);
+    setCategoryConfig({ ...categoryConfig, [v]: { seuil: Number(newSeuil) || 60, fonctions: [...FONCTIONS], description: newDescription.trim() } });
+    setNewCat(""); setNewSeuil(60); setNewDescription("");
   };
   const updateConfig = (cat, patch) => setCategoryConfig({ ...categoryConfig, [cat]: { ...(categoryConfig[cat] || { seuil: 60, fonctions: [...FONCTIONS] }), ...patch } });
+  const openDescPopup = (cat) => { setDescPopup(cat); setDescDraft(categoryConfig[cat]?.description || ""); };
+  const saveDescription = () => { updateConfig(descPopup, { description: descDraft.trim() }); setDescPopup(null); };
   const fonctionsValue = (cat) => pendingFonctions[cat] !== undefined ? pendingFonctions[cat] : (categoryConfig[cat]?.fonctions || [...FONCTIONS]);
   const fonctionsDirty = (cat) => {
     if (pendingFonctions[cat] === undefined) return false;
@@ -122,6 +127,7 @@ export function CategoryManager({ categories, setCategories, categoryConfig, set
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", background: catColor(categories, c) }} />
                       {c}
+                      <button onClick={() => openDescPopup(c)} title={t("voir_description_categorie")} style={{ background: "none", border: "none", cursor: "pointer", color: categoryConfig[c]?.description ? C.teal : C.inkSoft, display: "inline-flex", padding: 2 }}><Info size={12} /></button>
                       {isAdmin && <button onClick={() => startRename(c)} title={t("renommer_categorie")} style={{ background: "none", border: "none", cursor: "pointer", color: C.inkSoft, display: "inline-flex", padding: 2 }}><Edit2 size={12} /></button>}
                     </span>
                   )}
@@ -159,9 +165,25 @@ export function CategoryManager({ categories, setCategories, categoryConfig, set
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <input style={{ ...inputStyle, maxWidth: 180 }} placeholder={t("nouvelle_categorie_placeholder")} value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => e.key === "Enter" && add()} />
+        <input style={{ ...inputStyle, maxWidth: 220 }} placeholder={t("description_categorie_placeholder")} value={newDescription} onChange={e => setNewDescription(e.target.value)} onKeyDown={e => e.key === "Enter" && add()} />
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}><input type="number" min={0} max={100} style={{ ...inputStyle, width: 62, padding: "8px" }} value={newSeuil} onChange={e => setNewSeuil(e.target.value)} /><span style={{ fontSize: 12, color: C.inkSoft }}>{t("pct_reussite")}</span></div>
         <Btn variant="ghost" icon={Plus} onClick={add}>{t("add")}</Btn>
       </div>
+      {descPopup && (
+        <Modal title={t("description_categorie_titre", { cat: descPopup })} onClose={() => setDescPopup(null)}>
+          {isAdmin ? (
+            <>
+              <textarea autoFocus style={{ ...inputStyle, minHeight: 90, resize: "vertical" }} placeholder={t("description_categorie_placeholder")} value={descDraft} onChange={e => setDescDraft(e.target.value)} />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
+                <Btn variant="ghost" onClick={() => setDescPopup(null)}>{t("cancel")}</Btn>
+                <Btn variant="primary" onClick={saveDescription}>{t("save")}</Btn>
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.5 }}>{categoryConfig[descPopup]?.description || t("aucune_description")}</div>
+          )}
+        </Modal>
+      )}
       {confirmCat && (
         <ConfirmDialog title={t("supprimer_categorie_titre")} message={t("supprimer_categorie_msg", { cat: confirmCat })} onConfirm={doRemove} onCancel={() => setConfirmCat(null)} />
       )}

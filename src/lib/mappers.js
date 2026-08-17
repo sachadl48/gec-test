@@ -18,6 +18,7 @@ export function rowToQuestion(row) {
     items: row.items || undefined,
     reponseAttendue: row.reponse_attendue || undefined, reference: row.reference || "", dureeSecondes: row.duree_secondes || null,
     numero: row.numero ?? undefined, statut: row.statut || undefined, remarqueSuspension: row.remarque_suspension || undefined,
+    verrouillePar: row.verrouille_par || null, verrouilleLe: row.verrouille_le || null,
   };
 }
 export function questionToRow(q) {

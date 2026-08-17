@@ -456,6 +456,35 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, [session?.id, session?.role]);
 
+  // Synchro en direct de la banque de questions (création, modification,
+  // suppression) — pour éviter tout risque de doublon, un ajout reçu en
+  // direct n'est intégré que s'il n'est pas déjà présent localement (la
+  // personne qui vient de créer la question a déjà son propre affichage à
+  // jour). Pour une modification, le média transmis par l'événement est
+  // volontairement ignoré et remplacé par celui déjà chargé localement —
+  // sinon chaque modification, même sans rapport avec une image, ferait
+  // circuler à nouveau plusieurs Mo de données pour tout le monde.
+  useEffect(() => {
+    if (!session || session.role === "eleve") return;
+    const channel = supabase
+      .channel(`questions-staff-${session.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "questions" }, (payload) => {
+        setQuestionsState(prev => prev.some(q => q.id === payload.new.id) ? prev : [...prev, rowToQuestion(payload.new)]);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "questions" }, (payload) => {
+        setQuestionsState(prev => prev.map(q => {
+          if (q.id !== payload.new.id) return q;
+          const updated = rowToQuestion(payload.new);
+          return { ...updated, media: q.media };
+        }));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "questions" }, (payload) => {
+        setQuestionsState(prev => prev.filter(q => q.id !== payload.old.id));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.id, session?.role]);
+
   const login = async (pseudo, password) => {
     const email = `${pseudo.trim().toLowerCase()}@gec.internal`;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });

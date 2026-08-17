@@ -22,11 +22,13 @@ export function AdminPage({ refreshQuestionnaires }) {
   const [loadingLog, setLoadingLog] = useState(true);
   const [resetError, setResetError] = useState("");
   const [nbQuestionnaires, setNbQuestionnaires] = useState(null);
-  const PAGE_SIZE = 300;
+  const [pageSize, setPageSize] = useState(20);
 
-  const fetchLogPage = async (p) => {
-    const from = p * PAGE_SIZE;
-    const { data, count } = await supabase.from("activity_log").select("*", { count: "exact" }).order("date", { ascending: false }).range(from, from + PAGE_SIZE - 1);
+  const fetchLogPage = async (p, size) => {
+    const s = size ?? pageSize;
+    const from = s === "tout" ? 0 : p * s;
+    const to = s === "tout" ? 99999 : from + s - 1;
+    const { data, count } = await supabase.from("activity_log").select("*", { count: "exact" }).order("date", { ascending: false }).range(from, to);
     setActivityLog(prev => p === 0 ? (data || []) : [...prev, ...(data || [])]);
     setTotal(count || 0);
     setLoadingLog(false);
@@ -35,7 +37,7 @@ export function AdminPage({ refreshQuestionnaires }) {
     const { count } = await supabase.from("questionnaires").select("*", { count: "exact", head: true });
     setNbQuestionnaires(count || 0);
   };
-  useEffect(() => { fetchLogPage(0); fetchCounts(); }, []);
+  useEffect(() => { setPage(0); setLoadingLog(true); fetchLogPage(0, pageSize); fetchCounts(); }, [pageSize]);
   const loadMore = () => { const next = page + 1; setPage(next); fetchLogPage(next); };
 
   const doReset = async (rpcName, onDone) => {
@@ -59,7 +61,15 @@ export function AdminPage({ refreshQuestionnaires }) {
       <SectionTitle>{t("nav_admin_page")}</SectionTitle>
       <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 24 }}>{t("admin_page_sub")}</div>
 
-      <SectionTitle>{t("journal_activite_titre")}</SectionTitle>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <SectionTitle>{t("journal_activite_titre")}</SectionTitle>
+        <select style={{ ...inputStyle, width: "auto", padding: "7px 10px", fontSize: 12.5 }} value={pageSize} onChange={e => setPageSize(e.target.value === "tout" ? "tout" : Number(e.target.value))}>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+          <option value="tout">{t("tout_afficher")}</option>
+        </select>
+      </div>
       <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 16 }}>{t("journal_activite_sub", { n: total })}</div>
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden", marginBottom: 12 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
+import { supabase } from "../lib/supabaseClient.js";
 import { TYPE_META, typeLabel, AR_COLOR, AR_LABEL } from "../data/questionTypes.js";
 import { genId } from "../utils/id.js";
 import { qText, qChoix, itemText } from "../utils/bilingual.js";
@@ -438,7 +439,7 @@ export function ImportQuestions({ categories, onImport, onClose }) {
     </div>
   );
 }
-export function GestionQuestions({ questions, setQuestions, categories, setCategories, categoryConfig, setCategoryConfig, isAdmin, onImportQuestions, onRenameCategory, questionnaires }) {
+export function GestionQuestions({ questions, setQuestions, categories, setCategories, categoryConfig, setCategoryConfig, isAdmin, onImportQuestions, onRenameCategory, questionnaires, users, currentUser }) {
   const { lang, t } = useLang();
   const questionStats = useMemo(() => {
     const stats = {};
@@ -454,6 +455,35 @@ export function GestionQuestions({ questions, setQuestions, categories, setCateg
     return stats;
   }, [questionnaires, questions]);
   const [modal, setModal] = useState(null);
+  const [lockError, setLockError] = useState("");
+  const VERROU_EXPIRATION_MS = 15 * 60 * 1000; // 15 minutes : au-delà, on considère le verrou abandonné (fermeture de navigateur sans clic sur Annuler/Fermer)
+
+  // Ouvre une question pour édition, après avoir vérifié directement en
+  // base (pas seulement l'état local, même synchronisé en direct) que
+  // personne d'autre ne l'a déjà ouverte récemment.
+  const openEdit = async (q) => {
+    setLockError("");
+    if (!q.id) { setModal(q); return; } // nouvelle question : rien à verrouiller
+    const { data } = await supabase.from("questions").select("verrouille_par, verrouille_le").eq("id", q.id).single();
+    const lockedBy = data?.verrouille_par;
+    const lockedAt = data?.verrouille_le;
+    const estPerime = !lockedAt || (Date.now() - new Date(lockedAt).getTime()) > VERROU_EXPIRATION_MS;
+    if (lockedBy && lockedBy !== currentUser?.id && !estPerime) {
+      const qui = users?.find(u => u.id === lockedBy);
+      setLockError(t("question_verrouillee_msg", { nom: qui ? `${qui.prenom} ${qui.nom}` : t("quelquun_dautre") }));
+      return;
+    }
+    await supabase.from("questions").update({ verrouille_par: currentUser?.id || null, verrouille_le: new Date().toISOString() }).eq("id", q.id);
+    setModal(q);
+  };
+  // Referme l'éditeur en libérant systématiquement le verrou — que la
+  // fermeture vienne d'un Annuler ou d'un Enregistrer réussi.
+  const closeEdit = async () => {
+    if (modal?.id) {
+      await supabase.from("questions").update({ verrouille_par: null, verrouille_le: null }).eq("id", modal.id);
+    }
+    setModal(null);
+  };
   const [contentLang, setContentLang] = useState(lang);
   const [filter, setFilter] = useState("Toutes");
   const [search, setSearch] = useState("");
@@ -475,7 +505,7 @@ export function GestionQuestions({ questions, setQuestions, categories, setCateg
     setQuestions(questions.filter(q => !selected.has(q.id)));
     setConfirmBulkDelete(false); clearSelection();
   };
-  const save = (data) => { if (data.id) setQuestions(questions.map(q => q.id === data.id ? data : q)); else setQuestions([...questions, { ...data, id: genId("q"), numero: null }]); setModal(null); };
+  const save = (data) => { if (data.id) setQuestions(questions.map(q => q.id === data.id ? data : q)); else setQuestions([...questions, { ...data, id: genId("q"), numero: null }]); closeEdit(); };
   const remove = (id) => setQuestions(questions.filter(q => q.id !== id));
   const byCategory = filter === "EnSuspens"
     ? questions.filter(q => q.statut === "suspendue")
@@ -491,7 +521,7 @@ export function GestionQuestions({ questions, setQuestions, categories, setCateg
   );
 
   if (modal !== null) {
-    return <QuestionEditor initial={modal} categories={categories} onClose={() => setModal(null)} onSave={save} />;
+    return <QuestionEditor initial={modal} categories={categories} onClose={closeEdit} onSave={save} />;
   }
   if (importing) {
     return <ImportQuestions categories={categories} onImport={onImportQuestions} onClose={() => setImporting(false)} />;
@@ -582,7 +612,7 @@ export function GestionQuestions({ questions, setQuestions, categories, setCateg
                   </span>
                 )}
                 <Btn variant="subtle" icon={Eye} onClick={() => setPreviewing(q)} style={{ padding: "6px 10px" }} />
-                <Btn variant="subtle" icon={Edit2} onClick={() => setModal(q)} style={{ padding: "6px 10px" }} />
+                <Btn variant="subtle" icon={Edit2} onClick={() => openEdit(q)} style={{ padding: "6px 10px" }} />
                 <Btn variant="danger" icon={Trash2} onClick={() => setConfirmQId(q.id)} style={{ padding: "6px 10px" }} />
               </div>
             </div>
@@ -610,6 +640,9 @@ export function GestionQuestions({ questions, setQuestions, categories, setCateg
       )}
       {confirmBulkDelete && (
         <ConfirmDialog title={t("supprimer_questions_titre")} message={t("supprimer_questions_msg", { n: selected.size })} onConfirm={doBulkDelete} onCancel={() => setConfirmBulkDelete(false)} />
+      )}
+      {lockError && (
+        <InfoDialog title={t("question_verrouillee_titre")} message={lockError} onClose={() => setLockError("")} />
       )}
       {previewing && <QuestionPreviewModal question={previewing} categories={categories} onClose={() => setPreviewing(null)} />}
     </div>
