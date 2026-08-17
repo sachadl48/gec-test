@@ -5,6 +5,7 @@ import {
 } from "./utils/excelExport.js";
 import { EXCEL_ROW_MAP_REGULATEUR, EXCEL_ROW_MAP_DISPATCHEUR } from "./data/excelRowMap.js";
 import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "./data/competences.js";
+import { groupePoste, POSTES_REGULATEUR, POSTES_DISPATCHEUR } from "./data/carnetDisplay.js";
 
 describe("colForJour (numéro de jour -> lettre de colonne Excel)", () => {
   // Non-régression : jour 1 doit tomber en colonne D, pas E. Un bug de
@@ -144,6 +145,32 @@ describe("intégrité de la table de correspondance des lignes Excel", () => {
     for (const [titre, info] of Object.entries(EXCEL_ROW_MAP_REGULATEUR)) {
       const volet = VOLETS_REGULATEUR.find(v => v.titre === titre);
       expect(info.criteriaRows.length, `"${titre}" : nombre de lignes ≠ nombre de critères`).toBe(volet.criteres.length);
+    }
+  });
+});
+
+describe("groupePoste (lieu réel pour l'export Excel, colonne 'Lieu Salle/MTC')", () => {
+  it("FOR donne MTC", () => {
+    expect(groupePoste("FOR")).toBe("MTC");
+    expect(groupePoste("for")).toBe("MTC"); // insensible à la casse
+  });
+  it("tout poste commençant par R donne Réseau", () => {
+    expect(groupePoste("R1")).toBe("Réseau");
+    expect(groupePoste("R5")).toBe("Réseau");
+    expect(groupePoste("r3")).toBe("Réseau");
+  });
+  it("tout le reste donne DTM", () => {
+    expect(groupePoste("P11")).toBe("DTM");
+    expect(groupePoste("23")).toBe("DTM");
+    expect(groupePoste("P13")).toBe("DTM");
+  });
+  it("gère une valeur vide sans planter", () => {
+    expect(groupePoste("")).toBe("");
+    expect(groupePoste(null)).toBe("");
+  });
+  it("chaque poste réel des deux filières retombe bien sur un groupe valide", () => {
+    for (const p of [...POSTES_REGULATEUR, ...POSTES_DISPATCHEUR]) {
+      expect(["DTM", "Réseau", "MTC"]).toContain(groupePoste(p));
     }
   });
 });

@@ -6,7 +6,18 @@
 
 import { C } from "../theme.js";
 
-export const POSTES = ["P11", "P12", "P21", "P22", "P23"];
+export const POSTES_REGULATEUR = ["P11", "P12", "P21", "P22", "P23", "R1", "R2", "R5", "FOR"];
+export const POSTES_DISPATCHEUR = ["11", "12", "13", "21", "22", "23", "P13", "R1", "R2", "R3", "R4", "R5", "FOR"];
+// Regroupe un poste par lieu, pour l'export Excel du carnet (colonne
+// "Lieu Salle/MTC" du journal quotidien) : FOR -> MTC, tout ce qui
+// commence par R -> Réseau, le reste -> DTM.
+export function groupePoste(poste) {
+  if (!poste) return "";
+  const p = String(poste).toUpperCase();
+  if (p === "FOR") return "MTC";
+  if (p.startsWith("R")) return "Réseau";
+  return "DTM";
+}
 
 export const COTATION_SCALE = [
   { value: 1, label: "1", desc: "Très faible", descComplete: "Très faible, néant, médiocre, catastrophique", color: C.red, bg: C.redSoft },

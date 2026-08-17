@@ -14,6 +14,7 @@
 
 import JSZip from "jszip";
 import { getCompetenceGlobale, getCritereValeur } from "./carnetKeys.js";
+import { groupePoste } from "../data/carnetDisplay.js";
 import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "../data/competences.js";
 import { EXCEL_ROW_MAP_REGULATEUR, EXCEL_ROW_MAP_DISPATCHEUR } from "../data/excelRowMap.js";
 
@@ -96,7 +97,7 @@ export function fillCommentaireJournalier(sheetXml, jours, rowOffset) {
     sheetXml = setCellInSheetXml(sheetXml, `B${row}`, jourData.date, true);
     if (jourData.poste) {
       sheetXml = setCellInSheetXml(sheetXml, `C${row}`, jourData.poste, true);
-      sheetXml = setCellInSheetXml(sheetXml, `D${row}`, "DTM", true);
+      sheetXml = setCellInSheetXml(sheetXml, `D${row}`, groupePoste(jourData.poste), true);
     }
     sheetXml = setCellInSheetXml(sheetXml, `E${row}`, jourData.commentaireHumain, true);
     sheetXml = setCellInSheetXml(sheetXml, `F${row}`, jourData.commentaireTechnique, true);

@@ -29,7 +29,7 @@ import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO, PALETTE } from "./theme.js";
 import { T } from "./data/translations.js";
 import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "./data/competences.js";
 import { EXCEL_ROW_MAP_REGULATEUR, EXCEL_ROW_MAP_DISPATCHEUR } from "./data/excelRowMap.js";
-import { POSTES, COTATION_SCALE, VOLET_CLUSTERS_REGULATEUR, VOLET_CLUSTERS_DISPATCHEUR, RADAR_GROUPS, EVOLUTION_GRAPHS, EVOLUTION_COLORS } from "./data/carnetDisplay.js";
+import { COTATION_SCALE, VOLET_CLUSTERS_REGULATEUR, VOLET_CLUSTERS_DISPATCHEUR, RADAR_GROUPS, EVOLUTION_GRAPHS, EVOLUTION_COLORS } from "./data/carnetDisplay.js";
 import { qText, qChoix, itemText, paireText, arNodeText } from "./utils/bilingual.js";
 import { genId } from "./utils/id.js";
 import {

@@ -10,7 +10,7 @@ import {
 import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang, LANGS } from "../lang.jsx";
 import { fonctionColor, fonctionLabel } from "../data/fonctions.js";
-import { COTATION_SCALE, VOLET_CLUSTERS_REGULATEUR, VOLET_CLUSTERS_DISPATCHEUR, EVOLUTION_GRAPHS, EVOLUTION_COLORS, POSTES } from "../data/carnetDisplay.js";
+import { COTATION_SCALE, VOLET_CLUSTERS_REGULATEUR, VOLET_CLUSTERS_DISPATCHEUR, EVOLUTION_GRAPHS, EVOLUTION_COLORS, POSTES_REGULATEUR, POSTES_DISPATCHEUR } from "../data/carnetDisplay.js";
 import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "../data/competences.js";
 import { supabase } from "../lib/supabaseClient.js";
 import { initials, statutNoteObligatoire } from "../utils/scoring.js";
@@ -131,7 +131,7 @@ export function CarnetJourDetail({ jourData, editable, currentUser, volets, trac
           {t("poste_label")}
           <select disabled={!canFill} value={jourData.poste || ""} onChange={e => setChampTexte("poste", e.target.value || null)} style={{ ...inputStyle, width: "auto", padding: "4px 8px", fontSize: 13 }}>
             <option value="">—</option>
-            {POSTES.map(p => <option key={p} value={p}>{p}</option>)}
+            {(track === "dispatcheur" ? POSTES_DISPATCHEUR : POSTES_REGULATEUR).map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </span>
         <Btn variant="primary" onClick={() => setConfirmFin(true)} disabled={!editable || !started || finished || (!isOwner && !canForceClose)} style={{ marginLeft: "auto" }}>{t("fin_journee_btn")}</Btn>
