@@ -81,7 +81,7 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
   }, []);
   const dtmBest = dtmRecord ? dtmRecord.score : 0;
   const mine = questionnaires.filter(q => q.eleveId === user.id && !q.supprime);
-  const graded = mine.filter(q => q.statut === "validé");
+  const graded = mine.filter(q => q.statut === "validé" && !q.supprime);
   const catStats = computeCategoryStats(graded, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
   const scoreEntries = categories.map(cat => [cat, catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : null]);

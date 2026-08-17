@@ -359,13 +359,34 @@ export default function App() {
         } else {
           const [usersRes, qRes, qnRes] = await Promise.all([
             supabase.from("profiles").select("*"),
-            supabase.from("questions").select("*"),
+            // Volontairement sans "media" ici : les images/audio/vidéo des
+            // questions (stockées en base64, jusqu'à 8 Mo chacune) sont ce
+            // qui alourdit le plus ce chargement de connexion. Elles se
+            // chargent séparément juste après, en arrière-plan (voir plus
+            // bas), sans faire attendre l'affichage de la banque de
+            // questions elle-même.
+            supabase.from("questions").select("id, categories, type, enonce, enonce_fr, enonce_nl, points, points_par_bonne_reponse, choix, choix_fr, choix_nl, bonne_reponse, bonnes_reponses, cibles, marqueurs, paires, arbre, items, reponse_attendue, reference, duree_secondes, numero, statut, remarque_suspension"),
             supabase.from("questionnaires").select("*"),
           ]);
           if (usersRes.error || qRes.error || qnRes.error) throw (usersRes.error || qRes.error || qnRes.error);
           setUsersState(usersRes.data.map(rowToUser));
           setQuestionsState(qRes.data.map(rowToQuestion));
           setQuestionnairesState(qnRes.data.map(rowToQuestionnaire));
+
+          // Charge les médias (images/audio/vidéo) séparément, en
+          // arrière-plan, une fois la banque de questions déjà affichée à
+          // l'écran. C'est ce qui alourdissait le plus le chargement de
+          // connexion — jusqu'à plusieurs Mo par question, souvent sans
+          // être encore nécessaire (juste pour afficher la liste). Volontairement
+          // pas de "await" ici : ne doit jamais retarder la fin du
+          // chargement principal ci-dessous.
+          supabase.from("questions").select("id, media").not("media", "is", null).then(({ data, error: mediaError }) => {
+            if (mediaError || !data) return;
+            setQuestionsState(prev => prev.map(q => {
+              const found = data.find(d => d.id === q.id);
+              return found ? { ...q, media: found.media } : q;
+            }));
+          });
         }
         setLoadError(false);
       } catch (e) {

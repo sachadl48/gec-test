@@ -21,7 +21,7 @@ import { Btn, Field, inputStyle, Modal, SectionTitle, EmptyState, StatCard } fro
 export function EleveDetailView({ eleve, questionnaires, categories, onBack }) {
   const { t, lang } = useLang();
   const mine = questionnaires.filter(q => q.eleveId === eleve.id && !q.supprime);
-  const graded = mine.filter(q => q.statut === "validé");
+  const graded = mine.filter(q => q.statut === "validé" && !q.supprime);
   const catStats = computeCategoryStats(graded, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
   const evolution = computeCategoryEvolution(graded, categories);
@@ -115,7 +115,7 @@ export function ProfilModal({ initial, users, isAdmin, onClose, onSave }) {
           {TEAMS.map(tm => <option key={tm} value={tm}>{tm}</option>)}
         </select>
       </Field>
-      <Field label={t("email_label")} hint={t("email_hint")}>
+      <Field label={t("email_label")}>
         <input type="email" style={inputStyle} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="prenom.nom@exemple.be" />
       </Field>
       <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 12.5, color: C.inkSoft, marginBottom: 8 }}>

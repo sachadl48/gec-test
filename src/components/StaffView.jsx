@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
 } from "recharts";
-import { Home, Users, BookCheck, HelpCircle, ClipboardList, ClipboardCheck, ShieldCheck, Lock, Eye } from "lucide-react";
-import { C, FONT_BODY } from "../theme.js";
+import { Home, Users, BookCheck, HelpCircle, ClipboardList, ClipboardCheck, ShieldCheck, Lock, Eye, Gamepad2 } from "lucide-react";
+import { C, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
+import { supabase } from "../lib/supabaseClient.js";
 import { computeCategoryStats } from "../utils/scoring.js";
 import { Btn, SectionTitle, EmptyState, Header, SaveErrorBanner, StatCard } from "./atoms.jsx";
 import { GestionProfils } from "./GestionProfils.jsx";
@@ -64,6 +65,10 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
 export function Apercu({ users, questions, questionnaires, setQuestionnaires, categories, currentUser }) {
   const { t } = useLang();
   const [reviewing, setReviewing] = useState(null);
+  const [dtmRecord, setDtmRecord] = useState(null);
+  useEffect(() => {
+    supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
+  }, []);
   const eleves = users.filter(u => u.role === "eleve");
   const aValider = questionnaires.filter(q => q.statut === "en attente de validation");
   const gradedAll = questionnaires.filter(q => q.statut === "validé" && !q.supprime);
@@ -93,6 +98,14 @@ export function Apercu({ users, questions, questionnaires, setQuestionnaires, ca
         <StatCard label={t("stat_qn_attribues")} value={questionnaires.length} />
         <StatCard label={t("stat_a_valider")} value={aValider.length} accent={aValider.length ? C.gold : C.navy} />
       </div>
+      {dtmRecord && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px", marginBottom: 24 }}>
+          <Gamepad2 size={16} color={C.gold} />
+          <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t("record_dtm_label")}</span>
+          <span style={{ fontFamily: FONT_MONO, fontWeight: 700, color: C.navy }}>{dtmRecord.score}</span>
+          <span style={{ fontSize: 12.5, color: C.inkSoft }}>— {dtmRecord.prenom} {dtmRecord.nom}</span>
+        </div>
+      )}
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
         <SectionTitle>{t("reussite_globale_titre")}</SectionTitle>
         <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 8 }}>{t("reussite_globale_sub")}</div>

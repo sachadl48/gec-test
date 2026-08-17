@@ -153,6 +153,8 @@ export function ListeQuestionnaires({ users, questions, questionnaires, setQuest
   const [reviewing, setReviewing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [histFilter, setHistFilter] = useState("");
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [displayCount, setDisplayCount] = useState(20);
   const [selected, setSelected] = useState(new Set());
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteJustification, setDeleteJustification] = useState("");
@@ -160,9 +162,10 @@ export function ListeQuestionnaires({ users, questions, questionnaires, setQuest
   const resolveCorrecteur = (q) => (q.correcteurId ? users.find(u => u.id === q.correcteurId) : null);
   const toReview = questionnaires.filter(q => q.statut === "en attente de validation");
   const others = questionnaires
-    .filter(q => q.statut !== "en attente de validation" && (!histFilter || q.eleveId === histFilter))
+    .filter(q => q.statut !== "en attente de validation" && (!histFilter || q.eleveId === histFilter) && (showDeleted || !q.supprime))
     .slice()
     .sort((a, b) => (b.dateAttribution || "").localeCompare(a.dateAttribution || ""));
+  const othersDisplayed = displayCount === "tout" ? others : others.slice(0, displayCount);
   const toggleSelect = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const exportSelection = () => {
     const items = others.filter(q => selected.has(q.id)).map(q => ({ questionnaire: q, eleve: users.find(u => u.id === q.eleveId) }));
@@ -206,9 +209,22 @@ export function ListeQuestionnaires({ users, questions, questionnaires, setQuest
       )}
       <div style={{ marginTop: 26 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-          <SectionTitle>{t("historique_titre")}</SectionTitle>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <SectionTitle>{t("historique_titre")}</SectionTitle>
+            {others.length > 0 && <span style={{ fontSize: 12, color: C.inkSoft }}>{t("nb_sur_total", { n: othersDisplayed.length, total: others.length })}</span>}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {selected.size > 0 && <Btn variant="gold" icon={FileDown} onClick={exportSelection}>{t("exporter_selection", { n: selected.size })}</Btn>}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.inkSoft, cursor: "pointer" }}>
+              <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} />
+              {t("afficher_supprimes")}
+            </label>
+            <select style={{ ...inputStyle, width: "auto", padding: "7px 10px", fontSize: 12.5 }} value={displayCount} onChange={e => setDisplayCount(e.target.value === "tout" ? "tout" : Number(e.target.value))}>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value="tout">{t("tout_afficher")}</option>
+            </select>
             <select style={{ ...inputStyle, width: "auto", padding: "7px 10px", fontSize: 12.5 }} value={histFilter} onChange={e => setHistFilter(e.target.value)}>
               <option value="">{t("tous_les_eleves")}</option>
               {eleves.map(e => <option key={e.id} value={e.id}>{e.prenom} {e.nom}</option>)}
@@ -216,8 +232,8 @@ export function ListeQuestionnaires({ users, questions, questionnaires, setQuest
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {others.length === 0 && <EmptyState icon={ClipboardList} title={t("aucun_resultat_titre")} body={t("aucun_resultat_body")} />}
-          {others.map(q => { const e = users.find(u => u.id === q.eleveId); const isValide = q.statut === "validé"; const correcteur = resolveCorrecteur(q); const isSupprime = !!q.supprime; return (
+          {othersDisplayed.length === 0 && <EmptyState icon={ClipboardList} title={t("aucun_resultat_titre")} body={t("aucun_resultat_body")} />}
+          {othersDisplayed.map(q => { const e = users.find(u => u.id === q.eleveId); const isValide = q.statut === "validé"; const correcteur = resolveCorrecteur(q); const isSupprime = !!q.supprime; return (
             <div key={q.id} style={{ display: "flex", flexDirection: "column", background: isSupprime ? C.redSoft : "#fff", border: `1px solid ${isSupprime ? C.red : selected.has(q.id) ? C.gold : C.line}`, borderRadius: 10, padding: "10px 16px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

@@ -130,7 +130,6 @@ export function NotesObligatoires({ questions, currentUser }) {
             ))}
           </div>
         )}
-        <Btn variant="ghost" icon={Plus} onClick={() => { setModalFiliere(filiere); setModal({}); }}>{t("ajouter_note_btn")}</Btn>
       </div>
     );
   };
@@ -138,7 +137,8 @@ export function NotesObligatoires({ questions, currentUser }) {
   return (
     <div>
       <SectionTitle>{t("notes_obligatoires_titre")}</SectionTitle>
-      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 20 }}>{t("notes_obligatoires_sub")}</div>
+      <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 12 }}>{t("notes_obligatoires_sub")}</div>
+      <Btn variant="primary" icon={Plus} onClick={() => { setModalFiliere(null); setModal({}); }} style={{ marginBottom: 20 }}>{t("ajouter_note_btn")}</Btn>
       {error && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{error}</div>}
 
       {loading ? <div style={{ color: C.inkSoft, fontSize: 13 }}>{t("chargement")}…</div> : (
