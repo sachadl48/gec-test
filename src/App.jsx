@@ -365,7 +365,7 @@ export default function App() {
             // chargent séparément juste après, en arrière-plan (voir plus
             // bas), sans faire attendre l'affichage de la banque de
             // questions elle-même.
-            supabase.from("questions").select("id, categories, type, enonce, enonce_fr, enonce_nl, points, points_par_bonne_reponse, choix, choix_fr, choix_nl, bonne_reponse, bonnes_reponses, cibles, marqueurs, paires, arbre, items, reponse_attendue, reference, duree_secondes, numero, statut, remarque_suspension"),
+            supabase.from("questions").select("id, categories, type, enonce, enonce_fr, enonce_nl, points, points_par_bonne_reponse, choix, choix_fr, choix_nl, bonne_reponse, bonnes_reponses, cibles, marqueurs, cibles_nl, marqueurs_nl, paires, arbre, items, reponse_attendue, reference, duree_secondes, numero, statut, remarque_suspension"),
             supabase.from("questionnaires").select("*"),
           ]);
           if (usersRes.error || qRes.error || qnRes.error) throw (usersRes.error || qRes.error || qnRes.error);
@@ -380,11 +380,11 @@ export default function App() {
           // être encore nécessaire (juste pour afficher la liste). Volontairement
           // pas de "await" ici : ne doit jamais retarder la fin du
           // chargement principal ci-dessous.
-          supabase.from("questions").select("id, media").not("media", "is", null).then(({ data, error: mediaError }) => {
+          supabase.from("questions").select("id, media, media_nl").or("media.not.is.null,media_nl.not.is.null").then(({ data, error: mediaError }) => {
             if (mediaError || !data) return;
             setQuestionsState(prev => prev.map(q => {
               const found = data.find(d => d.id === q.id);
-              return found ? { ...q, media: found.media } : q;
+              return found ? { ...q, media: found.media, mediaNl: found.media_nl } : q;
             }));
           });
         }
