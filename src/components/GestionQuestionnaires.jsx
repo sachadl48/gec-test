@@ -9,7 +9,7 @@ import { useLang, LANGS } from "../lang.jsx";
 import { AR_COLOR, AR_LABEL } from "../data/questionTypes.js";
 import { FONCTIONS, fonctionLabel } from "../data/fonctions.js";
 import { genId } from "../utils/id.js";
-import { qText, qChoix, itemText, paireText, arNodeText } from "../utils/bilingual.js";
+import { qText, qChoix, itemText, paireText, arNodeText, mediaFor, ciblesFor, marqueursFor } from "../utils/bilingual.js";
 import { normalizeText } from "../utils/userAccount.js";
 import { shuffle, getResultReached, walkTrail, scoreQcmMulti, scoreOrdre, scorePoint } from "../utils/scoring.js";
 import {
@@ -361,11 +361,11 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
                 <div style={{ fontSize: 14, flex: 1 }}>
                   <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>{typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 15, fontWeight: 700, color: C.navy, background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 7, padding: "4px 10px" }}>#{q.numero}</span>}<CategoryBadges allCategories={categories} cats={q.categories} /><TypeBadge type={q.type} /></div>
                   <div style={{ fontSize: 16, fontWeight: 600, color: C.navy, marginBottom: 8 }}>{qText(q, langFor(i))}</div>
-                  {q.media && q.type !== "point" && q.type !== "legende" && (
+                  {mediaFor(q, langFor(i)) && q.type !== "point" && q.type !== "legende" && (
                     <div style={{ marginBottom: 12, maxWidth: 360 }}>
-                      {q.media.type === "image" && <img src={q.media.url} style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />}
-                      {q.media.type === "video" && <video src={q.media.url} controls style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />}
-                      {q.media.type === "audio" && <audio src={q.media.url} controls style={{ width: "100%" }} />}
+                      {mediaFor(q, langFor(i)).type === "image" && <img src={mediaFor(q, langFor(i)).url} style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />}
+                      {mediaFor(q, langFor(i)).type === "video" && <video src={mediaFor(q, langFor(i)).url} controls style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />}
+                      {mediaFor(q, langFor(i)).type === "audio" && <audio src={mediaFor(q, langFor(i)).url} controls style={{ width: "100%" }} />}
                     </div>
                   )}
                   {(q.type === "qcm" || q.type === "vrai_faux") && (
@@ -384,14 +384,14 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
                     </div>
                   )}
                   {!isManual && !correct && q.type !== "point" && q.type !== "relier" && q.type !== "qcm_multi" && q.type !== "action_reaction" && q.type !== "ordre" && <div style={{ fontSize: 13, color: C.inkSoft }}>{t("bonne_reponse_colon")}{qChoix(q, langFor(i))[q.bonneReponse]}</div>}
-                  {q.type === "legende" && q.media && (
+                  {q.type === "legende" && mediaFor(q, langFor(i)) && (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ position: "relative", display: "inline-block", maxWidth: 340, marginBottom: 10 }}>
-                        <img src={q.media.url} style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />
-                        {(q.marqueurs || []).map((m, mi) => <div key={m.id} style={{ position: "absolute", left: `${m.x}%`, top: `${m.y}%`, width: 22, height: 22, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{mi + 1}</div>)}
+                        <img src={mediaFor(q, langFor(i)).url} style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />
+                        {marqueursFor(q, langFor(i)).map((m, mi) => <div key={m.id} style={{ position: "absolute", left: `${m.x}%`, top: `${m.y}%`, width: 22, height: 22, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{mi + 1}</div>)}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
-                        {(q.marqueurs || []).map((m, mi) => {
+                        {marqueursFor(q, langFor(i)).map((m, mi) => {
                           const given = a ? a[mi] : "";
                           const ok = normalizeText(given) === normalizeText(m.reponse);
                           return (
@@ -410,11 +410,11 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
                       </div>
                     </div>
                   )}
-                  {q.type === "point" && q.media && (
+                  {q.type === "point" && mediaFor(q, langFor(i)) && (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ position: "relative", display: "inline-block", maxWidth: 340 }}>
-                        <img src={q.media.url} style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />
-                        {(q.cibles || []).map((c, ci) => <div key={ci} style={{ position: "absolute", left: `${c.x}%`, top: `${c.y}%`, width: `${c.rayon * 2}%`, paddingBottom: `${c.rayon * 2}%`, transform: "translate(-50%,-50%)", borderRadius: "50%", border: `2px solid ${C.green}`, background: "rgba(62,142,87,0.15)" }} />)}
+                        <img src={mediaFor(q, langFor(i)).url} style={{ width: "100%", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />
+                        {ciblesFor(q, langFor(i)).map((c, ci) => <div key={ci} style={{ position: "absolute", left: `${c.x}%`, top: `${c.y}%`, width: `${c.rayon * 2}%`, paddingBottom: `${c.rayon * 2}%`, transform: "translate(-50%,-50%)", borderRadius: "50%", border: `2px solid ${C.green}`, background: "rgba(62,142,87,0.15)" }} />)}
                         {(Array.isArray(a) ? a : (a ? [a] : [])).map((pt, pi) => <div key={pi} style={{ position: "absolute", left: `${pt.x}%`, top: `${pt.y}%`, width: 12, height: 12, borderRadius: "50%", background: C.red, border: "2px solid #fff", transform: "translate(-50%,-50%)" }} />)}
                       </div>
                       <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 6 }}>{t("zones_vertes_cibles")}</div>

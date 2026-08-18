@@ -30,3 +30,25 @@ export function arNodeText(node, langue) {
   if (langue === "nl" && node.texteNl && node.texteNl.trim()) return node.texteNl;
   return node.texteFr || node.texte || "";
 }
+// Média (image/audio/vidéo) d'une question, avec repli vers le FR si
+// aucun média NL n'a été fourni séparément — le média NL est optionnel,
+// contrairement au texte FR qui sert toujours de base.
+export function mediaFor(q, langue) {
+  if (!q) return null;
+  if (langue === "nl" && q.mediaNl) return q.mediaNl;
+  return q.media || null;
+}
+// Zones cliquables (type "point") : les coordonnées NL n'ont de sens que
+// si une image NL existe (sinon elles pointeraient sur la mauvaise image,
+// celle en FR affichée par repli).
+export function ciblesFor(q, langue) {
+  if (!q) return [];
+  if (langue === "nl" && q.mediaNl && q.ciblesNl && q.ciblesNl.length) return q.ciblesNl;
+  return q.cibles || [];
+}
+// Marqueurs à légender (type "legende") : même logique que ciblesFor.
+export function marqueursFor(q, langue) {
+  if (!q) return [];
+  if (langue === "nl" && q.mediaNl && q.marqueursNl && q.marqueursNl.length) return q.marqueursNl;
+  return q.marqueurs || [];
+}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Undo2, ChevronUp, ChevronDown } from "lucide-react";
 import { C, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
-import { qText, qChoix, itemText } from "../utils/bilingual.js";
+import { qText, qChoix, itemText, mediaFor, ciblesFor, marqueursFor } from "../utils/bilingual.js";
 import { Modal, Btn, inputStyle, CategoryBadges } from "./atoms.jsx";
 import { RelierQuestion, ActionReactionPlayer } from "./ExamMode.jsx";
 
@@ -24,7 +24,7 @@ export function QuestionPreviewModal({ question: q, categories, onClose }) {
     const x = ((point.clientX - rect.left) / rect.width) * 100;
     const y = ((point.clientY - rect.top) / rect.height) * 100;
     const current = answer || [];
-    if (current.length >= (q.cibles || []).length) return;
+    if (current.length >= ciblesFor(q, lang).length) return;
     setAnswer([...current, { x, y }]);
   };
   const resetPoints = () => setAnswer([]);
@@ -49,9 +49,9 @@ export function QuestionPreviewModal({ question: q, categories, onClose }) {
         </div>
         <div style={{ fontSize: 18, fontWeight: 600, color: C.navy, lineHeight: 1.4, marginBottom: 20 }}>{qText(q, lang)}</div>
 
-        {q.media?.type === "audio" && <audio controls src={q.media.url} style={{ width: "100%", marginBottom: 20 }} />}
-        {q.media?.type === "video" && q.type !== "point" && <video controls src={q.media.url} style={{ maxWidth: "100%", borderRadius: 10, marginBottom: 20, border: `1px solid ${C.line}` }} />}
-        {q.media?.type === "image" && q.type !== "point" && q.type !== "legende" && <img src={q.media.url} style={{ maxWidth: "100%", borderRadius: 10, marginBottom: 20, border: `1px solid ${C.line}` }} />}
+        {mediaFor(q, lang)?.type === "audio" && <audio controls src={mediaFor(q, lang).url} style={{ width: "100%", marginBottom: 20 }} />}
+        {mediaFor(q, lang)?.type === "video" && q.type !== "point" && <video controls src={mediaFor(q, lang).url} style={{ maxWidth: "100%", borderRadius: 10, marginBottom: 20, border: `1px solid ${C.line}` }} />}
+        {mediaFor(q, lang)?.type === "image" && q.type !== "point" && q.type !== "legende" && <img src={mediaFor(q, lang).url} style={{ maxWidth: "100%", borderRadius: 10, marginBottom: 20, border: `1px solid ${C.line}` }} />}
 
         {(q.type === "qcm" || q.type === "vrai_faux") && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -76,33 +76,33 @@ export function QuestionPreviewModal({ question: q, categories, onClose }) {
           </div>
         )}
         {q.type === "ouverte" && <textarea style={{ ...inputStyle, minHeight: 150, resize: "vertical", fontSize: 14 }} placeholder={t("write_answer_placeholder")} value={(answer && answer.text) || ""} onChange={e => setAnswer({ text: e.target.value })} />}
-        {q.type === "point" && q.media?.url && (
+        {q.type === "point" && mediaFor(q, lang)?.url && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t("click_on")} {(q.cibles || []).length} {t("locations")} — {(answer || []).length}/{(q.cibles || []).length} {t("select_count")}{(answer || []).length > 1 ? "s" : ""}</span>
+              <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t("click_on")} {ciblesFor(q, lang).length} {t("locations")} — {(answer || []).length}/{ciblesFor(q, lang).length} {t("select_count")}{(answer || []).length > 1 ? "s" : ""}</span>
               {(answer || []).length > 0 && <Btn variant="ghost" icon={Undo2} onClick={resetPoints} style={{ padding: "5px 10px", fontSize: 12 }}>{t("reset")}</Btn>}
             </div>
             <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-              <img src={q.media.url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
+              <img src={mediaFor(q, lang).url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
               {(answer || []).map((pt, pi) => (
                 <div key={pi} style={{ position: "absolute", left: `${pt.x}%`, top: `${pt.y}%`, width: 22, height: 22, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", boxShadow: "0 0 0 1px rgba(0,0,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{pi + 1}</div>
               ))}
             </div>
           </div>
         )}
-        {q.type === "legende" && q.media?.url && (
+        {q.type === "legende" && mediaFor(q, lang)?.url && (
           <div>
             <div style={{ position: "relative", display: "inline-block", maxWidth: "100%", marginBottom: 16 }}>
-              <img src={q.media.url} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, display: "block" }} />
-              {(q.marqueurs || []).map((m, mi) => (
+              <img src={mediaFor(q, lang).url} style={{ maxWidth: "100%", borderRadius: 10, border: `1px solid ${C.line}`, display: "block" }} />
+              {marqueursFor(q, lang).map((m, mi) => (
                 <div key={m.id} style={{ position: "absolute", left: `${m.x}%`, top: `${m.y}%`, width: 26, height: 26, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", boxShadow: "0 0 0 1px rgba(0,0,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{mi + 1}</div>
               ))}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {(q.marqueurs || []).map((m, mi) => (
+              {marqueursFor(q, lang).map((m, mi) => (
                 <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ width: 26, height: 26, borderRadius: "50%", background: C.goldSoft, color: C.navy, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, fontFamily: FONT_MONO, flexShrink: 0 }}>{mi + 1}</span>
-                  <input style={inputStyle} placeholder={`À quoi correspond le point ${mi + 1} ?`} value={(answer && answer[mi]) || ""} onChange={e => { const cur = Array.isArray(answer) ? [...answer] : Array((q.marqueurs || []).length).fill(""); cur[mi] = e.target.value; setAnswer(cur); }} />
+                  <input style={inputStyle} placeholder={`À quoi correspond le point ${mi + 1} ?`} value={(answer && answer[mi]) || ""} onChange={e => { const cur = Array.isArray(answer) ? [...answer] : Array(marqueursFor(q, lang).length).fill(""); cur[mi] = e.target.value; setAnswer(cur); }} />
                 </div>
               ))}
             </div>

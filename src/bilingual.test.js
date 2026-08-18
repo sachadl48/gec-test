@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { qText, qChoix, itemText, paireText, arNodeText } from "./utils/bilingual.js";
+import { qText, qChoix, itemText, paireText, arNodeText, mediaFor, ciblesFor, marqueursFor } from "./utils/bilingual.js";
 
 describe("qText (énoncé de question)", () => {
   it("retourne le FR par défaut", () => {
@@ -64,5 +64,40 @@ describe("arNodeText (nœuds Action/Réaction)", () => {
   });
   it("se replie sur l'ancien champ texte si présent (anciennes questions)", () => {
     expect(arNodeText({ texte: "Ancien nœud" }, "fr")).toBe("Ancien nœud");
+  });
+});
+
+describe("mediaFor (média d'une question, avec repli vers le FR)", () => {
+  it("retourne le média FR par défaut", () => {
+    const q = { media: { type: "image", url: "fr.jpg" } };
+    expect(mediaFor(q, "fr")).toEqual({ type: "image", url: "fr.jpg" });
+  });
+  it("retourne le média NL s'il existe et que le NL est demandé", () => {
+    const q = { media: { type: "image", url: "fr.jpg" }, mediaNl: { type: "image", url: "nl.jpg" } };
+    expect(mediaFor(q, "nl")).toEqual({ type: "image", url: "nl.jpg" });
+  });
+  it("se replie sur le FR si aucun média NL n'existe", () => {
+    const q = { media: { type: "image", url: "fr.jpg" } };
+    expect(mediaFor(q, "nl")).toEqual({ type: "image", url: "fr.jpg" });
+  });
+  it("retourne null si aucun média du tout", () => {
+    expect(mediaFor({}, "fr")).toBeNull();
+  });
+});
+
+describe("ciblesFor / marqueursFor (coordonnées liées à l'image NL, seulement si l'image NL existe)", () => {
+  it("se replie sur les cibles FR si aucune image NL n'existe, même si ciblesNl est rempli par erreur", () => {
+    const q = { cibles: [{ x: 1, y: 1, rayon: 5 }], ciblesNl: [{ x: 9, y: 9, rayon: 5 }] }; // pas de mediaNl !
+    expect(ciblesFor(q, "nl")).toEqual([{ x: 1, y: 1, rayon: 5 }]);
+  });
+  it("utilise les cibles NL seulement si l'image NL existe aussi", () => {
+    const q = { media: { url: "fr.jpg" }, mediaNl: { url: "nl.jpg" }, cibles: [{ x: 1, y: 1, rayon: 5 }], ciblesNl: [{ x: 9, y: 9, rayon: 5 }] };
+    expect(ciblesFor(q, "nl")).toEqual([{ x: 9, y: 9, rayon: 5 }]);
+    expect(ciblesFor(q, "fr")).toEqual([{ x: 1, y: 1, rayon: 5 }]);
+  });
+  it("même logique pour marqueursFor", () => {
+    const q = { media: { url: "fr.jpg" }, mediaNl: { url: "nl.jpg" }, marqueurs: [{ id: "1", x: 1, y: 1 }], marqueursNl: [{ id: "2", x: 9, y: 9 }] };
+    expect(marqueursFor(q, "nl")).toEqual([{ id: "2", x: 9, y: 9 }]);
+    expect(marqueursFor(q, "fr")).toEqual([{ id: "1", x: 1, y: 1 }]);
   });
 });

@@ -15,7 +15,7 @@ import { stripAccents, normalizeText, findCategoryMatch } from "../utils/userAcc
 import { isFullyCorrect, countTreeResults, validateActionTree } from "../utils/scoring.js";
 import {
   Btn, Field, inputStyle, Badge, StatusBadge, CategoryBadges, TypeBadge, Modal, EmptyState,
-  ConfirmDialog, InfoDialog, SectionTitle, MediaField,
+  ConfirmDialog, InfoDialog, SectionTitle, MediaField, pillStyle,
 } from "./atoms.jsx";
 import { QuestionPreviewModal } from "./QuestionPreviewModal.jsx";
 import { CategoryManager } from "./CategoryManager.jsx";
@@ -729,11 +729,12 @@ export function QuestionEditor({ initial, categories, onClose, onSave }) {
   const [form, setForm] = useState({
     id: initial.id, numero: initial.numero, categories: initial.categories && initial.categories.length ? [...initial.categories] : [categories[0]].filter(Boolean), type: initial.type || "qcm",
     enonceFr: initial.enonceFr || initial.enonce || "", enonceNl: initial.enonceNl || "",
-    points: initial.points || 1, media: initial.media || null,
+    points: initial.points || 1, media: initial.media || null, mediaNl: initial.mediaNl || null,
     choixFr: initChoixFr, choixNl: initChoixNl, bonneReponse: initial.bonneReponse ?? 0,
     bonnesReponses: initial.bonnesReponses ? [...initial.bonnesReponses] : [],
-    reponseAttendue: initial.reponseAttendue || "", cibles: initial.cibles || [],
+    reponseAttendue: initial.reponseAttendue || "", cibles: initial.cibles || [], ciblesNl: initial.ciblesNl || [],
     marqueurs: initial.marqueurs && initial.marqueurs.length ? [...initial.marqueurs] : [],
+    marqueursNl: initial.marqueursNl && initial.marqueursNl.length ? [...initial.marqueursNl] : [],
     paires: initial.paires && initial.paires.length
       ? initial.paires.map(p => ({ id: p.id, gaucheFr: p.gaucheFr ?? p.gauche ?? "", gaucheNl: p.gaucheNl ?? "", droiteFr: p.droiteFr ?? p.droite ?? "", droiteNl: p.droiteNl ?? "" }))
       : [{ id: genId("pr"), gaucheFr: "", gaucheNl: "", droiteFr: "", droiteNl: "" }, { id: genId("pr"), gaucheFr: "", gaucheNl: "", droiteFr: "", droiteNl: "" }],
@@ -775,6 +776,10 @@ export function QuestionEditor({ initial, categories, onClose, onSave }) {
     else if (type === "legende") setForm({ ...form, type, marqueurs: form.media?.type === "image" ? form.marqueurs : [] });
     else setForm({ ...form, type });
   };
+  const [editingLangue, setEditingLangue] = useState("fr"); // pour point/légende : quelle image (FR/NL) est en cours d'édition
+  const mediaKey = editingLangue === "nl" ? "mediaNl" : "media";
+  const ciblesKey = editingLangue === "nl" ? "ciblesNl" : "cibles";
+  const marqueursKey = editingLangue === "nl" ? "marqueursNl" : "marqueurs";
   const handleImageClick = (e) => {
     if (form.type !== "point" && form.type !== "legende") return;
     e.preventDefault();
@@ -782,13 +787,13 @@ export function QuestionEditor({ initial, categories, onClose, onSave }) {
     const point = e.changedTouches ? e.changedTouches[0] : e;
     const x = ((point.clientX - rect.left) / rect.width) * 100;
     const y = ((point.clientY - rect.top) / rect.height) * 100;
-    if (form.type === "point") setForm({ ...form, cibles: [...form.cibles, { x, y, rayon: 10 }] });
-    else setForm({ ...form, marqueurs: [...form.marqueurs, { id: genId("mq"), x, y, reponse: "" }] });
+    if (form.type === "point") setForm({ ...form, [ciblesKey]: [...(form[ciblesKey] || []), { x, y, rayon: 10 }] });
+    else setForm({ ...form, [marqueursKey]: [...(form[marqueursKey] || []), { id: genId("mq"), x, y, reponse: "" }] });
   };
-  const removeCible = (i) => setForm({ ...form, cibles: form.cibles.filter((_, ci) => ci !== i) });
-  const updateCibleRayon = (i, rayon) => setForm({ ...form, cibles: form.cibles.map((c, ci) => ci === i ? { ...c, rayon } : c) });
-  const removeMarqueur = (i) => setForm({ ...form, marqueurs: form.marqueurs.filter((_, mi) => mi !== i) });
-  const updateMarqueurReponse = (i, reponse) => setForm({ ...form, marqueurs: form.marqueurs.map((m, mi) => mi === i ? { ...m, reponse } : m) });
+  const removeCible = (i) => setForm({ ...form, [ciblesKey]: form[ciblesKey].filter((_, ci) => ci !== i) });
+  const updateCibleRayon = (i, rayon) => setForm({ ...form, [ciblesKey]: form[ciblesKey].map((c, ci) => ci === i ? { ...c, rayon } : c) });
+  const removeMarqueur = (i) => setForm({ ...form, [marqueursKey]: form[marqueursKey].filter((_, mi) => mi !== i) });
+  const updateMarqueurReponse = (i, reponse) => setForm({ ...form, [marqueursKey]: form[marqueursKey].map((m, mi) => mi === i ? { ...m, reponse } : m) });
   const addPaire = () => { if (form.paires.length >= 10) return; setForm({ ...form, paires: [...form.paires, { id: genId("pr"), gaucheFr: "", gaucheNl: "", droiteFr: "", droiteNl: "" }] }); };
   const removePaire = (i) => { if (form.paires.length <= 2) return; setForm({ ...form, paires: form.paires.filter((_, pi) => pi !== i) }); };
   const updatePaire = (i, field, v) => setForm({ ...form, paires: form.paires.map((p, pi) => pi === i ? { ...p, [field]: v } : p) });
@@ -858,9 +863,20 @@ export function QuestionEditor({ initial, categories, onClose, onSave }) {
           </div>
         )}
       </Field>
-      <Field label={(form.type === "point" || form.type === "legende") ? t("image_obligatoire_label") : t("image_facultatif_label")} hint={(form.type === "point" || form.type === "legende") ? t("image_obligatoire_hint") : null}>
-        <MediaField media={form.media} imageOnly={form.type === "point" || form.type === "legende"} onChange={(m) => setForm({ ...form, media: m, cibles: form.type === "point" ? [] : form.cibles, marqueurs: form.type === "legende" ? [] : form.marqueurs })} />
-      </Field>
+      {form.type !== "point" && form.type !== "legende" && (
+        <Field label={t("image_facultatif_label")}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 11.5, color: C.inkSoft, marginBottom: 4 }}>FR</div>
+              <MediaField media={form.media} onChange={(m) => setForm({ ...form, media: m })} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, color: C.inkSoft, marginBottom: 4 }}>NL</div>
+              <MediaField media={form.mediaNl} onChange={(m) => setForm({ ...form, mediaNl: m })} />
+            </div>
+          </div>
+        </Field>
+      )}
 
       {(form.type === "qcm" || form.type === "vrai_faux") && (
         <Field label={t("reponses_qcm_label")}>
@@ -893,15 +909,20 @@ export function QuestionEditor({ initial, categories, onClose, onSave }) {
       )}
       {form.type === "point" && (
         <Field label={t("zones_cible_label", { n: form.cibles.length })} hint={t("zones_cible_hint")}>
-          {form.media?.type === "image" ? (
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <button type="button" onClick={() => setEditingLangue("fr")} style={pillStyle(editingLangue === "fr")}>FR</button>
+            <button type="button" onClick={() => setEditingLangue("nl")} style={pillStyle(editingLangue === "nl")}>NL {form.mediaNl && "✓"}</button>
+          </div>
+          {form[mediaKey]?.type === "image" ? (
             <div>
               <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-                <img src={form.media.url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
-                {form.cibles.map((c, i) => (
+                <img src={form[mediaKey].url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
+                {form[ciblesKey].map((c, i) => (
                   <div key={i} onClick={(e) => { e.stopPropagation(); removeCible(i); }} title="Cliquer pour supprimer" style={{ position: "absolute", left: `${c.x}%`, top: `${c.y}%`, width: `${c.rayon * 2}%`, paddingBottom: `${c.rayon * 2}%`, transform: "translate(-50%,-50%)", borderRadius: "50%", border: `2px solid ${C.gold}`, background: "rgba(200,155,60,0.3)", cursor: "pointer" }} />
                 ))}
               </div>
-              {form.cibles.map((c, i) => (
+              <Btn variant="ghost" icon={Trash2} onClick={() => setForm({ ...form, [mediaKey]: null, [ciblesKey]: [] })} style={{ marginTop: 8 }}>{t("retirer_image_btn")} ({editingLangue.toUpperCase()})</Btn>
+              {form[ciblesKey].map((c, i) => (
                 <div key={i} style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 12, color: C.inkSoft, minWidth: 60 }}>{t("point_word")} {i + 1}</span>
                   <input type="range" min={4} max={25} value={c.rayon} onChange={e => updateCibleRayon(i, Number(e.target.value))} />
@@ -909,7 +930,9 @@ export function QuestionEditor({ initial, categories, onClose, onSave }) {
                 </div>
               ))}
             </div>
-          ) : <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("ajoutez_image_dabord")}</div>}
+          ) : (
+            <MediaField media={null} imageOnly onChange={(m) => setForm({ ...form, [mediaKey]: m, [ciblesKey]: [] })} />
+          )}
         </Field>
       )}
       {form.type === "relier" && (
@@ -963,15 +986,20 @@ export function QuestionEditor({ initial, categories, onClose, onSave }) {
       )}
       {form.type === "legende" && (
         <Field label={t("points_legender_label", { n: form.marqueurs.length })} hint={t("points_legender_hint")}>
-          {form.media?.type === "image" ? (
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <button type="button" onClick={() => setEditingLangue("fr")} style={pillStyle(editingLangue === "fr")}>FR</button>
+            <button type="button" onClick={() => setEditingLangue("nl")} style={pillStyle(editingLangue === "nl")}>NL {form.mediaNl && "✓"}</button>
+          </div>
+          {form[mediaKey]?.type === "image" ? (
             <div>
               <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
-                <img src={form.media.url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
-                {form.marqueurs.map((m, i) => (
+                <img src={form[mediaKey].url} onClick={handleImageClick} onTouchEnd={handleImageClick} style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", display: "block", touchAction: "manipulation" }} />
+                {form[marqueursKey].map((m, i) => (
                   <div key={m.id} onClick={(e) => { e.stopPropagation(); removeMarqueur(i); }} title="Cliquer pour supprimer" style={{ position: "absolute", left: `${m.x}%`, top: `${m.y}%`, width: 24, height: 24, borderRadius: "50%", background: C.gold, border: "2px solid #fff", transform: "translate(-50%,-50%)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: C.navy, fontFamily: FONT_MONO }}>{i + 1}</div>
                 ))}
               </div>
-              {form.marqueurs.map((m, i) => (
+              <Btn variant="ghost" icon={Trash2} onClick={() => setForm({ ...form, [mediaKey]: null, [marqueursKey]: [] })} style={{ marginTop: 8 }}>{t("retirer_image_btn")} ({editingLangue.toUpperCase()})</Btn>
+              {form[marqueursKey].map((m, i) => (
                 <div key={m.id} style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ width: 22, height: 22, borderRadius: "50%", background: C.goldSoft, color: C.navy, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontFamily: FONT_MONO, flexShrink: 0 }}>{i + 1}</span>
                   <input style={inputStyle} placeholder={t("reponse_attendue_point_placeholder")} value={m.reponse} onChange={e => updateMarqueurReponse(i, e.target.value)} />
@@ -979,7 +1007,9 @@ export function QuestionEditor({ initial, categories, onClose, onSave }) {
                 </div>
               ))}
             </div>
-          ) : <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("ajoutez_image_dabord")}</div>}
+          ) : (
+            <MediaField media={null} imageOnly onChange={(m) => setForm({ ...form, [mediaKey]: m, [marqueursKey]: [] })} />
+          )}
         </Field>
       )}
       <Field label={t("reference_label_field")}>
