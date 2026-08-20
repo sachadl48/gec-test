@@ -1,4 +1,4 @@
-import { ListChecks, CheckSquare, ToggleLeft, AlignLeft, MapPin, Link2, ListOrdered, GitBranch, ArrowUpDown } from "lucide-react";
+import { ListChecks, CheckSquare, ToggleLeft, AlignLeft, MapPin, Link2, ListOrdered, GitBranch, ArrowUpDown, Route } from "lucide-react";
 import { C } from "../theme.js";
 
 // Métadonnées des différents types de questions (libellé FR/NL, icône).
@@ -15,6 +15,7 @@ export const TYPE_META = {
   legende: { label: "Légender une image", labelNl: "Een afbeelding labelen", icon: ListOrdered },
   action_reaction: { label: "Action / Réaction", labelNl: "Action / Réaction", icon: GitBranch },
   ordre: { label: "Mettre dans l'ordre", labelNl: "In de juiste volgorde zetten", icon: ArrowUpDown },
+  dessin_reseau: { label: "Dessine le réseau", labelNl: "Teken het netwerk", icon: Route },
 };
 export function typeLabel(type, lang) { return (lang === "nl" ? TYPE_META[type]?.labelNl : TYPE_META[type]?.label) || TYPE_META[type]?.label || type; }
 

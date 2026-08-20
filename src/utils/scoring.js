@@ -92,7 +92,7 @@ export function isFullyCorrect(q, raw, manualPoints, overridePoints) {
   if (q.type === "action_reaction") { const result = getResultReached(q.arbre, raw); return !!result && result.pourcentage === 100; }
   if (q.type === "relier") { const total = (q.paires || []).length; const n = (q.paires || []).filter((p, li) => raw && raw[li] === p.id).length; return total > 0 && n === total; }
   if (q.type === "ordre") { const total = (q.items || []).length; return total > 0 && correctPlacementsOrdre(q, raw) === total; }
-  if (q.type === "ouverte") return !!(raw && typeof raw.points === "number" && raw.points === q.points);
+  if (q.type === "ouverte" || q.type === "dessin_reseau") return !!(raw && typeof raw.points === "number" && raw.points === q.points);
   return false;
 }
 export function computeCategoryStats(validatedQuestionnaires, categories) {

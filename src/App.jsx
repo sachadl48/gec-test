@@ -215,6 +215,7 @@ function buildQuestionnairesBodyHTML({ items, questions, categories }) {
     if (q.type === "qcm" || q.type === "vrai_faux") return raw !== undefined && raw !== null ? qChoix(q, langue)[raw] : "Sans réponse";
     if (q.type === "qcm_multi") { const sel = Array.isArray(raw) ? raw : []; return sel.length ? sel.map(i => qChoix(q, langue)[i]).join(", ") : "Sans réponse"; }
     if (q.type === "ouverte") return raw?.text?.trim() ? raw.text : "Sans réponse";
+    if (q.type === "dessin_reseau") return raw && ((raw.carres || []).length || (raw.traits || []).length) ? `Dessin remis (${(raw.carres || []).length} station(s), ${(raw.traits || []).length} trait(s)) — voir la correction en ligne pour le détail visuel.` : "Sans réponse";
     if (q.type === "point") { const clicks = Array.isArray(raw) ? raw : (raw ? [raw] : []); return `${matchedCiblesCount(q, clicks)}/${(q.cibles || []).length} cible(s) trouvée(s), ${clicks.length - matchedCiblesCount(q, clicks)} erreur(s)`; }
     if (q.type === "legende") { const vals = Array.isArray(raw) ? raw : []; return vals.length ? vals.map((v, li) => `${li + 1}. ${v || "—"}`).join(" · ") : "Sans réponse"; }
     if (q.type === "relier") { const total = (q.paires || []).length; const n = (q.paires || []).filter((p, li) => raw && raw[li] === p.id).length; return `${n}/${total} paire(s) correcte(s)`; }
@@ -227,6 +228,7 @@ function buildQuestionnairesBodyHTML({ items, questions, categories }) {
     if (q.type === "qcm" || q.type === "vrai_faux") return raw === q.bonneReponse ? q.points : 0;
     if (q.type === "qcm_multi") return scoreQcmMulti(q, raw);
     if (q.type === "ouverte") return typeof raw?.points === "number" ? raw.points : 0;
+    if (q.type === "dessin_reseau") return typeof raw?.points === "number" ? raw.points : 0;
     if (q.type === "point") return scorePoint(q, raw);
     if (q.type === "legende") return typeof manual === "number" ? manual : 0;
     if (q.type === "relier") { const total = (q.paires || []).length || 1; const n = (q.paires || []).filter((p, li) => raw && raw[li] === p.id).length; return Math.round((q.points * n) / total); }

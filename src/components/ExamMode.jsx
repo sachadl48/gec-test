@@ -8,6 +8,7 @@ import { AR_COLOR, AR_LABEL } from "../data/questionTypes.js";
 import { shuffle, getResultReached, walkTrail } from "../utils/scoring.js";
 import { qText, qChoix, itemText, paireText, arNodeText, mediaFor, ciblesFor, marqueursFor } from "../utils/bilingual.js";
 import { Btn, ConfirmDialog, inputStyle, CategoryBadges } from "./atoms.jsx";
+import { ReseauDrawing } from "./ReseauDrawing.jsx";
 import { PALETTE } from "../theme.js";
 
 // Écran de passage d'examen (élève) : minuteur, navigation entre questions,
@@ -123,7 +124,7 @@ export function ExamMode({ questionnaire, questions, categories, questionLangues
   const { t } = useLang();
   const qs = useMemo(() => questionnaire.questionIds.map(id => questions.find(q => q.id === id)).filter(Boolean), [questionnaire, questions]);
   const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState(() => qs.map((q, i) => (q.type === "ouverte" ? { text: "" } : q.type === "legende" ? Array(marqueursFor(q, (questionLangues && questionLangues[i]) || "fr").length).fill("") : q.type === "action_reaction" ? [] : q.type === "ordre" ? shuffle((q.items || []).map(it => it.id)) : null)));
+  const [answers, setAnswers] = useState(() => qs.map((q, i) => (q.type === "ouverte" ? { text: "" } : q.type === "dessin_reseau" ? { carres: [], traits: [] } : q.type === "legende" ? Array(marqueursFor(q, (questionLangues && questionLangues[i]) || "fr").length).fill("") : q.type === "action_reaction" ? [] : q.type === "ordre" ? shuffle((q.items || []).map(it => it.id)) : null)));
   const [qSecondsLeft, setQSecondsLeft] = useState(qs[0]?.dureeSecondes || null);
   const [locked, setLocked] = useState(() => qs.map(() => false));
   const [confirmSubmit, setConfirmSubmit] = useState(false);
@@ -180,6 +181,7 @@ export function ExamMode({ questionnaire, questions, categories, questionLangues
   const isAnswered = (i) => {
     const a = answers[i]; const type = qs[i].type;
     if (type === "ouverte") return !!(a && a.text && a.text.trim().length > 0);
+    if (type === "dessin_reseau") return !!(a && ((a.carres && a.carres.length > 0) || (a.traits && a.traits.length > 0)));
     if (type === "point") return Array.isArray(a) && a.length === (qs[i].cibles || []).length;
     if (type === "relier") return Array.isArray(a) && a.length === (qs[i].paires || []).length && a.every(v => v !== null && v !== undefined);
     if (type === "qcm_multi") return Array.isArray(a) && a.length > 0;
@@ -271,6 +273,7 @@ export function ExamMode({ questionnaire, questions, categories, questionLangues
           </div>
         )}
         {q.type === "ouverte" && <textarea style={{ ...inputStyle, minHeight: 150, resize: "vertical", fontSize: 14 }} placeholder={t("write_answer_placeholder")} value={(answers[idx] && answers[idx].text) || ""} onChange={e => setAnswer({ text: e.target.value })} />}
+        {q.type === "dessin_reseau" && <ReseauDrawing value={answers[idx] || { carres: [], traits: [] }} onChange={setAnswer} />}
         {q.type === "point" && mediaFor(q, langFor(idx))?.url && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>

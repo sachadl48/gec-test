@@ -15,6 +15,7 @@ import { shuffle, getResultReached, walkTrail, scoreQcmMulti, scoreOrdre, scoreP
 import {
   Btn, Field, inputStyle, Badge, StatusBadge, CategoryBadges, TypeBadge, Modal, EmptyState, SectionTitle, pillStyle,
 } from "./atoms.jsx";
+import { ReseauDrawing } from "./ReseauDrawing.jsx";
 
 // Toute la gestion des questionnaires côté staff : attribution à un ou
 // plusieurs élèves (avec choix de langue par question), liste avec filtres
@@ -282,7 +283,7 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
   const qs = questionnaire.questionIds.map(id => questions.find(q => q.id === id)).filter(Boolean);
   const langFor = (i) => (questionnaire.questionLangues && questionnaire.questionLangues[i]) || eleve?.langue || "fr";
   const initialAnswers = questionnaire.reponses || [];
-  const [grades, setGrades] = useState(() => qs.map((q, i) => { if (q.type !== "ouverte") return null; const a = initialAnswers[i]; return (a && typeof a.points === "number") ? a.points : null; }));
+  const [grades, setGrades] = useState(() => qs.map((q, i) => { if (q.type !== "ouverte" && q.type !== "dessin_reseau") return null; const a = initialAnswers[i]; return (a && typeof a.points === "number") ? a.points : null; }));
   const [legendeGrades, setLegendeGrades] = useState(() => qs.map((q, i) => { if (q.type !== "legende") return null; const g = questionnaire.manualGrades?.[i]; return typeof g === "number" ? g : null; }));
   const [remarks, setRemarks] = useState(() => qs.map((q, i) => (questionnaire.remarques && questionnaire.remarques[i]) || ""));
   const [overrides, setOverrides] = useState(() => qs.map((q, i) => questionnaire.overrides?.[i] || null));
@@ -307,11 +308,11 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
     if (q.type === "relier") { const total = (q.paires || []).length || 1; const correctCount = (q.paires || []).filter((p, li) => a && a[li] === p.id).length; return Math.round((q.points * correctCount) / total); }
     if (q.type === "action_reaction") { const result = getResultReached(q.arbre, Array.isArray(a) ? a : []); return result ? Math.round((q.points * result.pourcentage) / 100) : 0; }
     if (q.type === "ordre") return scoreOrdre(q, a);
-    if (q.type === "ouverte") return grades[i];
+    if (q.type === "ouverte" || q.type === "dessin_reseau") return grades[i];
     return 0;
   };
   const earnedFor = (q, i) => (overrides[i] ? overrides[i].points : autoEarnedFor(q, i));
-  const allGraded = qs.every((q, i) => (q.type !== "ouverte" || (grades[i] !== null && grades[i] !== undefined)) && (q.type !== "legende" || (legendeGrades[i] !== null && legendeGrades[i] !== undefined)))
+  const allGraded = qs.every((q, i) => ((q.type !== "ouverte" && q.type !== "dessin_reseau") || (grades[i] !== null && grades[i] !== undefined)) && (q.type !== "legende" || (legendeGrades[i] !== null && legendeGrades[i] !== undefined)))
     && overrides.every(o => !o || (o.justification && o.justification.trim().length > 0));
   const totalPoints = qs.reduce((s, q) => s + q.points, 0);
   const earnedPoints = qs.reduce((s, q, i) => s + (earnedFor(q, i) || 0), 0);
@@ -328,7 +329,7 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
     categorieCounts[cat] = { correct: correctCount, total: catQs.length };
   });
   const handleValidate = () => {
-    const reponsesFinal = qs.map((q, i) => q.type === "ouverte" ? { ...initialAnswers[i], points: grades[i] } : initialAnswers[i]);
+    const reponsesFinal = qs.map((q, i) => (q.type === "ouverte" || q.type === "dessin_reseau") ? { ...initialAnswers[i], points: grades[i] } : initialAnswers[i]);
     const manualGrades = qs.map((q, i) => q.type === "legende" ? legendeGrades[i] : (questionnaire.manualGrades?.[i] ?? null));
     onValidate(reponsesFinal, scoreParCategorie, scoreGlobal, remarks, manualGrades, overrides, categorieCounts);
   };
@@ -353,7 +354,7 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
         {qs.map((q, i) => {
           const a = initialAnswers[i];
           const earned = earnedFor(q, i);
-          const isManual = q.type === "ouverte" || q.type === "legende";
+          const isManual = q.type === "ouverte" || q.type === "legende" || q.type === "dessin_reseau";
           const correct = !isManual && earned === q.points;
           return (
             <div key={q.id} style={{ background: "#fff", padding: "20px 24px", border: `1px solid ${C.line}`, borderRadius: 14 }}>
@@ -465,6 +466,18 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
                     <div style={{ marginTop: 10 }}>
                       <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", fontSize: 13.5, marginBottom: 8 }}>{a?.text?.trim() ? a.text : <em>{t("sans_reponse_italic")}</em>}</div>
                       {q.reponseAttendue && <div style={{ fontSize: 12.5, color: C.inkSoft, fontStyle: "italic", marginBottom: 8 }}>{t("ouverte_attendu")}{q.reponseAttendue}</div>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t("points_attribues")}</span>
+                        <input type="number" min={0} max={q.points} disabled={readOnly} style={{ ...inputStyle, width: 70, padding: "6px 8px" }} value={grades[i] ?? ""} onChange={e => { const v = e.target.value === "" ? null : Math.max(0, Math.min(q.points, Number(e.target.value))); const g = [...grades]; g[i] = v; setGrades(g); }} />
+                        <span style={{ fontSize: 12.5, color: C.inkSoft }}>/ {q.points}</span>
+                      </div>
+                    </div>
+                  )}
+                  {q.type === "dessin_reseau" && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ marginBottom: 8, maxWidth: 480 }}>
+                        <ReseauDrawing value={a || { carres: [], traits: [] }} readOnly />
+                      </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t("points_attribues")}</span>
                         <input type="number" min={0} max={q.points} disabled={readOnly} style={{ ...inputStyle, width: 70, padding: "6px 8px" }} value={grades[i] ?? ""} onChange={e => { const v = e.target.value === "" ? null : Math.max(0, Math.min(q.points, Number(e.target.value))); const g = [...grades]; g[i] = v; setGrades(g); }} />
