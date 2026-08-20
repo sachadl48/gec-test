@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   BadgeCheck, Ban, BookCheck, CheckCircle2, CheckSquare, ClipboardCheck, ClipboardList,
   ExternalLink, Eye, FileDown, Filter, Globe, MessageSquare, Shuffle, Square, Tag, Timer,
-  X, XCircle,
+  X, XCircle, ListChecks as ListChecksIcon,
 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "../theme.js";
 import { useLang, LANGS } from "../lang.jsx";
@@ -51,7 +51,8 @@ function resolveQuestionLangues(mode, eleveLangue, count) {
 export function AttribuerQuestionnaire({ eleves, questions, setQuestionnaires, questionnaires, categories, categoryConfig }) {
   const { t, lang } = useLang();
   const [eleveId, setEleveId] = useState(eleves[0]?.id || "");
-  const [mode, setMode] = useState("aleatoire");
+  const [selectionType, setSelectionType] = useState("aleatoire"); // "aleatoire" | "categories" | "questions"
+  const mode = selectionType === "aleatoire" ? "aleatoire" : "cible"; // valeur réellement enregistrée en base (contrainte : seules "aleatoire"/"cible" sont acceptées)
   const [langueMode, setLangueMode] = useState("eleve");
   const [cats, setCats] = useState([]);
   const [nb, setNb] = useState(8);
@@ -59,6 +60,8 @@ export function AttribuerQuestionnaire({ eleves, questions, setQuestionnaires, q
   const [preview, setPreview] = useState(null);
   const [avoidRepeats, setAvoidRepeats] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState([]);
+  const [rechercheQuestion, setRechercheQuestion] = useState("");
   useEffect(() => {
     if (!successMsg) return;
     const t = setTimeout(() => setSuccessMsg(null), 5000);
@@ -71,26 +74,39 @@ export function AttribuerQuestionnaire({ eleves, questions, setQuestionnaires, q
   const eleveFonction = selectedEleve?.fonction || "Élève régulateur";
   const allowedCats = useMemo(() => categories.filter(c => (categoryConfig[c]?.fonctions || FONCTIONS).includes(eleveFonction)), [categories, categoryConfig, eleveFonction]);
   useEffect(() => { setCats(c => c.filter(x => allowedCats.includes(x))); }, [eleveId]); // eslint-disable-line
+  const questionsSelectionnables = useMemo(() => {
+    const term = rechercheQuestion.trim().toLowerCase();
+    return questions
+      .filter(q => q.statut !== "suspendue" && (q.categories || []).some(c => allowedCats.includes(c)))
+      .filter(q => !term || qText(q, lang).toLowerCase().includes(term) || String(q.numero || "").includes(term))
+      .sort((a, b) => (a.numero || 0) - (b.numero || 0));
+  }, [questions, allowedCats, rechercheQuestion, lang]);
   const pool = useMemo(() => {
-    let base = mode === "aleatoire" || cats.length === 0
+    if (selectionType === "questions") return questions.filter(q => selectedQuestionIds.includes(q.id));
+    let base = selectionType === "aleatoire" || cats.length === 0
       ? questions.filter(q => q.statut !== "suspendue" && (q.categories || []).some(c => allowedCats.includes(c)))
       : questions.filter(q => q.statut !== "suspendue" && (q.categories || []).some(c => cats.includes(c) && allowedCats.includes(c)));
     if (avoidRepeats) base = base.filter(q => !askedQuestionIds.has(q.id));
     return base;
-  }, [mode, cats, questions, avoidRepeats, askedQuestionIds, allowedCats]);
-  const genererApercu = () => { const n = Math.min(nb, pool.length); setPreview(shuffle(pool).slice(0, n)); };
+  }, [selectionType, cats, questions, avoidRepeats, askedQuestionIds, allowedCats, selectedQuestionIds]);
+  const genererApercu = () => {
+    if (selectionType === "questions") { setPreview(pool); return; }
+    const n = Math.min(nb, pool.length); setPreview(shuffle(pool).slice(0, n));
+  };
   const previewLangues = useMemo(() => preview ? resolveQuestionLangues(langueMode, selectedEleve?.langue || "fr", preview.length) : [], [preview, langueMode, selectedEleve]);
   const attribuer = () => {
     if (!eleveId || pool.length === 0) return;
-    const chosen = preview || shuffle(pool).slice(0, Math.min(nb, pool.length));
-    const categoriesUtilisees = mode === "aleatoire" || cats.length === 0 ? allowedCats : cats;
+    const chosen = preview || (selectionType === "questions" ? pool : shuffle(pool).slice(0, Math.min(nb, pool.length)));
+    const categoriesUtilisees = selectionType === "questions"
+      ? Array.from(new Set(chosen.flatMap(q => q.categories || [])))
+      : (selectionType === "aleatoire" || cats.length === 0 ? allowedCats : cats);
     const now = new Date();
     const finalTitre = titre.trim() || `Questionnaire du ${now.toLocaleDateString("fr-FR")} à ${now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
     const questionLangues = resolveQuestionLangues(langueMode, selectedEleve?.langue || "fr", chosen.length);
     setQuestionnaires([...questionnaires, { id: genId("qn"), eleveId, titre: finalTitre, categories: categoriesUtilisees, mode, nbQuestions: chosen.length, questionIds: chosen.map(q => q.id), questionLangues, langueMode, dateAttribution: new Date().toISOString().slice(0, 10), statut: "en cours", reponses: null, scoreParCategorie: null, scoreGlobal: null, luConfirme: false }]);
     const eleve = eleves.find(e => e.id === eleveId);
     setSuccessMsg(t("qn_attribue_msg", { titre: finalTitre, nom: `${eleve?.prenom} ${eleve?.nom}` }));
-    setPreview(null); setTitre("");
+    setPreview(null); setTitre(""); setSelectedQuestionIds([]);
   };
   return (
     <div>
@@ -113,13 +129,30 @@ export function AttribuerQuestionnaire({ eleves, questions, setQuestionnaires, q
         </Field>
         <Field label={t("selection_categories_label")} hint={t("categories_role_hint", { role: fonctionLabel(eleveFonction, lang) })}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", border: `1px solid ${mode === "aleatoire" ? C.gold : C.line}`, borderRadius: 8, background: mode === "aleatoire" ? C.goldSoft : "#fff", cursor: "pointer" }}><input type="radio" checked={mode === "aleatoire"} onChange={() => { setMode("aleatoire"); setCats([]); }} /><Shuffle size={14} /> {t("mode_aleatoire")}</label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", border: `1px solid ${mode === "cible" ? C.navy : C.line}`, borderRadius: 8, cursor: "pointer" }}><input type="radio" checked={mode === "cible"} onChange={() => setMode("cible")} /><Filter size={14} /> {t("mode_cible")}</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", border: `1px solid ${selectionType === "aleatoire" ? C.gold : C.line}`, borderRadius: 8, background: selectionType === "aleatoire" ? C.goldSoft : "#fff", cursor: "pointer" }}><input type="radio" checked={selectionType === "aleatoire"} onChange={() => { setSelectionType("aleatoire"); setCats([]); setSelectedQuestionIds([]); }} /><Shuffle size={14} /> {t("mode_aleatoire")}</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", border: `1px solid ${selectionType === "categories" ? C.navy : C.line}`, borderRadius: 8, cursor: "pointer" }}><input type="radio" checked={selectionType === "categories"} onChange={() => { setSelectionType("categories"); setSelectedQuestionIds([]); }} /><Filter size={14} /> {t("mode_cible")}</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", border: `1px solid ${selectionType === "questions" ? C.navy : C.line}`, borderRadius: 8, cursor: "pointer" }}><input type="radio" checked={selectionType === "questions"} onChange={() => { setSelectionType("questions"); setCats([]); }} /><ListChecksIcon size={14} /> {t("mode_questions_ciblees")}</label>
           </div>
-          {mode === "cible" && (
+          {selectionType === "categories" && (
             allowedCats.length === 0
               ? <div style={{ fontSize: 12.5, color: C.red, marginTop: 8 }}>{t("aucune_categorie_role", { role: fonctionLabel(eleveFonction, lang) })}</div>
               : <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>{allowedCats.map(c => <button key={c} type="button" onClick={() => toggleCat(c)} style={{ padding: "5px 11px", borderRadius: 16, border: `1px solid ${cats.includes(c) ? C.navy : C.line}`, background: cats.includes(c) ? C.navy : "#fff", color: cats.includes(c) ? "#fff" : C.ink, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{c}</button>)}</div>
+          )}
+          {selectionType === "questions" && (
+            <div style={{ marginTop: 10 }}>
+              <input style={{ ...inputStyle, marginBottom: 8 }} placeholder={t("rechercher_question_placeholder")} value={rechercheQuestion} onChange={e => setRechercheQuestion(e.target.value)} />
+              <div style={{ maxHeight: 260, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4, border: `1px solid ${C.line}`, borderRadius: 8, padding: 6 }}>
+                {questionsSelectionnables.length === 0 && <div style={{ fontSize: 12.5, color: C.inkSoft, padding: 8 }}>{t("aucune_question_trouvee")}</div>}
+                {questionsSelectionnables.map(q => (
+                  <label key={q.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "6px 8px", borderRadius: 6, cursor: "pointer", background: selectedQuestionIds.includes(q.id) ? C.bg : "transparent" }}>
+                    <input type="checkbox" checked={selectedQuestionIds.includes(q.id)} onChange={() => setSelectedQuestionIds(ids => ids.includes(q.id) ? ids.filter(x => x !== q.id) : [...ids, q.id])} />
+                    {typeof q.numero === "number" && <span style={{ fontFamily: FONT_MONO, fontSize: 10.5, fontWeight: 700, color: "#fff", background: C.navy2, borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>#{q.numero}</span>}
+                    <span style={{ flex: 1 }}>{qText(q, lang)}</span>
+                  </label>
+                ))}
+              </div>
+              {selectedQuestionIds.length > 0 && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 6 }}>{t("questions_selectionnees_n", { n: selectedQuestionIds.length })}</div>}
+            </div>
           )}
         </Field>
         <Field label={t("repetitions_label")} hint={eleveId ? t("deja_attribuees_hint", { n: alreadyAskedCount }) : null}>
@@ -127,7 +160,7 @@ export function AttribuerQuestionnaire({ eleves, questions, setQuestionnaires, q
             <input type="checkbox" checked={avoidRepeats} onChange={e => setAvoidRepeats(e.target.checked)} disabled={!eleveId} /> {t("ne_pas_reattribuer")}
           </label>
         </Field>
-        <Field label={t("nb_questions_label", { n: pool.length })}><input type="number" min={1} max={pool.length || 1} style={inputStyle} value={nb} onChange={e => setNb(Number(e.target.value))} /></Field>
+        {selectionType !== "questions" && <Field label={t("nb_questions_label", { n: pool.length })}><input type="number" min={1} max={pool.length || 1} style={inputStyle} value={nb} onChange={e => setNb(Number(e.target.value))} /></Field>}
         <Btn variant="ghost" icon={Eye} onClick={genererApercu} style={{ width: "100%", justifyContent: "center", marginBottom: 8 }} disabled={pool.length === 0}>{t("generer_apercu")}</Btn>
         <Btn variant="primary" icon={BadgeCheck} onClick={attribuer} style={{ width: "100%", justifyContent: "center" }} disabled={!eleveId || pool.length === 0}>{t("attribuer_eleve")}</Btn>
       </div>
