@@ -66,8 +66,14 @@ export function Apercu({ users, questions, questionnaires, setQuestionnaires, ca
   const { t } = useLang();
   const [reviewing, setReviewing] = useState(null);
   const [dtmRecord, setDtmRecord] = useState(null);
+  const [dtmRecordHard, setDtmRecordHard] = useState(null);
+  const [dtmRecordTel, setDtmRecordTel] = useState(null);
+  const [dtmRecordTelHard, setDtmRecordTelHard] = useState(null);
   useEffect(() => {
     supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
+    supabase.rpc("get_station_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordHard(data[0]); });
+    supabase.rpc("get_phone_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecordTel(data[0]); });
+    supabase.rpc("get_phone_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordTelHard(data[0]); });
   }, []);
   const eleves = users.filter(u => u.role === "eleve");
   const aValider = questionnaires.filter(q => q.statut === "en attente de validation");
@@ -98,14 +104,21 @@ export function Apercu({ users, questions, questionnaires, setQuestionnaires, ca
         <StatCard label={t("stat_qn_attribues")} value={questionnaires.length} />
         <StatCard label={t("stat_a_valider")} value={aValider.length} accent={aValider.length ? C.gold : C.navy} />
       </div>
-      {dtmRecord && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px", marginBottom: 24 }}>
-          <Gamepad2 size={16} color={C.gold} />
-          <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t("record_dtm_label")}</span>
-          <span style={{ fontFamily: FONT_MONO, fontWeight: 700, color: C.navy }}>{dtmRecord.score}</span>
-          <span style={{ fontSize: 12.5, color: C.inkSoft }}>— {dtmRecord.prenom} {dtmRecord.nom}</span>
-        </div>
-      )}
+      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+        {[
+          { record: dtmRecord, jeu: t("jeu_stations_titre"), diff: t("mode_chrono_titre") },
+          { record: dtmRecordHard, jeu: t("jeu_stations_titre"), diff: t("difficulte_hard") },
+          { record: dtmRecordTel, jeu: t("jeu_telephones_titre"), diff: t("mode_chrono_titre") },
+          { record: dtmRecordTelHard, jeu: t("jeu_telephones_titre"), diff: t("difficulte_hard") },
+        ].filter(e => e.record).map((e, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
+            <Gamepad2 size={16} color={C.gold} />
+            <span style={{ fontSize: 12.5, color: C.inkSoft }}>{e.jeu} — {e.diff} — {t("record_dtm_label")}</span>
+            <span style={{ fontFamily: FONT_MONO, fontWeight: 700, color: C.navy }}>{e.record.score}</span>
+            <span style={{ fontSize: 12.5, color: C.inkSoft }}>— {e.record.prenom} {e.record.nom}</span>
+          </div>
+        ))}
+      </div>
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
         <SectionTitle>{t("reussite_globale_titre")}</SectionTitle>
         <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 8 }}>{t("reussite_globale_sub")}</div>

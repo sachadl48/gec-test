@@ -16,44 +16,69 @@ export function pickDistractors(correctStation, count) {
   const pool = STATIONS.filter(s => s.numero !== correctStation.numero);
   return [...pool].sort(() => Math.random() - 0.5).slice(0, count);
 }
-export function generateStationQuestion() {
+// Mode "Hard" : les mauvaises réponses sont les stations dont le numéro
+// est le plus proche du bon — beaucoup plus difficile à deviner par
+// élimination que des numéros pris au hasard dans tout le réseau.
+export function pickDistractorsProches(correctStation, count) {
+  const pool = STATIONS.filter(s => s.numero !== correctStation.numero);
+  return [...pool]
+    .sort((a, b) => Math.abs(a.numero - correctStation.numero) - Math.abs(b.numero - correctStation.numero))
+    .slice(0, count);
+}
+export function generateStationQuestion(hard = false) {
   const correct = STATIONS[Math.floor(Math.random() * STATIONS.length)];
   const direction = Math.random() < 0.5 ? "numToName" : "nameToNum";
   const displayLang = Math.random() < 0.5 ? "fr" : "nl";
-  const optionStations = [correct, ...pickDistractors(correct, 3)].sort(() => Math.random() - 0.5);
+  const distractors = hard ? pickDistractorsProches(correct, 3) : pickDistractors(correct, 3);
+  const optionStations = [correct, ...distractors].sort(() => Math.random() - 0.5);
   return { direction, displayLang, correct, options: optionStations, correctIndex: optionStations.findIndex(s => s.numero === correct.numero) };
 }
 export const CHRONO_DUREE = 60;
-export function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
+export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onExit }) {
   const { t, lang } = useLang();
   const [mode, setMode] = useState(null); // null | "libre" | "chrono"
+  const [difficulte, setDifficulte] = useState("facile"); // "facile" | "hard"
+  const [showListe, setShowListe] = useState(false);
   const [question, setQuestion] = useState(null);
   const [score, setScore] = useState(0);
   const [total, setTotal] = useState(0);
   const [feedback, setFeedback] = useState(null); // { correct, selectedIndex } | null
   const [timeLeft, setTimeLeft] = useState(CHRONO_DUREE);
   const [finished, setFinished] = useState(false);
-  const meilleurScore = user.jeuStationsMeilleurScore || 0;
-  const dtmBest = dtmRecord ? dtmRecord.score : 0;
+  // Le mode libre reste toujours "facile" (voir startMode) — donc seul le
+  // chronométré peut réellement être en Hard, mais sur l'écran de choix
+  // (mode encore à null), on reflète directement le sélecteur affiché.
+  const hardContext = mode === "libre" ? false : difficulte === "hard";
+  const meilleurScore = hardContext ? (user.jeuStationsMeilleurScoreHard || 0) : (user.jeuStationsMeilleurScore || 0);
+  const currentDtmRecord = hardContext ? dtmRecordHard : dtmRecord;
+  const dtmBest = currentDtmRecord ? currentDtmRecord.score : 0;
   const RecordBanner = () => (
-    <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 18, fontSize: 12.5 }}>
-      <span style={{ color: C.inkSoft }}>{t("record_personnel_label")} <strong style={{ color: C.navy, fontFamily: FONT_MONO }}>{meilleurScore}</strong></span>
-      <span style={{ color: C.inkSoft }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBest}</strong>{dtmRecord && <span> ({dtmRecord.prenom} {dtmRecord.nom})</span>}</span>
+    <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 18, fontSize: 12 }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.navy, marginBottom: 3, textTransform: "uppercase", letterSpacing: ".03em" }}>{t("mode_chrono_titre")}</div>
+        <div style={{ color: C.inkSoft }}>{t("record_personnel_label")} <strong style={{ color: C.navy, fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScore || 0}</strong></div>
+        <div style={{ color: C.inkSoft }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecord ? dtmRecord.score : 0}</strong>{dtmRecord && <span> ({dtmRecord.prenom} {dtmRecord.nom})</span>}</div>
+      </div>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 3, textTransform: "uppercase", letterSpacing: ".03em" }}>{t("difficulte_hard")}</div>
+        <div style={{ color: C.inkSoft }}>{t("record_personnel_label")} <strong style={{ color: C.navy, fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScoreHard || 0}</strong></div>
+        <div style={{ color: C.inkSoft }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecordHard ? dtmRecordHard.score : 0}</strong>{dtmRecordHard && <span> ({dtmRecordHard.prenom} {dtmRecordHard.nom})</span>}</div>
+      </div>
     </div>
   );
 
-  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generateStationQuestion()); };
+  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); const dif = m === "libre" ? "facile" : difficulte; setQuestion(generateStationQuestion(dif === "hard")); };
 
   useEffect(() => {
     if (mode !== "chrono" || finished) return;
     if (timeLeft <= 0) {
       setFinished(true);
-      if (score > meilleurScore) supabase.rpc("update_my_station_score", { new_score: score }).then(({ error }) => { if (!error) setUsers(); });
+      if (score > meilleurScore) supabase.rpc("update_my_station_score", { new_score: score, hard: hardContext }).then(({ error }) => { if (!error) setUsers(); });
       return;
     }
     const id = setTimeout(() => setTimeLeft(s => s - 1), 1000);
     return () => clearTimeout(id);
-  }, [mode, timeLeft, finished]);
+  }, [mode, timeLeft, finished]); // eslint-disable-line
 
   const answer = (i) => {
     if (feedback) return;
@@ -64,7 +89,7 @@ export function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
     setTimeout(() => {
       setFeedback(null);
       if (mode === "chrono" && timeLeft <= 1) return; // le minuteur gère la fin
-      setQuestion(generateStationQuestion());
+      setQuestion(generateStationQuestion(mode === "chrono" && difficulte === "hard"));
     }, 550);
   };
 
@@ -80,6 +105,11 @@ export function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
         <div style={{ maxWidth: 560, margin: "0 auto" }}>
           <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 12, textAlign: "center" }}>{t("jeu_stations_intro")}</div>
           <RecordBanner />
+          <div style={{ fontSize: 11, color: C.inkSoft, textAlign: "center", marginBottom: 6 }}>{t("difficulte_chrono_uniquement")}</div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }}>
+            <button onClick={() => setDifficulte("facile")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${difficulte === "facile" ? C.navy : C.line}`, background: difficulte === "facile" ? C.navy : "#fff", color: difficulte === "facile" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("difficulte_facile")}</button>
+            <button onClick={() => setDifficulte("hard")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${difficulte === "hard" ? C.red : C.line}`, background: difficulte === "hard" ? C.red : "#fff", color: difficulte === "hard" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("difficulte_hard")}</button>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <button onClick={() => startMode("libre")} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_libre_titre")}</div>
@@ -90,6 +120,31 @@ export function StationGame({ user, users, setUsers, dtmRecord, onExit }) {
             <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_chrono_desc", { n: CHRONO_DUREE })}</div>
           </button>
           </div>
+          <div style={{ textAlign: "center", marginTop: 18 }}>
+            <Btn variant="ghost" onClick={() => setShowListe(s => !s)}>{showListe ? t("masquer_liste_btn") : t("voir_liste_stations_btn")}</Btn>
+          </div>
+          {showListe && (
+            <div style={{ marginTop: 14, maxHeight: 320, overflowY: "auto", border: `1px solid ${C.line}`, borderRadius: 10, background: "#fff" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                <thead style={{ position: "sticky", top: 0, background: C.bg }}>
+                  <tr>
+                    <th style={{ textAlign: "left", padding: "8px 12px", color: C.inkSoft, fontWeight: 600 }}>{t("numero_word")}</th>
+                    <th style={{ textAlign: "left", padding: "8px 12px", color: C.inkSoft, fontWeight: 600 }}>FR</th>
+                    <th style={{ textAlign: "left", padding: "8px 12px", color: C.inkSoft, fontWeight: 600 }}>NL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...STATIONS].sort((a, b) => a.numero - b.numero).map(s => (
+                    <tr key={s.numero} style={{ borderTop: `1px solid ${C.line}` }}>
+                      <td style={{ padding: "6px 12px", fontFamily: FONT_MONO, fontWeight: 700, color: C.navy }}>{s.numero}</td>
+                      <td style={{ padding: "6px 12px" }}>{s.fr}</td>
+                      <td style={{ padding: "6px 12px", color: C.inkSoft }}>{s.nl}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     );

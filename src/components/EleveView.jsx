@@ -15,6 +15,7 @@ import {
 import { ExamIntro } from "./ExamIntro.jsx";
 import { ExamMode } from "./ExamMode.jsx";
 import { StationGame } from "./StationGame.jsx";
+import { PhoneGame } from "./PhoneGame.jsx";
 import { AnalysisView } from "./GestionQuestionnaires.jsx";
 
 // Vue "élève" (opérateur) : questionnaires en cours/à faire, points
@@ -29,9 +30,13 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
   const [examStarted, setExamStarted] = useState(false);
   const [viewing, setViewing] = useState(null);
   const [showGame, setShowGame] = useState(false);
+  const [showPhoneGame, setShowPhoneGame] = useState(false);
   const [activeQuestions, setActiveQuestions] = useState(null);
   const [fetchError, setFetchError] = useState("");
   const [dtmRecord, setDtmRecord] = useState(null);
+  const [dtmRecordHard, setDtmRecordHard] = useState(null);
+  const [dtmRecordTel, setDtmRecordTel] = useState(null);
+  const [dtmRecordTelHard, setDtmRecordTelHard] = useState(null);
   const [notesObligatoires, setNotesObligatoires] = useState([]);
   const [readingNote, setReadingNote] = useState(null); // { note, url } | null
   const [noteError, setNoteError] = useState("");
@@ -78,8 +83,12 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
 
   useEffect(() => {
     supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
+    supabase.rpc("get_station_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordHard(data[0]); });
+    supabase.rpc("get_phone_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecordTel(data[0]); });
+    supabase.rpc("get_phone_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordTelHard(data[0]); });
   }, []);
   const dtmBest = dtmRecord ? dtmRecord.score : 0;
+  const dtmBestTel = dtmRecordTel ? dtmRecordTel.score : 0;
   const mine = questionnaires.filter(q => q.eleveId === user.id && !q.supprime);
   const graded = mine.filter(q => q.statut === "validé" && !q.supprime);
   const catStats = computeCategoryStats(graded, categories);
@@ -162,7 +171,17 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
       <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
         <Header user={user} onLogout={onLogout} />
         <div style={{ padding: "24px 28px" }}>
-          <StationGame user={user} users={users} setUsers={setUsers} dtmRecord={dtmRecord} onExit={() => setShowGame(false)} />
+          <StationGame user={user} users={users} setUsers={setUsers} dtmRecord={dtmRecord} dtmRecordHard={dtmRecordHard} onExit={() => setShowGame(false)} />
+        </div>
+      </div>
+    );
+  }
+  if (showPhoneGame) {
+    return (
+      <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
+        <Header user={user} onLogout={onLogout} />
+        <div style={{ padding: "24px 28px" }}>
+          <PhoneGame user={user} users={users} setUsers={setUsers} dtmRecord={dtmRecordTel} dtmRecordHard={dtmRecordTelHard} onExit={() => setShowPhoneGame(false)} />
         </div>
       </div>
     );
@@ -210,16 +229,28 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
             )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <button onClick={() => setShowGame(true)} style={{ background: C.navy, borderRadius: 14, border: "none", padding: 20, cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>
-              <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={20} color={C.gold} /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, fontWeight: 700, color: "#fff" }}>{t("jeu_stations_titre")}</div>
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 4 }}>
-                  <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.65)" }}>{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScore || 0}</strong></span>
-                  <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.65)" }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBest}</strong>{dtmRecord && <span> ({dtmRecord.prenom} {dtmRecord.nom})</span>}</span>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => setShowGame(true)} style={{ flex: 1, background: C.navy, borderRadius: 14, border: "none", padding: 18, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={18} color={C.gold} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("jeu_stations_titre")}</div>
+                  <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScore || 0}</strong></span>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBest}</strong></span>
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              <button onClick={() => setShowPhoneGame(true)} style={{ flex: 1, background: C.navy, borderRadius: 14, border: "none", padding: 18, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={18} color={C.gold} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("jeu_telephones_titre")}</div>
+                  <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuTelephonesMeilleurScore || 0}</strong></span>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBestTel}</strong></span>
+                  </div>
+                </div>
+              </button>
+            </div>
             <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22 }}>
               <SectionTitle>{t("strengths_weaknesses")}</SectionTitle>
               {graded.length > 0 ? (
