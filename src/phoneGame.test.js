@@ -30,12 +30,12 @@ describe("pickPhoneDistractorsProches (mode Hard, numéros les plus proches DANS
     expect(distractors.every(s => !!s.pax)).toBe(true);
   });
   it("choisit bien les numéros les plus proches parmi ceux du même système", () => {
-    const service = TELEPHONES.find(s => s.stento);
-    const correctNum = parseInt(service.stento, 10);
-    const distractors = pickPhoneDistractorsProches(service, "stento", 3);
-    const distances = distractors.map(s => Math.abs(parseInt(s.stento, 10) - correctNum));
-    const autres = TELEPHONES.filter(s => s.stento && s.serviceFr !== service.serviceFr && !distractors.includes(s));
-    const autresDistances = autres.map(s => Math.abs(parseInt(s.stento, 10) - correctNum));
+    const service = TELEPHONES.find(s => s.sisco);
+    const correctNum = parseInt(service.sisco, 10);
+    const distractors = pickPhoneDistractorsProches(service, "sisco", 3);
+    const distances = distractors.map(s => Math.abs(parseInt(s.sisco, 10) - correctNum));
+    const autres = TELEPHONES.filter(s => s.sisco && s.serviceFr !== service.serviceFr && !distractors.includes(s));
+    const autresDistances = autres.map(s => Math.abs(parseInt(s.sisco, 10) - correctNum));
     const maxChoisi = Math.max(...distances);
     const minRestant = autresDistances.length ? Math.min(...autresDistances) : Infinity;
     expect(maxChoisi).toBeLessThanOrEqual(minRestant);

@@ -70,10 +70,15 @@ export function Apercu({ users, questions, questionnaires, setQuestionnaires, ca
   const [dtmRecordTel, setDtmRecordTel] = useState(null);
   const [dtmRecordTelHard, setDtmRecordTelHard] = useState(null);
   useEffect(() => {
-    supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
-    supabase.rpc("get_station_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordHard(data[0]); });
-    supabase.rpc("get_phone_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecordTel(data[0]); });
-    supabase.rpc("get_phone_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordTelHard(data[0]); });
+    const refresh = () => {
+      supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
+      supabase.rpc("get_station_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordHard(data[0]); });
+      supabase.rpc("get_phone_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecordTel(data[0]); });
+      supabase.rpc("get_phone_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordTelHard(data[0]); });
+    };
+    refresh();
+    const id = setInterval(refresh, 20000);
+    return () => clearInterval(id);
   }, []);
   const eleves = users.filter(u => u.role === "eleve");
   const aValider = questionnaires.filter(q => q.statut === "en attente de validation");
@@ -104,18 +109,20 @@ export function Apercu({ users, questions, questionnaires, setQuestionnaires, ca
         <StatCard label={t("stat_qn_attribues")} value={questionnaires.length} />
         <StatCard label={t("stat_a_valider")} value={aValider.length} accent={aValider.length ? C.gold : C.navy} />
       </div>
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
         {[
-          { record: dtmRecord, jeu: t("jeu_stations_titre"), diff: t("mode_chrono_titre") },
-          { record: dtmRecordHard, jeu: t("jeu_stations_titre"), diff: t("difficulte_hard") },
-          { record: dtmRecordTel, jeu: t("jeu_telephones_titre"), diff: t("mode_chrono_titre") },
-          { record: dtmRecordTelHard, jeu: t("jeu_telephones_titre"), diff: t("difficulte_hard") },
-        ].filter(e => e.record).map((e, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
+          { titre: t("jeu_stations_titre"), normal: dtmRecord, hard: dtmRecordHard },
+          { titre: t("jeu_telephones_titre"), normal: dtmRecordTel, hard: dtmRecordTelHard },
+        ].map((jeu, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
             <Gamepad2 size={16} color={C.gold} />
-            <span style={{ fontSize: 12.5, color: C.inkSoft }}>{e.jeu} — {e.diff} — {t("record_dtm_label")}</span>
-            <span style={{ fontFamily: FONT_MONO, fontWeight: 700, color: C.navy }}>{e.record.score}</span>
-            <span style={{ fontSize: 12.5, color: C.inkSoft }}>— {e.record.prenom} {e.record.nom}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy }}>{jeu.titre}</span>
+            <div style={{ fontSize: 12, color: C.inkSoft }}>
+              {t("mode_chrono_titre")} — {t("record_dtm_label")} <strong style={{ fontFamily: FONT_MONO, color: C.navy }}>{jeu.normal ? jeu.normal.score : 0}</strong>{jeu.normal && <span> ({jeu.normal.prenom} {jeu.normal.nom})</span>}
+            </div>
+            <div style={{ fontSize: 12, color: C.inkSoft }}>
+              {t("difficulte_hard")} — {t("record_dtm_label")} <strong style={{ fontFamily: FONT_MONO, color: C.navy }}>{jeu.hard ? jeu.hard.score : 0}</strong>{jeu.hard && <span> ({jeu.hard.prenom} {jeu.hard.nom})</span>}
+            </div>
           </div>
         ))}
       </div>

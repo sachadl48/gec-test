@@ -7,12 +7,12 @@ import { TELEPHONES } from "../data/telephones.js";
 import { Btn, Badge } from "./atoms.jsx";
 
 // Jeu des téléphones : associer un service et son numéro interne, dans
-// l'un des 3 systèmes (PAX, SISCO, Stento) — trois numérotations
+// l'un des 2 systèmes (PAX, SISCO) — deux numérotations
 // indépendantes, jamais comparables entre elles.
 // Records séparés Normal/Hard, comme pour le jeu des stations (schéma 27).
 
-export const TELEPHONE_TYPES = ["pax", "sisco", "stento"];
-export const TYPE_LABELS = { pax: "PAX", sisco: "SISCO", stento: "Stento" };
+export const TELEPHONE_TYPES = ["pax", "sisco"];
+export const TYPE_LABELS = { pax: "PAX", sisco: "SISCO" };
 
 export function serviceName(service, langue) { return langue === "nl" ? service.serviceNl : service.serviceFr; }
 
@@ -32,7 +32,7 @@ export function pickPhoneDistractors(service, type, count) {
 }
 // Mode Hard : les mauvaises réponses sont les numéros les plus proches du
 // bon, DANS LE MÊME SYSTÈME uniquement (jamais un numéro PAX proposé
-// comme distracteur d'un numéro Stento — les échelles n'ont rien à voir).
+// comme distracteur d'un numéro SISCO — les échelles n'ont rien à voir).
 export function pickPhoneDistractorsProches(service, type, count) {
   const pool = TELEPHONES.filter(s => s[type] && s.serviceFr !== service.serviceFr);
   const correctNum = parseInt(service[type], 10);
@@ -53,7 +53,7 @@ export function generatePhoneQuestion(hard = false) {
 
 export const CHRONO_DUREE = 60;
 
-export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onExit }) {
+export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onExit, refreshLeaderboards }) {
   const { t, lang } = useLang();
   const [mode, setMode] = useState(null); // null | "normale" | "chrono" | "chrono_hard"
   const [question, setQuestion] = useState(null);
@@ -89,12 +89,13 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
   );
 
   const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generatePhoneQuestion(m === "chrono_hard")); };
+  const backToMenu = () => { setMode(null); if (refreshLeaderboards) refreshLeaderboards(); };
 
   useEffect(() => {
     if (!isChrono || finished) return;
     if (timeLeft <= 0) {
       setFinished(true);
-      if (score > meilleurScore) supabase.rpc("update_my_phone_score", { new_score: score, hard: isHard }).then(({ error }) => { if (!error) setUsers(); });
+      if (score > meilleurScore) supabase.rpc("update_my_phone_score", { new_score: score, hard: isHard }).then(({ error }) => { if (!error) { setUsers(); if (refreshLeaderboards) refreshLeaderboards(); } });
       return;
     }
     const id = setTimeout(() => setTimeLeft(s => s - 1), 1000);
@@ -152,7 +153,6 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
                     <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>NL</th>
                     <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>PAX</th>
                     <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>SISCO</th>
-                    <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>Stento</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -162,7 +162,6 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
                       <td style={{ padding: "6px 10px", color: C.inkSoft }}>{s.serviceNl}</td>
                       <td style={{ padding: "6px 10px", fontFamily: FONT_MONO, color: s.pax ? C.navy : C.line }}>{s.pax || "—"}</td>
                       <td style={{ padding: "6px 10px", fontFamily: FONT_MONO, color: s.sisco ? C.navy : C.line }}>{s.sisco || "—"}</td>
-                      <td style={{ padding: "6px 10px", fontFamily: FONT_MONO, color: s.stento ? C.navy : C.line }}>{s.stento || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -185,7 +184,7 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
           {isNewBest && <Badge color={C.gold} bg={C.goldSoft}>{t("nouveau_record_badge")}</Badge>}
           {isChrono && !isNewBest && meilleurScore > 0 && <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 6 }}>{t("meilleur_score_badge", { n: meilleurScore })}</div>}
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 24 }}>
-            <Btn variant="ghost" onClick={() => setMode(null)}>{t("retour_btn")}</Btn>
+            <Btn variant="ghost" onClick={backToMenu}>{t("retour_btn")}</Btn>
             <Btn variant="gold" icon={PlayCircle} onClick={() => startMode(mode)}>{t("rejouer_btn")}</Btn>
           </div>
         </div>
@@ -207,10 +206,13 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
       <RecordBanner />
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16, padding: 28 }}>
         <div style={{ fontSize: 11.5, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 10, textAlign: "center" }}>
-          {question.direction === "numToService" ? t("question_num_to_service", { type: typeLabel }) : t("question_service_to_num", { type: typeLabel })}
+          {question.direction === "numToService" ? t("question_num_to_service_court") : t("question_service_to_num_court")}
         </div>
-        <div style={{ fontSize: question.direction === "numToService" ? 30 : 22, fontWeight: 700, color: C.navy, textAlign: "center", marginBottom: 24, fontFamily: question.direction === "numToService" ? FONT_MONO : FONT_DISPLAY }}>
-          {question.direction === "numToService" ? question.correct[question.type] : serviceName(question.correct, question.displayLang)}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 24 }}>
+          <span style={{ fontSize: question.direction === "numToService" ? 30 : 22, fontWeight: 700, color: C.navy, fontFamily: question.direction === "numToService" ? FONT_MONO : FONT_DISPLAY }}>
+            {question.direction === "numToService" ? question.correct[question.type] : serviceName(question.correct, question.displayLang)}
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: "#fff", background: C.navy, borderRadius: 7, padding: "4px 9px", fontFamily: FONT_MONO, flexShrink: 0 }}>{typeLabel}</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {question.options.map((opt, i) => {

@@ -6,10 +6,9 @@ import { supabase } from "../lib/supabaseClient.js";
 import { STATIONS } from "../data/stations.js";
 import { Btn, Badge } from "./atoms.jsx";
 
-// Jeu des stations : associer numéro et nom de station STIB, en mode
-// libre ou chronométré (60 secondes).
-// Extrait de App.jsx dans le cadre du découpage du fichier principal en
-// modules plus petits — aucun changement de contenu, uniquement déplacé.
+// Jeu des stations : associer numéro et nom de station STIB. Menu à 3
+// modes (Normal / Chrono / Chrono Hard), identique visuellement au jeu
+// des téléphones.
 
 export function stationName(station, langue) { return langue === "nl" ? station.nl : station.fr; }
 export function pickDistractors(correctStation, count) {
@@ -34,24 +33,22 @@ export function generateStationQuestion(hard = false) {
   return { direction, displayLang, correct, options: optionStations, correctIndex: optionStations.findIndex(s => s.numero === correct.numero) };
 }
 export const CHRONO_DUREE = 60;
-export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onExit }) {
+
+export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onExit, refreshLeaderboards }) {
   const { t, lang } = useLang();
-  const [mode, setMode] = useState(null); // null | "libre" | "chrono"
-  const [difficulte, setDifficulte] = useState("facile"); // "facile" | "hard"
+  const [mode, setMode] = useState(null); // null | "normale" | "chrono" | "chrono_hard"
   const [showListe, setShowListe] = useState(false);
   const [question, setQuestion] = useState(null);
   const [score, setScore] = useState(0);
   const [total, setTotal] = useState(0);
-  const [feedback, setFeedback] = useState(null); // { correct, selectedIndex } | null
+  const [feedback, setFeedback] = useState(null);
   const [timeLeft, setTimeLeft] = useState(CHRONO_DUREE);
   const [finished, setFinished] = useState(false);
-  // Le mode libre reste toujours "facile" (voir startMode) — donc seul le
-  // chronométré peut réellement être en Hard, mais sur l'écran de choix
-  // (mode encore à null), on reflète directement le sélecteur affiché.
-  const hardContext = mode === "libre" ? false : difficulte === "hard";
-  const meilleurScore = hardContext ? (user.jeuStationsMeilleurScoreHard || 0) : (user.jeuStationsMeilleurScore || 0);
-  const currentDtmRecord = hardContext ? dtmRecordHard : dtmRecord;
-  const dtmBest = currentDtmRecord ? currentDtmRecord.score : 0;
+  const isChrono = mode === "chrono" || mode === "chrono_hard";
+  const isHard = mode === "chrono_hard";
+  const meilleurScore = (isHard ? user.jeuStationsMeilleurScoreHard : user.jeuStationsMeilleurScore) || 0;
+  const currentDtmRecord = isHard ? dtmRecordHard : dtmRecord;
+
   const RecordBanner = () => (
     <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 18, fontSize: 12 }}>
       <div>
@@ -67,13 +64,14 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
     </div>
   );
 
-  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); const dif = m === "libre" ? "facile" : difficulte; setQuestion(generateStationQuestion(dif === "hard")); };
+  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generateStationQuestion(m === "chrono_hard")); };
+  const backToMenu = () => { setMode(null); if (refreshLeaderboards) refreshLeaderboards(); };
 
   useEffect(() => {
-    if (mode !== "chrono" || finished) return;
+    if (!isChrono || finished) return;
     if (timeLeft <= 0) {
       setFinished(true);
-      if (score > meilleurScore) supabase.rpc("update_my_station_score", { new_score: score, hard: hardContext }).then(({ error }) => { if (!error) setUsers(); });
+      if (score > meilleurScore) supabase.rpc("update_my_station_score", { new_score: score, hard: isHard }).then(({ error }) => { if (!error) { setUsers(); if (refreshLeaderboards) refreshLeaderboards(); } });
       return;
     }
     const id = setTimeout(() => setTimeLeft(s => s - 1), 1000);
@@ -88,8 +86,8 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
     if (correct) setScore(s => s + 1);
     setTimeout(() => {
       setFeedback(null);
-      if (mode === "chrono" && timeLeft <= 1) return; // le minuteur gère la fin
-      setQuestion(generateStationQuestion(mode === "chrono" && difficulte === "hard"));
+      if (isChrono && timeLeft <= 1) return;
+      setQuestion(generateStationQuestion(isHard));
     }, 550);
   };
 
@@ -105,20 +103,19 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
         <div style={{ maxWidth: 560, margin: "0 auto" }}>
           <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 12, textAlign: "center" }}>{t("jeu_stations_intro")}</div>
           <RecordBanner />
-          <div style={{ fontSize: 11, color: C.inkSoft, textAlign: "center", marginBottom: 6 }}>{t("difficulte_chrono_uniquement")}</div>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }}>
-            <button onClick={() => setDifficulte("facile")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${difficulte === "facile" ? C.navy : C.line}`, background: difficulte === "facile" ? C.navy : "#fff", color: difficulte === "facile" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("difficulte_facile")}</button>
-            <button onClick={() => setDifficulte("hard")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${difficulte === "hard" ? C.red : C.line}`, background: difficulte === "hard" ? C.red : "#fff", color: difficulte === "hard" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("difficulte_hard")}</button>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <button onClick={() => startMode("libre")} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_libre_titre")}</div>
-            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_libre_desc")}</div>
-          </button>
-          <button onClick={() => startMode("chrono")} style={{ background: "#fff", border: `1px solid ${C.gold}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_chrono_titre")}</div>
-            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_chrono_desc", { n: CHRONO_DUREE })}</div>
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <button onClick={() => startMode("normale")} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_normale_titre")}</div>
+              <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_normale_desc_stations")}</div>
+            </button>
+            <button onClick={() => startMode("chrono")} style={{ background: "#fff", border: `1px solid ${C.gold}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_chrono_titre")}</div>
+              <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_chrono_desc", { n: CHRONO_DUREE })}</div>
+            </button>
+            <button onClick={() => startMode("chrono_hard")} style={{ background: "#fff", border: `1px solid ${C.red}`, borderRadius: 14, padding: 22, textAlign: "left", cursor: "pointer" }}>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("mode_chrono_hard_titre")}</div>
+              <div style={{ fontSize: 12.5, color: C.inkSoft }}>{t("mode_chrono_hard_desc_stations", { n: CHRONO_DUREE })}</div>
+            </button>
           </div>
           <div style={{ textAlign: "center", marginTop: 18 }}>
             <Btn variant="ghost" onClick={() => setShowListe(s => !s)}>{showListe ? t("masquer_liste_btn") : t("voir_liste_stations_btn")}</Btn>
@@ -151,7 +148,7 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
   }
 
   if (finished) {
-    const isNewBest = mode === "chrono" && score > meilleurScore;
+    const isNewBest = isChrono && score > meilleurScore;
     return (
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
         <RecordBanner />
@@ -159,9 +156,9 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 700, color: C.navy, marginBottom: 6 }}>{t("resultats_titre")}</div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 40, fontWeight: 700, color: C.gold, margin: "14px 0" }}>{score}/{total}</div>
           {isNewBest && <Badge color={C.gold} bg={C.goldSoft}>{t("nouveau_record_badge")}</Badge>}
-          {mode === "chrono" && !isNewBest && meilleurScore > 0 && <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 6 }}>{t("meilleur_score_badge", { n: meilleurScore })}</div>}
+          {isChrono && !isNewBest && meilleurScore > 0 && <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 6 }}>{t("meilleur_score_badge", { n: meilleurScore })}</div>}
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 24 }}>
-            <Btn variant="ghost" onClick={() => setMode(null)}>{t("retour_btn")}</Btn>
+            <Btn variant="ghost" onClick={backToMenu}>{t("retour_btn")}</Btn>
             <Btn variant="gold" icon={PlayCircle} onClick={() => startMode(mode)}>{t("rejouer_btn")}</Btn>
           </div>
         </div>
@@ -175,8 +172,8 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
         <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.inkSoft }}>{t("score_label")} <strong style={{ color: C.navy }}>{score}/{total}</strong></span>
-          {mode === "chrono" && <span style={{ fontFamily: FONT_MONO, fontSize: 15, fontWeight: 700, color: timeLeft <= 10 ? C.red : C.navy }}>{timeLeft}s</span>}
-          {mode === "libre" && <Btn variant="subtle" onClick={stopLibre} style={{ padding: "5px 10px", fontSize: 12 }}>{t("terminer_btn")}</Btn>}
+          {isChrono && <span style={{ fontFamily: FONT_MONO, fontSize: 15, fontWeight: 700, color: timeLeft <= 10 ? C.red : C.navy }}>{timeLeft}s</span>}
+          {mode === "normale" && <Btn variant="subtle" onClick={stopLibre} style={{ padding: "5px 10px", fontSize: 12 }}>{t("terminer_btn")}</Btn>}
         </div>
       </div>
       <RecordBanner />
