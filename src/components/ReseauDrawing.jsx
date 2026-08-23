@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Square, Slash, Trash2 } from "lucide-react";
-import { C, FONT_MONO } from "../theme.js";
+import { C, FONT_MONO, FONT_BODY } from "../theme.js";
 import { useLang } from "../lang.jsx";
 import { Btn, inputStyle } from "./atoms.jsx";
 import { genId } from "../utils/id.js";
@@ -12,7 +12,7 @@ import { genId } from "../utils/id.js";
 // que capturer le dessin, la notation reste manuelle, exactement comme
 // pour une question ouverte.
 //
-// value : { carres: [{ id, x, y, label }], traits: [{ id, x1, y1, x2, y2 }] }
+// value : { carres: [{ id, x, y, label, nom }], traits: [{ id, x1, y1, x2, y2 }] }
 // En lecture seule (readOnly), aucune interaction : juste l'affichage du
 // dessin final soumis par l'élève, pour que le moniteur le consulte.
 
@@ -52,9 +52,11 @@ export function ReseauDrawing({ value, onChange, readOnly }) {
       const { clientX, clientY } = eventXY(e);
       const { x, y } = svgPoint(svg, clientX, clientY);
       const id = genId("cr");
-      update({ carres: [...carres, { id, x: x - CARRE_TAILLE / 2, y: y - CARRE_TAILLE / 2, label: "" }] });
+      update({ carres: [...carres, { id, x: x - CARRE_TAILLE / 2, y: y - CARRE_TAILLE / 2, label: "", nom: "" }] });
       setSelected({ type: "carre", id });
-      setMode("select");
+      // Volontairement pas de retour à "select" ici : l'élève peut ainsi
+      // poser plusieurs stations d'affilée sans recliquer sur le bouton
+      // "Ajouter une station" à chaque fois.
       return;
     }
     // Clic dans le vide en mode sélection : désélectionne.
@@ -88,7 +90,9 @@ export function ReseauDrawing({ value, onChange, readOnly }) {
         setSelected({ type: "trait", id });
       }
       setDrawingTrait(null);
-      setMode("select");
+      // Volontairement pas de retour à "select" ici non plus : l'élève
+      // peut ainsi tracer plusieurs traits d'affilée sans recliquer sur
+      // le bouton "Tracer un trait" à chaque fois.
     }
     setDragging(null);
   };
@@ -115,6 +119,10 @@ export function ReseauDrawing({ value, onChange, readOnly }) {
     if (!selected || selected.type !== "carre") return;
     update({ carres: carres.map(c => c.id === selected.id ? { ...c, label } : c) });
   };
+  const updateSelectedNom = (nom) => {
+    if (!selected || selected.type !== "carre") return;
+    update({ carres: carres.map(c => c.id === selected.id ? { ...c, nom } : c) });
+  };
 
   const selectedCarre = selected?.type === "carre" ? carres.find(c => c.id === selected.id) : null;
 
@@ -125,7 +133,10 @@ export function ReseauDrawing({ value, onChange, readOnly }) {
           <Btn variant={mode === "add-carre" ? "primary" : "ghost"} icon={Square} onClick={() => { setMode(mode === "add-carre" ? "select" : "add-carre"); setSelected(null); }}>{t("reseau_ajouter_station")}</Btn>
           <Btn variant={mode === "add-trait" ? "primary" : "ghost"} icon={Slash} onClick={() => { setMode(mode === "add-trait" ? "select" : "add-trait"); setSelected(null); }}>{t("reseau_tracer_trait")}</Btn>
           {selectedCarre && (
-            <input style={{ ...inputStyle, width: 140 }} autoFocus placeholder={t("reseau_numero_station_placeholder")} value={selectedCarre.label} onChange={e => updateSelectedLabel(e.target.value)} />
+            <>
+              <input style={{ ...inputStyle, width: 100 }} autoFocus placeholder={t("reseau_numero_station_placeholder")} value={selectedCarre.label} onChange={e => updateSelectedLabel(e.target.value)} />
+              <input style={{ ...inputStyle, width: 160 }} placeholder={t("reseau_nom_station_placeholder")} value={selectedCarre.nom || ""} onChange={e => updateSelectedNom(e.target.value)} />
+            </>
           )}
           {selected && <Btn variant="danger" icon={Trash2} onClick={deleteSelected}>{t("delete")}</Btn>}
         </div>
@@ -157,6 +168,7 @@ export function ReseauDrawing({ value, onChange, readOnly }) {
               fill="#fff" stroke={selected?.type === "carre" && selected.id === c.id ? C.red : C.navy}
               strokeWidth={selected?.type === "carre" && selected.id === c.id ? 3 : 2} />
             <text x={c.x + CARRE_TAILLE / 2} y={c.y + CARRE_TAILLE / 2 + 4} textAnchor="middle" fontSize={13} fontFamily={FONT_MONO} fontWeight={700} fill={C.navy}>{c.label}</text>
+            {c.nom && <text x={c.x + CARRE_TAILLE / 2} y={c.y + CARRE_TAILLE + 13} textAnchor="middle" fontSize={11} fontFamily={FONT_BODY} fill={C.ink}>{c.nom}</text>}
           </g>
         ))}
       </svg>
