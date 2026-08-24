@@ -9,7 +9,7 @@ export const STATIONS = [
   { numero: 3, fr: "Parc", nl: "Park" },
   { numero: 4, fr: "Arts-loi (1-5)", nl: "Kunst-Wet (1-5)" },
   { numero: 5, fr: "Maelbeek", nl: "Maalbeek" },
-  { numero: 6, fr: "Shuman", nl: "Shuman" },
+  { numero: 6, fr: "Schuman", nl: "Schuman" },
   { numero: 7, fr: "Merode", nl: "Merode" },
   { numero: 8, fr: "Montgomery", nl: "Montgomery" },
   { numero: 9, fr: "Joséphine-Charlotte", nl: "Joséphine-Charlotte" },
