@@ -6,6 +6,8 @@
 // tableau, le stockage des cotations) fonctionne déjà avec n'importe
 // quelle liste, sans changement nécessaire ailleurs.
 
+import { C } from "../theme.js";
+
 export const CARPASS_COMPETENCES = [
   {
     id: "1", titre: "Compétence générale 1",
@@ -36,9 +38,9 @@ export const CARPASS_COMPETENCES = [
 // Échelle de cotation propre à CarPass — distincte de l'échelle 1-5 déjà
 // utilisée ailleurs dans le carnet (COTATION_SCALE).
 export const CARPASS_COTATION_SCALE = [
-  { value: 0, label: "0", desc: "N'y arrive pas", descNl: "Lukt niet" },
-  { value: 1, label: "1", desc: "Y arrive, avec un peu d'aide", descNl: "Lukt, met wat hulp" },
-  { value: 2, label: "2", desc: "Y arrive tout seul", descNl: "Lukt zelfstandig" },
+  { value: 0, label: "0", desc: "N'y arrive pas", descNl: "Lukt niet", color: C.red, bg: C.redSoft },
+  { value: 1, label: "1", desc: "Y arrive, avec un peu d'aide", descNl: "Lukt, met wat hulp", color: C.gold, bg: C.goldSoft },
+  { value: 2, label: "2", desc: "Y arrive tout seul", descNl: "Lukt zelfstandig", color: C.green, bg: C.greenSoft },
 ];
 
 // Les 10 volets de la section "Commentaires fin de formation" — clé
