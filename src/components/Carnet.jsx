@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   LineChart, CartesianGrid, XAxis, YAxis, Line, Legend, Tooltip,
@@ -402,33 +402,34 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
     };
     return (
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
-          {list.map((j, i) => {
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 100px)", gap: 10, marginBottom: 14 }}>
+          {list.map(j => {
             const clickable = true;
             const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
             const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
             const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
             const isSemaine = j.numero % 5 === 0;
-            const finDeBloc = (i + 1) % 5 === 0; // dernier jour d'un bloc complet de 5 -> barre Feedback Duty juste après, avec retour à la ligne forcé
+            return (
+              <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
+                title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
+                style={{ background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
+                <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
+                <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
+                <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+          {list.filter((j, i) => (i + 1) % 5 === 0).map(j => {
             const hasFeedback = !!j.feedbackDuty?.texte;
             return (
-              <React.Fragment key={j.numero}>
-                <button disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
-                  title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
-                  style={{ width: 100, flexShrink: 0, background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
-                  <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
-                  <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
-                  <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
-                </button>
-                {finDeBloc && (
-                  <button onClick={() => openFeedback(section, j.numero, j)}
-                    style={{ flexBasis: "100%", width: "100%", background: hasFeedback ? C.greenSoft : "#fff", border: `1px solid ${hasFeedback ? C.green : C.line}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
-                    <span style={{ fontWeight: 600, color: hasFeedback ? C.green : C.inkSoft }}>{t("feedback_duty_label")}</span>
-                    {hasFeedback && <span style={{ color: C.inkSoft }}>{j.feedbackDuty.adminNom} — {j.feedbackDuty.date}</span>}
-                  </button>
-                )}
-              </React.Fragment>
+              <button key={j.numero} onClick={() => openFeedback(section, j.numero, j)}
+                style={{ width: 540, flexShrink: 0, background: hasFeedback ? C.greenSoft : "#fff", border: `1px solid ${hasFeedback ? C.green : C.line}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
+                <span style={{ fontWeight: 600, color: hasFeedback ? C.green : C.inkSoft }}>{t("feedback_duty_label")} ({t("jour_label")} {j.numero - 4}-{j.numero})</span>
+                {hasFeedback && <span style={{ color: C.inkSoft }}>{j.feedbackDuty.adminNom} — {j.feedbackDuty.date}</span>}
+              </button>
             );
           })}
         </div>
