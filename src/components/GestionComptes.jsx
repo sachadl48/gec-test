@@ -132,10 +132,10 @@ export function GestionComptes({ users, setUsers, currentUser }) {
     const before = data.id ? users.find(u => u.id === data.id) : null;
     try {
       if (data.id) {
-        await callEdgeFunction("manage-user", { action: "update", userId: data.id, pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false, email: data.email || null });
+        await callEdgeFunction("manage-user", { action: "update", userId: data.id, pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false, adminTitre: data.role === "admin" ? data.adminTitre || null : null, email: data.email || null });
         logActivity("Profil", diffEntities([before], [{ ...before, ...data, pseudo }], u => `${u.prenom} ${u.nom}`, USER_LOG_FIELDS), auteurLog);
       } else {
-        await callEdgeFunction("manage-user", { action: "create", pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, role: data.role, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false, email: data.email || null });
+        await callEdgeFunction("manage-user", { action: "create", pseudo, nom: data.nom, prenom: data.prenom, numeroAgent: data.numeroAgent, role: data.role, langue: data.langue || "fr", responsableTeam: data.role === "admin" ? data.responsableTeam : "", superAdmin: data.role === "admin" ? !!data.superAdmin : false, adminTitre: data.role === "admin" ? data.adminTitre || null : null, email: data.email || null });
         logActivity("Profil", [{ action: "creation", description: `${data.prenom} ${data.nom}` }], auteurLog);
       }
       await setUsers();
@@ -168,7 +168,7 @@ export function GestionComptes({ users, setUsers, currentUser }) {
             {moniteurs.map(m => (
               <tr key={m.id} style={{ borderTop: `1px solid ${C.line}` }}>
                 <td style={{ padding: "12px 16px" }}>{m.prenom} {m.nom}</td>
-                <td style={{ padding: "12px 16px" }}><Badge color={m.superAdmin ? C.red : m.role === "admin" ? C.gold : C.teal} bg={m.superAdmin ? C.redSoft : m.role === "admin" ? C.goldSoft : C.tealSoft}>{m.superAdmin ? "Admin +" : m.role === "admin" ? t("role_admin") : t("role_moniteur")}</Badge></td>
+                <td style={{ padding: "12px 16px" }}><Badge color={m.adminTitre ? C.rose : m.superAdmin ? C.red : m.role === "admin" ? C.gold : C.teal} bg={m.adminTitre ? C.roseSoft : m.superAdmin ? C.redSoft : m.role === "admin" ? C.goldSoft : C.tealSoft}>{m.adminTitre === "gunmen" ? "Gunmen" : m.adminTitre === "business_dev" ? "Business Dev" : m.superAdmin ? "Admin +" : m.role === "admin" ? t("role_admin") : t("role_moniteur")}</Badge></td>
                 <td style={{ padding: "12px 16px", fontSize: 12.5, color: m.responsableTeam ? C.ink : C.inkSoft }}>{m.responsableTeam || "—"}</td>
                 <td style={{ padding: "12px 16px", fontFamily: FONT_MONO, fontSize: 12.5 }}>{m.numeroAgent}</td>
                 <td style={{ padding: "12px 16px", color: C.inkSoft, fontFamily: FONT_MONO, fontSize: 12.5 }}>{m.pseudo}</td>
@@ -187,13 +187,13 @@ export function GestionComptes({ users, setUsers, currentUser }) {
 }
 export function CompteModal({ initial, users, canGrantSuperAdmin, onClose, onSave }) {
   const { t } = useLang();
-  const [form, setForm] = useState({ nom: initial.nom || "", prenom: initial.prenom || "", numeroAgent: initial.numeroAgent || "", role: initial.role || "moniteur", langue: initial.langue || "fr", responsableTeam: initial.responsableTeam || "", superAdmin: initial.superAdmin || false, email: initial.email || "", id: initial.id });
+  const [form, setForm] = useState({ nom: initial.nom || "", prenom: initial.prenom || "", numeroAgent: initial.numeroAgent || "", role: initial.role || "moniteur", langue: initial.langue || "fr", responsableTeam: initial.responsableTeam || "", superAdmin: initial.superAdmin || false, adminTitre: initial.adminTitre || "", email: initial.email || "", id: initial.id });
   const pseudoPreview = makePseudo(form.nom, form.prenom, users, initial.id) || "—";
   return (
     <Modal title={initial.id ? t("modifier_compte") : t("ajouter_compte")} onClose={onClose}>
       <Field label={t("prenom_label")}><input style={inputStyle} value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })} /></Field>
       <Field label={t("nom_label")}><input style={inputStyle} value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} /></Field>
-      <Field label={t("col_role")}><select style={inputStyle} value={form.role} onChange={e => setForm({ ...form, role: e.target.value, responsableTeam: e.target.value === "admin" ? form.responsableTeam : "", superAdmin: e.target.value === "admin" ? form.superAdmin : false })}><option value="moniteur">{t("role_moniteur")}</option><option value="admin">{t("administrateur_option")}</option></select></Field>
+      <Field label={t("col_role")}><select style={inputStyle} value={form.role} onChange={e => setForm({ ...form, role: e.target.value, responsableTeam: e.target.value === "admin" ? form.responsableTeam : "", superAdmin: e.target.value === "admin" ? form.superAdmin : false, adminTitre: e.target.value === "admin" ? form.adminTitre : "" })}><option value="moniteur">{t("role_moniteur")}</option><option value="admin">{t("administrateur_option")}</option></select></Field>
       <Field label={t("numero_agent_label")}><input style={inputStyle} value={form.numeroAgent} onChange={e => setForm({ ...form, numeroAgent: e.target.value })} /></Field>
       <Field label={t("role_linguistique_label")} hint={t("role_linguistique_hint")}>
         <select style={inputStyle} value={form.langue} onChange={e => setForm({ ...form, langue: e.target.value })}>
@@ -209,6 +209,15 @@ export function CompteModal({ initial, users, canGrantSuperAdmin, onClose, onSav
           <select style={inputStyle} value={form.responsableTeam} onChange={e => setForm({ ...form, responsableTeam: e.target.value })}>
             <option value="">{t("team_aucune")}</option>
             {TEAMS.map(tm => <option key={tm} value={tm}>{tm}</option>)}
+          </select>
+        </Field>
+      )}
+      {form.role === "admin" && (
+        <Field label={t("titre_admin_label")}>
+          <select style={inputStyle} value={form.adminTitre} onChange={e => setForm({ ...form, adminTitre: e.target.value })}>
+            <option value="">{t("titre_admin_standard")}</option>
+            <option value="gunmen">Gunmen</option>
+            <option value="business_dev">Business Dev</option>
           </select>
         </Field>
       )}

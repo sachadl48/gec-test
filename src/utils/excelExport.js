@@ -135,6 +135,14 @@ export async function resolveCarnetSheetPath(zip, sheetName) {
 // réalité une archive ZIP de fichiers XML — on modifie ici uniquement le
 // texte des quelques feuilles concernées, cellule par cellule, et tout le
 // reste de l'archive (styles, graphiques, dessins) est recopié à l'identique.
+// Décale la numérotation des jours solo pour qu'ils s'enchaînent juste
+// après le dernier jour réel avec moniteur — jamais un "35" fixe, sinon
+// une formation prolongée au-delà de 35 jours ferait chevaucher les
+// numéros des jours solo avec les derniers jours réguliers.
+export function offsetRegSoloJours(joursReg, joursRegSolo) {
+  return (joursRegSolo || []).map(j => ({ ...j, numero: j.numero + (joursReg || []).length }));
+}
+
 export async function exportCarnetExcel(eleve) {
   const resp = await fetch("/carnet-modele.xlsx");
   const buf = await resp.arrayBuffer();
@@ -142,7 +150,7 @@ export async function exportCarnetExcel(eleve) {
 
   const carnet = eleve.carnet || {};
   const joursReg = carnet.reg || [];
-  const joursRegSolo = (carnet.regSolo || []).map(j => ({ ...j, numero: j.numero + 35 }));
+  const joursRegSolo = offsetRegSoloJours(joursReg, carnet.regSolo);
   const joursDisp = carnet.disp || [];
 
   const pathCJ = await resolveCarnetSheetPath(zip, "Commentaire_Journalier");

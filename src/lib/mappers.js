@@ -4,7 +4,7 @@
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
 export function rowToUser(row) {
-  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined, superAdmin: row.super_admin === true, jeuStationsMeilleurScore: row.jeu_stations_meilleur_score || 0, jeuStationsMeilleurScoreHard: row.jeu_stations_meilleur_score_hard || 0, jeuTelephonesMeilleurScore: row.jeu_telephones_meilleur_score || 0, jeuTelephonesMeilleurScoreHard: row.jeu_telephones_meilleur_score_hard || 0, email: row.email || "" };
+  return { id: row.id, pseudo: row.pseudo, role: row.role, nom: row.nom, prenom: row.prenom, numeroAgent: row.numero_agent, fonction: row.fonction || undefined, langue: row.langue || "fr", team: row.team || "", responsableTeam: row.responsable_team || "", formationStatut: row.formation_statut || undefined, carnet: row.carnet || undefined, superAdmin: row.super_admin === true, adminTitre: row.admin_titre || null, jeuStationsMeilleurScore: row.jeu_stations_meilleur_score || 0, jeuStationsMeilleurScoreHard: row.jeu_stations_meilleur_score_hard || 0, jeuTelephonesMeilleurScore: row.jeu_telephones_meilleur_score || 0, jeuTelephonesMeilleurScoreHard: row.jeu_telephones_meilleur_score_hard || 0, email: row.email || "" };
 }
 export function rowToQuestion(row) {
   return {

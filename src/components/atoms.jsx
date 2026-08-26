@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   X, AlertTriangle, CheckCircle2, LogOut, Loader2, Trash2, Upload, Music, Video,
 } from "lucide-react";
@@ -161,3 +161,25 @@ export function MediaField({ media, onChange, imageOnly = false }) {
 }
 export function StatCard({ label, value, accent }) { return <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "16px 18px" }}><div style={{ fontSize: 12, color: C.inkSoft, fontWeight: 600 }}>{label}</div><div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700, color: accent || C.navy, marginTop: 6 }}>{value}</div></div>; }
 export function pillStyle(active) { return { padding: "8px 14px", borderRadius: 20, border: `1px solid ${active ? C.navy : C.line}`, background: active ? C.navy : "#fff", color: active ? "#fff" : C.ink, fontSize: 13, fontWeight: 600, cursor: "pointer" }; }
+
+// Zone de texte à état local + sauvegarde différée (600ms après la
+// dernière frappe, ou immédiatement en quittant le champ). Sans ça, chaque
+// caractère tapé déclencherait sa propre écriture Supabase.
+export function DebouncedTextarea({ value, onCommit, disabled, placeholder, style }) {
+  const [local, setLocal] = useState(value || "");
+  const timerRef = useRef(null);
+  const dirtyRef = useRef(false);
+  useEffect(() => { if (!dirtyRef.current) setLocal(value || ""); }, [value]);
+  const handleChange = (e) => {
+    const v = e.target.value;
+    dirtyRef.current = true;
+    setLocal(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => { onCommit(v); dirtyRef.current = false; }, 600);
+  };
+  const handleBlur = () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (dirtyRef.current) { onCommit(local); dirtyRef.current = false; }
+  };
+  return <textarea disabled={disabled} value={local} onChange={handleChange} onBlur={handleBlur} placeholder={placeholder} style={style} />;
+}

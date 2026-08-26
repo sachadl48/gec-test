@@ -18,8 +18,9 @@ import { getCompetenceGlobale, getCritereValeur, computeRadarCarnet, computeEvol
 import { exportCarnetExcel } from "../utils/excelExport.js";
 import { logActivity } from "../utils/activityLog.js";
 import { NotesObligatoires } from "./NotesObligatoires.jsx";
+import { CarPassTab } from "./CarPass.jsx";
 import {
-  Btn, Field, inputStyle, Badge, Modal, EmptyState, ConfirmDialog, SectionTitle, pillStyle,
+  Btn, Field, inputStyle, Badge, Modal, EmptyState, ConfirmDialog, SectionTitle, pillStyle, DebouncedTextarea,
 } from "./atoms.jsx";
 import { EleveDetailView } from "./profileShared.jsx";
 
@@ -44,24 +45,6 @@ function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); co
 // tapé déclenchait une écriture réseau vers Supabase ; en tapant vite, des
 // réponses pouvaient arriver dans le désordre et faire "reculer" le texte
 // affiché, donnant l'impression de lettres perdues.
-export function DebouncedTextarea({ value, onCommit, disabled, placeholder, style }) {
-  const [local, setLocal] = useState(value || "");
-  const timerRef = useRef(null);
-  const dirtyRef = useRef(false);
-  useEffect(() => { if (!dirtyRef.current) setLocal(value || ""); }, [value]);
-  const handleChange = (e) => {
-    const v = e.target.value;
-    dirtyRef.current = true;
-    setLocal(v);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => { onCommit(v); dirtyRef.current = false; }, 600);
-  };
-  const handleBlur = () => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    if (dirtyRef.current) { onCommit(local); dirtyRef.current = false; }
-  };
-  return <textarea disabled={disabled} value={local} onChange={handleChange} onBlur={handleBlur} placeholder={placeholder} style={style} />;
-}
 export function CarnetJourDetail({ jourData, editable, currentUser, volets, track, onUpdateList, onBack }) {
   const { t } = useLang();
   const [confirmFin, setConfirmFin] = useState(false);
@@ -344,6 +327,10 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
   const { t, lang } = useLang();
   const isSuperAdmin = currentUser?.superAdmin === true;
   const isAdmin = currentUser?.role === "admin";
+  // CarPass SYREM : modifiable uniquement par les Gunmen et les Admin +
+  // (voir la conversation avec Sacha) — tout le monde d'autre le consulte
+  // en lecture seule, quel que soit son rôle par ailleurs.
+  const canEditCarpass = isAdmin && (isSuperAdmin || currentUser?.adminTitre === "gunmen");
   const [confirmResetTab, setConfirmResetTab] = useState(false);
   const tab2Visible = eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur";
   const tab1Editable = eleve.fonction === "Élève régulateur";
@@ -419,7 +406,7 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
       <div style={{ marginBottom: 20 }}>
         {blocs.map((bloc, bi) => (
           <div key={bi} style={{ marginBottom: 10 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: bloc.length === 5 ? 6 : 0 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 110px))", gap: 10, marginBottom: bloc.length === 5 ? 6 : 0 }}>
               {bloc.map(j => {
                 const clickable = true;
                 const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
@@ -443,7 +430,7 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
               const hasFeedback = !!jourFeedback.feedbackDuty?.texte;
               return (
                 <button onClick={() => openFeedback(section, jourFeedback.numero, jourFeedback)}
-                  style={{ width: "100%", background: hasFeedback ? C.greenSoft : "#fff", border: `1px solid ${hasFeedback ? C.green : C.line}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
+                  style={{ width: "100%", maxWidth: 590, background: hasFeedback ? C.greenSoft : "#fff", border: `1px solid ${hasFeedback ? C.green : C.line}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
                   <span style={{ fontWeight: 600, color: hasFeedback ? C.green : C.inkSoft }}>{t("feedback_duty_label")}</span>
                   {hasFeedback && <span style={{ color: C.inkSoft }}>{jourFeedback.feedbackDuty.adminNom} — {jourFeedback.feedbackDuty.date}</span>}
                 </button>
@@ -476,6 +463,9 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
       {carnetError && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{carnetError}</div>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18, borderBottom: `1px solid ${C.line}` }}>
+        <button onClick={() => setActiveTab("carpass")} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 4px", marginRight: 20, fontSize: 13.5, fontWeight: 600, color: activeTab === "carpass" ? C.navy : C.inkSoft, borderBottom: `2px solid ${activeTab === "carpass" ? C.navy : "transparent"}` }}>
+          {t("carpass_onglet_titre")}
+        </button>
         <button onClick={() => setActiveTab("regulateur")} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 4px", marginRight: 20, fontSize: 13.5, fontWeight: 600, color: activeTab === "regulateur" ? C.navy : C.inkSoft, borderBottom: `2px solid ${activeTab === "regulateur" ? C.navy : "transparent"}` }}>
           {fonctionLabel("Élève régulateur", lang)}
         </button>
@@ -486,6 +476,10 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
         )}
       </div>
 
+      {activeTab === "carpass" ? (
+        <CarPassTab eleve={eleve} updateCarnet={updateCarnet} canEdit={canEditCarpass} />
+      ) : (
+      <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         {editable
           ? <Badge color={C.green} bg={C.greenSoft}>{t("carnet_onglet_modifiable")}</Badge>
@@ -575,6 +569,8 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
           </>
         );
       })()}
+      </>
+      )}
       {confirmResetTab && (
         <ConfirmDialog title={t("reset_onglet_btn")} message={t("confirm_reset_onglet_msg", { fonction: fonctionLabel(activeTab === "regulateur" ? "Élève régulateur" : "Élève dispatcheur", lang) })}
           confirmLabel={t("reset_btn")} onConfirm={async () => { await updateCarnet(activeTab === "regulateur" ? { reg: undefined, regSolo: undefined, examen35: undefined } : { disp: undefined }); setConfirmResetTab(false); }} onCancel={() => setConfirmResetTab(false)} />

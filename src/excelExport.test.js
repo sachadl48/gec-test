@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   colForJour, colLetterToNum, setCellInRow, setCellInSheetXml,
-  fillCompetencesSheet, fillCommentaireJournalier,
+  fillCompetencesSheet, fillCommentaireJournalier, offsetRegSoloJours,
 } from "./utils/excelExport.js";
 import { EXCEL_ROW_MAP_REGULATEUR, EXCEL_ROW_MAP_DISPATCHEUR } from "./data/excelRowMap.js";
 import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "./data/competences.js";
@@ -172,5 +172,34 @@ describe("groupePoste (lieu réel pour l'export Excel, colonne 'Lieu Salle/MTC')
     for (const p of [...POSTES_REGULATEUR, ...POSTES_DISPATCHEUR]) {
       expect(["DTM", "Réseau", "MTC"]).toContain(groupePoste(p));
     }
+  });
+});
+
+describe("offsetRegSoloJours (les jours solo doivent toujours suivre les vrais jours réguliers, jamais un '35' fixe)", () => {
+  it("cas standard : 35 jours réguliers -> les jours solo commencent à 36", () => {
+    const joursReg = Array.from({ length: 35 }, (_, i) => ({ numero: i + 1 }));
+    const joursRegSolo = [{ numero: 1 }, { numero: 2 }, { numero: 3 }];
+    const result = offsetRegSoloJours(joursReg, joursRegSolo);
+    expect(result.map(j => j.numero)).toEqual([36, 37, 38]);
+  });
+
+  it("formation prolongée : 38 jours réguliers -> les jours solo commencent à 39, pas 36", () => {
+    const joursReg = Array.from({ length: 38 }, (_, i) => ({ numero: i + 1 }));
+    const joursRegSolo = [{ numero: 1 }, { numero: 2 }];
+    const result = offsetRegSoloJours(joursReg, joursRegSolo);
+    // Avec l'ancien "+35" fixe, ça aurait donné [36, 37] — en plein
+    // chevauchement avec les jours réguliers 36-38 qui existent déjà.
+    expect(result.map(j => j.numero)).toEqual([39, 40]);
+  });
+
+  it("gère une liste solo vide ou absente sans planter", () => {
+    const joursReg = Array.from({ length: 35 }, (_, i) => ({ numero: i + 1 }));
+    expect(offsetRegSoloJours(joursReg, [])).toEqual([]);
+    expect(offsetRegSoloJours(joursReg, undefined)).toEqual([]);
+  });
+
+  it("gère une liste régulière vide (pas encore commencée) sans planter", () => {
+    const result = offsetRegSoloJours([], [{ numero: 1 }]);
+    expect(result.map(j => j.numero)).toEqual([1]);
   });
 });
