@@ -34,7 +34,7 @@ function makeJours(n, startAt = 1) {
   return Array.from({ length: n }, (_, i) => ({
     numero: startAt + i, statut: i === 0 ? "disponible" : "verrouille",
     date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null,
-    commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {},
+    commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {}, feedbackDuty: null,
   }));
 }
 function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0"); return `${dd}/${mm}/${d.getFullYear()}`; }
@@ -343,6 +343,7 @@ function NotesCarnetSection({ eleve, filiere, questionnaires, categoryConfig }) 
 export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, categoryConfig, currentUser, onBack }) {
   const { t, lang } = useLang();
   const isSuperAdmin = currentUser?.superAdmin === true;
+  const isAdmin = currentUser?.role === "admin";
   const [confirmResetTab, setConfirmResetTab] = useState(false);
   const tab2Visible = eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur";
   const tab1Editable = eleve.fonction === "Élève régulateur";
@@ -351,6 +352,8 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [activeSubTab, setActiveSubTab] = useState("jours");
   const [viewingJour, setViewingJour] = useState(null); // { section: "reg"|"regSolo"|"disp", numero }
+  const [viewingFeedback, setViewingFeedback] = useState(null); // { section, numero } — numero = dernier jour du bloc de 5
+  const [feedbackDraft, setFeedbackDraft] = useState("");
   const showingTab2 = activeTab === "dispatcheur" && tab2Visible;
   const editable = showingTab2 ? tab2Editable : tab1Editable;
 
@@ -387,36 +390,67 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
     return <CarnetJourDetail jourData={jourData} editable={editable} currentUser={currentUser} volets={volets} track={track} onUpdateList={setList} onBack={() => setViewingJour(null)} />;
   }
 
+  const openFeedback = (section, numero, jour) => {
+    setViewingFeedback({ section, numero });
+    setFeedbackDraft(jour.feedbackDuty?.texte || "");
+  };
+  const saveFeedback = () => {
+    const { section, numero } = viewingFeedback;
+    const [, setList] = sections[section];
+    const now = new Date();
+    setList(list => list.map(j => j.numero === numero ? {
+      ...j, feedbackDuty: { texte: feedbackDraft, adminId: currentUser.id, adminNom: `${currentUser.prenom} ${currentUser.nom}`, date: formatDateJour(now) },
+    } : j));
+    setViewingFeedback(null);
+  };
+
   const renderGrid = (section) => {
     const [list, setList] = sections[section];
-    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null, commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {} }]);
+    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null, commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {}, feedbackDuty: null }]);
     const removeJour = () => {
       if (list.length <= 1) return;
       const last = list[list.length - 1];
       if (last.statut === "en_cours" || last.statut === "termine") return;
       setList(list.slice(0, -1));
     };
+    const blocs = [];
+    for (let i = 0; i < list.length; i += 5) blocs.push(list.slice(i, i + 5));
     return (
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10, marginBottom: 10 }}>
-          {list.map(j => {
-            const clickable = true;
-            const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
-            const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
-            const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
-            const isSemaine = j.numero % 5 === 0;
-            return (
-              <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
-                title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
-                style={{ background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
-                <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
-                <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
-                <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
-              </button>
-            );
-          })}
-        </div>
+        {blocs.map((bloc, bi) => (
+          <div key={bi} style={{ marginBottom: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: bloc.length === 5 ? 6 : 0 }}>
+              {bloc.map(j => {
+                const clickable = true;
+                const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
+                const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
+                const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
+                const isSemaine = j.numero % 5 === 0;
+                return (
+                  <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
+                    title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
+                    style={{ background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
+                    <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
+                    <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
+                    <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {bloc.length === 5 && (() => {
+              const jourFeedback = bloc[4];
+              const hasFeedback = !!jourFeedback.feedbackDuty?.texte;
+              return (
+                <button onClick={() => openFeedback(section, jourFeedback.numero, jourFeedback)}
+                  style={{ width: "100%", background: hasFeedback ? C.greenSoft : "#fff", border: `1px solid ${hasFeedback ? C.green : C.line}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
+                  <span style={{ fontWeight: 600, color: hasFeedback ? C.green : C.inkSoft }}>{t("feedback_duty_label")}</span>
+                  {hasFeedback && <span style={{ color: C.inkSoft }}>{jourFeedback.feedbackDuty.adminNom} — {jourFeedback.feedbackDuty.date}</span>}
+                </button>
+              );
+            })()}
+          </div>
+        ))}
         {editable && (
           <div style={{ display: "flex", gap: 6 }}>
             <Btn variant="ghost" icon={Plus} onClick={addJour} style={{ padding: "5px 10px", fontSize: 12 }} />
@@ -545,6 +579,25 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
         <ConfirmDialog title={t("reset_onglet_btn")} message={t("confirm_reset_onglet_msg", { fonction: fonctionLabel(activeTab === "regulateur" ? "Élève régulateur" : "Élève dispatcheur", lang) })}
           confirmLabel={t("reset_btn")} onConfirm={async () => { await updateCarnet(activeTab === "regulateur" ? { reg: undefined, regSolo: undefined, examen35: undefined } : { disp: undefined }); setConfirmResetTab(false); }} onCancel={() => setConfirmResetTab(false)} />
       )}
+      {viewingFeedback && (() => {
+        const [listF] = sections[viewingFeedback.section];
+        const jourF = listF.find(j => j.numero === viewingFeedback.numero);
+        const fb = jourF?.feedbackDuty;
+        return (
+          <Modal title={t("feedback_duty_titre", { debut: viewingFeedback.numero - 4, fin: viewingFeedback.numero })} onClose={() => setViewingFeedback(null)}>
+            {fb ? (
+              <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 10 }}>{t("feedback_par_label")} <strong style={{ color: C.navy }}>{fb.adminNom}</strong> — {fb.date}</div>
+            ) : isAdmin ? (
+              <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 10 }}>{t("feedback_redaction_par", { nom: `${currentUser.prenom} ${currentUser.nom}` })}</div>
+            ) : null}
+            <textarea style={{ ...inputStyle, minHeight: 130, resize: "vertical" }} disabled={!isAdmin} value={feedbackDraft} onChange={e => setFeedbackDraft(e.target.value)} placeholder={isAdmin ? t("feedback_placeholder") : ""} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
+              <Btn variant="ghost" onClick={() => setViewingFeedback(null)}>{isAdmin ? t("cancel") : t("fermer_btn")}</Btn>
+              {isAdmin && <Btn variant="primary" onClick={saveFeedback}>{t("save")}</Btn>}
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

@@ -71,7 +71,7 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
     if (!isChrono || finished) return;
     if (timeLeft <= 0) {
       setFinished(true);
-      if (score > meilleurScore) supabase.rpc("update_my_station_score", { new_score: score, hard: isHard }).then(({ error }) => { if (!error) { setUsers(); if (refreshLeaderboards) refreshLeaderboards(); } });
+      if (user.role === "eleve" && score > meilleurScore) supabase.rpc("update_my_station_score", { new_score: score, hard: isHard }).then(({ error }) => { if (!error) { setUsers(); if (refreshLeaderboards) refreshLeaderboards(); } });
       return;
     }
     const id = setTimeout(() => setTimeLeft(s => s - 1), 1000);
@@ -148,7 +148,7 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
   }
 
   if (finished) {
-    const isNewBest = isChrono && score > meilleurScore;
+    const isNewBest = user.role === "eleve" && isChrono && score > meilleurScore;
     return (
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
         <RecordBanner />

@@ -14,6 +14,8 @@ import { GestionQuestions } from "./GestionQuestions.jsx";
 import { GestionQuestionnaires, AnalysisView } from "./GestionQuestionnaires.jsx";
 import { GestionComptes, AdminPage } from "./GestionComptes.jsx";
 import { MaTeamView } from "./MaTeamView.jsx";
+import { StationGame } from "./StationGame.jsx";
+import { PhoneGame } from "./PhoneGame.jsx";
 
 // Page d'accueil du staff (aperçu général avec la file d'attente de
 // correction), et l'orchestrateur principal qui affiche le bon onglet
@@ -48,7 +50,7 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
         </div>
         <div style={{ padding: "24px 28px", minWidth: 0 }}>
           <SaveErrorBanner visible={saveError} />
-          {tab === "apercu" && <Apercu users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} currentUser={user} />}
+          {tab === "apercu" && <Apercu users={users} setUsers={setUsers} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} currentUser={user} />}
           {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} currentUser={user} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
           {tab === "carnets" && <CarnetsEleves users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} categoryConfig={categoryConfig} isAdmin={isAdmin} currentUser={user} />}
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} users={users} currentUser={user} />}
@@ -62,29 +64,46 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
   );
 }
 
-export function Apercu({ users, questions, questionnaires, setQuestionnaires, categories, currentUser }) {
+export function Apercu({ users, setUsers, questions, questionnaires, setQuestionnaires, categories, currentUser }) {
   const { t } = useLang();
   const [reviewing, setReviewing] = useState(null);
+  const [showGame, setShowGame] = useState(false);
+  const [showPhoneGame, setShowPhoneGame] = useState(false);
   const [dtmRecord, setDtmRecord] = useState(null);
   const [dtmRecordHard, setDtmRecordHard] = useState(null);
   const [dtmRecordTel, setDtmRecordTel] = useState(null);
   const [dtmRecordTelHard, setDtmRecordTelHard] = useState(null);
+  const refreshLeaderboards = () => {
+    supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
+    supabase.rpc("get_station_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordHard(data[0]); });
+    supabase.rpc("get_phone_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecordTel(data[0]); });
+    supabase.rpc("get_phone_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordTelHard(data[0]); });
+  };
   useEffect(() => {
-    const refresh = () => {
-      supabase.rpc("get_station_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecord(data[0]); });
-      supabase.rpc("get_station_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordHard(data[0]); });
-      supabase.rpc("get_phone_game_leaderboard").then(({ data }) => { if (data && data[0]) setDtmRecordTel(data[0]); });
-      supabase.rpc("get_phone_game_leaderboard", { hard: true }).then(({ data }) => { if (data && data[0]) setDtmRecordTelHard(data[0]); });
-    };
-    refresh();
-    const id = setInterval(refresh, 20000);
+    refreshLeaderboards();
+    const id = setInterval(refreshLeaderboards, 20000);
     return () => clearInterval(id);
-  }, []);
+  }, []); // eslint-disable-line
   const eleves = users.filter(u => u.role === "eleve");
   const aValider = questionnaires.filter(q => q.statut === "en attente de validation");
   const gradedAll = questionnaires.filter(q => q.statut === "validé" && !q.supprime);
   const catStats = computeCategoryStats(gradedAll, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
+
+  if (showGame) {
+    return (
+      <div>
+        <StationGame user={currentUser} users={users} setUsers={setUsers} dtmRecord={dtmRecord} dtmRecordHard={dtmRecordHard} onExit={() => setShowGame(false)} refreshLeaderboards={refreshLeaderboards} />
+      </div>
+    );
+  }
+  if (showPhoneGame) {
+    return (
+      <div>
+        <PhoneGame user={currentUser} users={users} setUsers={setUsers} dtmRecord={dtmRecordTel} dtmRecordHard={dtmRecordTelHard} onExit={() => setShowPhoneGame(false)} refreshLeaderboards={refreshLeaderboards} />
+      </div>
+    );
+  }
 
   if (reviewing) {
     return (
@@ -111,8 +130,8 @@ export function Apercu({ users, questions, questionnaires, setQuestionnaires, ca
       </div>
       <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
         {[
-          { titre: t("jeu_stations_titre"), normal: dtmRecord, hard: dtmRecordHard },
-          { titre: t("jeu_telephones_titre"), normal: dtmRecordTel, hard: dtmRecordTelHard },
+          { titre: t("jeu_stations_titre"), normal: dtmRecord, hard: dtmRecordHard, onPlay: () => setShowGame(true) },
+          { titre: t("jeu_telephones_titre"), normal: dtmRecordTel, hard: dtmRecordTelHard, onPlay: () => setShowPhoneGame(true) },
         ].map((jeu, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
             <Gamepad2 size={16} color={C.gold} />
@@ -123,6 +142,7 @@ export function Apercu({ users, questions, questionnaires, setQuestionnaires, ca
             <div style={{ fontSize: 12, color: C.inkSoft }}>
               {t("difficulte_hard")} — {t("record_dtm_label")} <strong style={{ fontFamily: FONT_MONO, color: C.navy }}>{jeu.hard ? jeu.hard.score : 0}</strong>{jeu.hard && <span> ({jeu.hard.prenom} {jeu.hard.nom})</span>}
             </div>
+            <Btn variant="ghost" onClick={jeu.onPlay} style={{ padding: "5px 12px", fontSize: 12 }}>{t("jouer_btn")}</Btn>
           </div>
         ))}
       </div>
