@@ -400,39 +400,44 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
       if (last.statut === "en_cours" || last.statut === "termine") return;
       setList(list.slice(0, -1));
     };
+    const blocs = [];
+    for (let i = 0; i < list.length; i += 5) blocs.push(list.slice(i, i + 5));
     return (
       <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 100px)", gap: 10, marginBottom: 14 }}>
-          {list.map(j => {
-            const clickable = true;
-            const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
-            const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
-            const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
-            const isSemaine = j.numero % 5 === 0;
-            return (
-              <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
-                title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
-                style={{ background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
-                <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
-                <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
-                <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
-          {list.filter((j, i) => (i + 1) % 5 === 0).map(j => {
-            const hasFeedback = !!j.feedbackDuty?.texte;
-            return (
-              <button key={j.numero} onClick={() => openFeedback(section, j.numero, j)}
-                style={{ width: 540, flexShrink: 0, background: hasFeedback ? C.greenSoft : "#fff", border: `1px solid ${hasFeedback ? C.green : C.line}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
-                <span style={{ fontWeight: 600, color: hasFeedback ? C.green : C.inkSoft }}>{t("feedback_duty_label")} ({t("jour_label")} {j.numero - 4}-{j.numero})</span>
-                {hasFeedback && <span style={{ color: C.inkSoft }}>{j.feedbackDuty.adminNom} — {j.feedbackDuty.date}</span>}
-              </button>
-            );
-          })}
-        </div>
+        {blocs.map((bloc, bi) => (
+          <div key={bi} style={{ marginBottom: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 100px)", gap: 10, marginBottom: 8 }}>
+              {bloc.map(j => {
+                const clickable = true;
+                const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
+                const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
+                const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
+                const isSemaine = j.numero % 5 === 0;
+                return (
+                  <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
+                    title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
+                    style={{ background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
+                    <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
+                    <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
+                    <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {bloc.length === 5 && (() => {
+              const jourFeedback = bloc[4];
+              const hasFeedback = !!jourFeedback.feedbackDuty?.texte;
+              return (
+                <button onClick={() => openFeedback(section, jourFeedback.numero, jourFeedback)}
+                  style={{ width: 540, background: hasFeedback ? C.greenSoft : "#fff", border: `1px solid ${hasFeedback ? C.green : C.line}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
+                  <span style={{ fontWeight: 600, color: hasFeedback ? C.green : C.inkSoft }}>{t("feedback_duty_label")}</span>
+                  {hasFeedback && <span style={{ color: C.inkSoft }}>{jourFeedback.feedbackDuty.adminNom} — {jourFeedback.feedbackDuty.date}</span>}
+                </button>
+              );
+            })()}
+          </div>
+        ))}
         {editable && (
           <div style={{ display: "flex", gap: 6 }}>
             <Btn variant="ghost" icon={Plus} onClick={addJour} style={{ padding: "5px 10px", fontSize: 12 }} />
