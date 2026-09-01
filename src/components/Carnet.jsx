@@ -18,7 +18,6 @@ import { getCompetenceGlobale, getCritereValeur, computeRadarCarnet, computeEvol
 import { exportCarnetExcel } from "../utils/excelExport.js";
 import { logActivity } from "../utils/activityLog.js";
 import { NotesObligatoires } from "./NotesObligatoires.jsx";
-import { CarPassTab } from "./CarPass.jsx";
 import {
   Btn, Field, inputStyle, Badge, Modal, EmptyState, ConfirmDialog, SectionTitle, pillStyle, DebouncedTextarea,
 } from "./atoms.jsx";
@@ -35,10 +34,24 @@ function makeJours(n, startAt = 1) {
   return Array.from({ length: n }, (_, i) => ({
     numero: startAt + i, statut: i === 0 ? "disponible" : "verrouille",
     date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null,
-    commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {}, feedbackDuty: null,
+    commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {},
   }));
 }
 function formatDateJour(d) { const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0"); return `${dd}/${mm}/${d.getFullYear()}`; }
+// Conversion entre le format stocké (JJ/MM/AAAA, texte) et le format
+// attendu par un champ <input type="date"> (AAAA-MM-JJ, ISO).
+export function dateFrToIso(dateFr) {
+  if (!dateFr) return "";
+  const [d, m, y] = dateFr.split("/");
+  if (!d || !m || !y) return "";
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+export function dateIsoToFr(dateIso) {
+  if (!dateIso) return null;
+  const [y, m, d] = dateIso.split("-");
+  if (!y || !m || !d) return null;
+  return `${d}/${m}/${y}`;
+}
 
 // Zone de texte à état local + sauvegarde différée (600ms après la dernière
 // frappe, ou immédiatement en quittant le champ). Sans ça, chaque caractère
@@ -108,7 +121,7 @@ export function CarnetJourDetail({ jourData, editable, currentUser, volets, trac
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 16px", marginBottom: 18 }}>
         <Btn variant="gold" onClick={commencer} disabled={!editable || started}>{t("commencer_jour_btn")}</Btn>
-        <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.inkSoft }}>{jourData.date || ".../.../..."}</span>
+        <input type="date" disabled={!editable} value={dateFrToIso(jourData.date)} onChange={e => setChampTexte("date", dateIsoToFr(e.target.value))} style={{ ...inputStyle, width: "auto", padding: "4px 8px", fontSize: 13, fontFamily: FONT_MONO }} />
         <span style={{ fontSize: 13, color: C.inkSoft }}>{t("moniteur_label")} <strong style={{ color: C.ink }}>{jourData.moniteurComplet || "—"}</strong></span>
         <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.inkSoft }}>
           {t("poste_label")}
@@ -327,10 +340,6 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
   const { t, lang } = useLang();
   const isSuperAdmin = currentUser?.superAdmin === true;
   const isAdmin = currentUser?.role === "admin";
-  // CarPass SYREM : modifiable uniquement par les Gunmen et les Admin +
-  // (voir la conversation avec Sacha) — tout le monde d'autre le consulte
-  // en lecture seule, quel que soit son rôle par ailleurs.
-  const canEditCarpass = isAdmin && (isSuperAdmin || currentUser?.adminTitre === "gunmen");
   const [confirmResetTab, setConfirmResetTab] = useState(false);
   const tab2Visible = eleve.fonction === "Élève dispatcheur" || eleve.fonction === "Dispatcheur";
   const tab1Editable = eleve.fonction === "Élève régulateur";
@@ -339,8 +348,6 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [activeSubTab, setActiveSubTab] = useState("jours");
   const [viewingJour, setViewingJour] = useState(null); // { section: "reg"|"regSolo"|"disp", numero }
-  const [viewingFeedback, setViewingFeedback] = useState(null); // { section, numero } — numero = dernier jour du bloc de 5
-  const [feedbackDraft, setFeedbackDraft] = useState("");
   const showingTab2 = activeTab === "dispatcheur" && tab2Visible;
   const editable = showingTab2 ? tab2Editable : tab1Editable;
 
@@ -377,67 +384,36 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
     return <CarnetJourDetail jourData={jourData} editable={editable} currentUser={currentUser} volets={volets} track={track} onUpdateList={setList} onBack={() => setViewingJour(null)} />;
   }
 
-  const openFeedback = (section, numero, jour) => {
-    setViewingFeedback({ section, numero });
-    setFeedbackDraft(jour.feedbackDuty?.texte || "");
-  };
-  const saveFeedback = () => {
-    const { section, numero } = viewingFeedback;
-    const [, setList] = sections[section];
-    const now = new Date();
-    setList(list => list.map(j => j.numero === numero ? {
-      ...j, feedbackDuty: { texte: feedbackDraft, adminId: currentUser.id, adminNom: `${currentUser.prenom} ${currentUser.nom}`, date: formatDateJour(now) },
-    } : j));
-    setViewingFeedback(null);
-  };
-
   const renderGrid = (section) => {
     const [list, setList] = sections[section];
-    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null, commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {}, feedbackDuty: null }]);
+    const addJour = () => setList([...list, { numero: list[list.length - 1].numero + 1, statut: "verrouille", date: null, moniteurNom: null, moniteurComplet: null, poste: null, ouvertParId: null, ouvertAt: null, commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "", resumeSemaine: "", competencesGlobales: {}, criteres: {} }]);
     const removeJour = () => {
       if (list.length <= 1) return;
       const last = list[list.length - 1];
       if (last.statut === "en_cours" || last.statut === "termine") return;
       setList(list.slice(0, -1));
     };
-    const blocs = [];
-    for (let i = 0; i < list.length; i += 5) blocs.push(list.slice(i, i + 5));
     return (
       <div style={{ marginBottom: 20 }}>
-        {blocs.map((bloc, bi) => (
-          <div key={bi} style={{ marginBottom: 10 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 100px)", gap: 10, marginBottom: 8 }}>
-              {bloc.map(j => {
-                const clickable = true;
-                const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
-                const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
-                const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
-                const isSemaine = j.numero % 5 === 0;
-                return (
-                  <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
-                    title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
-                    style={{ background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
-                    <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
-                    <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
-                    <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
-                  </button>
-                );
-              })}
-            </div>
-            {bloc.length === 5 && (() => {
-              const jourFeedback = bloc[4];
-              const hasFeedback = !!jourFeedback.feedbackDuty?.texte;
-              return (
-                <button onClick={() => openFeedback(section, jourFeedback.numero, jourFeedback)}
-                  style={{ width: 540, background: hasFeedback ? C.greenSoft : "#fff", border: `1px solid ${hasFeedback ? C.green : C.line}`, borderRadius: 8, padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11.5 }}>
-                  <span style={{ fontWeight: 600, color: hasFeedback ? C.green : C.inkSoft }}>{t("feedback_duty_label")}</span>
-                  {hasFeedback && <span style={{ color: C.inkSoft }}>{jourFeedback.feedbackDuty.adminNom} — {jourFeedback.feedbackDuty.date}</span>}
-                </button>
-              );
-            })()}
-          </div>
-        ))}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10, marginBottom: 10 }}>
+          {list.map(j => {
+            const clickable = true;
+            const bg = j.statut === "en_cours" ? C.goldSoft : j.statut === "termine" ? C.greenSoft : "#fff";
+            const border = j.statut === "en_cours" ? C.gold : j.statut === "termine" ? C.green : C.line;
+            const numColor = j.statut === "verrouille" ? C.inkSoft : C.navy;
+            const isSemaine = j.numero % 5 === 0;
+            return (
+              <button key={j.numero} disabled={!clickable} onClick={() => setViewingJour({ section, numero: j.numero })}
+                title={isSemaine ? `${t("resume_semaine_label")} : ${j.resumeSemaine || "—"}` : undefined}
+                style={{ background: bg, border: `${isSemaine ? 2 : 1}px solid ${isSemaine ? C.gold : border}`, borderRadius: 10, padding: "12px 8px", cursor: clickable ? "pointer" : "not-allowed", textAlign: "center", fontFamily: FONT_MONO, opacity: clickable ? 1 : 0.7, position: "relative" }}>
+                <div style={{ fontSize: 10, color: C.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 3 }}>{t("jour_label")}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: numColor }}>{j.numero}</div>
+                <div style={{ fontSize: 10, color: C.inkSoft, marginTop: 3, minHeight: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.moniteurNom || "\u00A0"}</div>
+                <div style={{ fontSize: 10, color: C.inkSoft, minHeight: 11 }}>{j.date || "\u00A0"}</div>
+              </button>
+            );
+          })}
+        </div>
         {editable && (
           <div style={{ display: "flex", gap: 6 }}>
             <Btn variant="ghost" icon={Plus} onClick={addJour} style={{ padding: "5px 10px", fontSize: 12 }} />
@@ -463,9 +439,6 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
       {carnetError && <div style={{ background: C.redSoft, color: C.red, fontSize: 12.5, fontWeight: 600, padding: "10px 14px", borderRadius: 8, marginBottom: 14 }}>{carnetError}</div>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18, borderBottom: `1px solid ${C.line}` }}>
-        <button onClick={() => setActiveTab("carpass")} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 4px", marginRight: 20, fontSize: 13.5, fontWeight: 600, color: activeTab === "carpass" ? C.navy : C.inkSoft, borderBottom: `2px solid ${activeTab === "carpass" ? C.navy : "transparent"}` }}>
-          {t("carpass_onglet_titre")}
-        </button>
         <button onClick={() => setActiveTab("regulateur")} style={{ background: "none", border: "none", cursor: "pointer", padding: "10px 4px", marginRight: 20, fontSize: 13.5, fontWeight: 600, color: activeTab === "regulateur" ? C.navy : C.inkSoft, borderBottom: `2px solid ${activeTab === "regulateur" ? C.navy : "transparent"}` }}>
           {fonctionLabel("Élève régulateur", lang)}
         </button>
@@ -476,10 +449,6 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
         )}
       </div>
 
-      {activeTab === "carpass" ? (
-        <CarPassTab eleve={eleve} updateCarnet={updateCarnet} canEdit={canEditCarpass} />
-      ) : (
-      <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         {editable
           ? <Badge color={C.green} bg={C.greenSoft}>{t("carnet_onglet_modifiable")}</Badge>
@@ -569,31 +538,10 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
           </>
         );
       })()}
-      </>
-      )}
       {confirmResetTab && (
         <ConfirmDialog title={t("reset_onglet_btn")} message={t("confirm_reset_onglet_msg", { fonction: fonctionLabel(activeTab === "regulateur" ? "Élève régulateur" : "Élève dispatcheur", lang) })}
           confirmLabel={t("reset_btn")} onConfirm={async () => { await updateCarnet(activeTab === "regulateur" ? { reg: undefined, regSolo: undefined, examen35: undefined } : { disp: undefined }); setConfirmResetTab(false); }} onCancel={() => setConfirmResetTab(false)} />
       )}
-      {viewingFeedback && (() => {
-        const [listF] = sections[viewingFeedback.section];
-        const jourF = listF.find(j => j.numero === viewingFeedback.numero);
-        const fb = jourF?.feedbackDuty;
-        return (
-          <Modal title={t("feedback_duty_titre", { debut: viewingFeedback.numero - 4, fin: viewingFeedback.numero })} onClose={() => setViewingFeedback(null)}>
-            {fb ? (
-              <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 10 }}>{t("feedback_par_label")} <strong style={{ color: C.navy }}>{fb.adminNom}</strong> — {fb.date}</div>
-            ) : isAdmin ? (
-              <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 10 }}>{t("feedback_redaction_par", { nom: `${currentUser.prenom} ${currentUser.nom}` })}</div>
-            ) : null}
-            <textarea style={{ ...inputStyle, minHeight: 130, resize: "vertical" }} disabled={!isAdmin} value={feedbackDraft} onChange={e => setFeedbackDraft(e.target.value)} placeholder={isAdmin ? t("feedback_placeholder") : ""} />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
-              <Btn variant="ghost" onClick={() => setViewingFeedback(null)}>{isAdmin ? t("cancel") : t("fermer_btn")}</Btn>
-              {isAdmin && <Btn variant="primary" onClick={saveFeedback}>{t("save")}</Btn>}
-            </div>
-          </Modal>
-        );
-      })()}
     </div>
   );
 }

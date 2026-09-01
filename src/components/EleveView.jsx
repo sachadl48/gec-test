@@ -16,6 +16,8 @@ import { ExamIntro } from "./ExamIntro.jsx";
 import { ExamMode } from "./ExamMode.jsx";
 import { StationGame } from "./StationGame.jsx";
 import { PhoneGame } from "./PhoneGame.jsx";
+import { AbbreviationGame } from "./AbbreviationGame.jsx";
+import { TranslationGame } from "./TranslationGame.jsx";
 import { AnalysisView } from "./GestionQuestionnaires.jsx";
 
 // Vue "élève" (opérateur) : questionnaires en cours/à faire, points
@@ -31,6 +33,8 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
   const [viewing, setViewing] = useState(null);
   const [showGame, setShowGame] = useState(false);
   const [showPhoneGame, setShowPhoneGame] = useState(false);
+  const [showAbrevGame, setShowAbrevGame] = useState(false);
+  const [showTradGame, setShowTradGame] = useState(false);
   const [activeQuestions, setActiveQuestions] = useState(null);
   const [fetchError, setFetchError] = useState("");
   const [dtmRecord, setDtmRecord] = useState(null);
@@ -193,6 +197,26 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
       </div>
     );
   }
+  if (showAbrevGame) {
+    return (
+      <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
+        <Header user={user} onLogout={onLogout} />
+        <div style={{ padding: "24px 28px" }}>
+          <AbbreviationGame onExit={() => setShowAbrevGame(false)} />
+        </div>
+      </div>
+    );
+  }
+  if (showTradGame) {
+    return (
+      <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
+        <Header user={user} onLogout={onLogout} />
+        <div style={{ padding: "24px 28px" }}>
+          <TranslationGame onExit={() => setShowTradGame(false)} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
@@ -272,6 +296,16 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
                     </div>
                   </div>
                 </div>
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+              <button onClick={() => setShowAbrevGame(true)} style={{ flex: 1, background: C.navy, borderRadius: 14, border: "none", padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={16} color={C.gold} /></div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13.5, fontWeight: 700, color: "#fff" }}>{t("jeu_abreviations_titre")}</div>
+              </button>
+              <button onClick={() => setShowTradGame(true)} style={{ flex: 1, background: C.navy, borderRadius: 14, border: "none", padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={16} color={C.gold} /></div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13.5, fontWeight: 700, color: "#fff" }}>{t("jeu_traductions_titre")}</div>
               </button>
             </div>
             <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22 }}>

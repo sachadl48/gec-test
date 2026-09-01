@@ -9,6 +9,7 @@ import { supabase } from "../lib/supabaseClient.js";
 import { computeCategoryStats } from "../utils/scoring.js";
 import { Btn, SectionTitle, EmptyState, Header, SaveErrorBanner, StatCard } from "./atoms.jsx";
 import { GestionProfils } from "./GestionProfils.jsx";
+import { fetchNotesObligatoiresStatut } from "./profileShared.jsx";
 import { CarnetsEleves } from "./Carnet.jsx";
 import { GestionQuestions } from "./GestionQuestions.jsx";
 import { GestionQuestionnaires, AnalysisView } from "./GestionQuestionnaires.jsx";
@@ -51,13 +52,16 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
         <div style={{ padding: "24px 28px", minWidth: 0 }}>
           <SaveErrorBanner visible={saveError} />
           {tab === "apercu" && <Apercu users={users} setUsers={setUsers} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} currentUser={user} />}
-          {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} isAdmin={isAdmin} currentUser={user} onPrint={(eleve) => requestPrint({ type: "profile", eleve, questionnaires, categories })} />}
+          {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} categoryConfig={categoryConfig} isAdmin={isAdmin} currentUser={user} onPrint={async (eleve) => {
+            const notesEleve = await fetchNotesObligatoiresStatut(eleve, questionnaires, categoryConfig);
+            requestPrint({ type: "profile", eleve, questionnaires, categories, notesEleve });
+          }} />}
           {tab === "carnets" && <CarnetsEleves users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} categoryConfig={categoryConfig} isAdmin={isAdmin} currentUser={user} />}
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} users={users} currentUser={user} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
           {tab === "admin" && isSuperAdmin && <AdminPage refreshQuestionnaires={refreshQuestionnaires} />}
-          {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} requestPrint={requestPrint} />}
+          {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} />}
         </div>
       </div>
     </div>

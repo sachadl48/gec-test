@@ -17,7 +17,7 @@ import { EleveDetailView, ProfilModal } from "./profileShared.jsx";
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
-export function GestionProfils({ users, setUsers, questionnaires, questions, categories, isAdmin, currentUser, onPrint }) {
+export function GestionProfils({ users, setUsers, questionnaires, questions, categories, categoryConfig, isAdmin, currentUser, onPrint }) {
   const { t, lang } = useLang();
   const [modal, setModal] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
@@ -56,7 +56,7 @@ export function GestionProfils({ users, setUsers, questionnaires, questions, cat
 
   if (viewingEleve) {
     const fresh = users.find(u => u.id === viewingEleve.id) || viewingEleve;
-    return <EleveDetailView eleve={fresh} questionnaires={questionnaires} categories={categories} onBack={() => setViewingEleve(null)} />;
+    return <EleveDetailView eleve={fresh} questionnaires={questionnaires} categories={categories} categoryConfig={categoryConfig} onBack={() => setViewingEleve(null)} />;
   }
 
   return (

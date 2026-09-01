@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
   LineChart, CartesianGrid, XAxis, YAxis, Line,
@@ -9,8 +9,9 @@ import { useLang, LANGS } from "../lang.jsx";
 import { FONCTIONS, TEAMS, fonctionLabel } from "../data/fonctions.js";
 import { catColor } from "../utils/categoryColor.js";
 import { makePseudo, agentPassword } from "../utils/userAccount.js";
-import { initials, computeCategoryStats, computeCategoryEvolution } from "../utils/scoring.js";
-import { Btn, Field, inputStyle, Modal, SectionTitle, EmptyState, StatCard } from "./atoms.jsx";
+import { initials, computeCategoryStats, computeCategoryEvolution, statutNoteObligatoire } from "../utils/scoring.js";
+import { supabase } from "../lib/supabaseClient.js";
+import { Btn, Field, inputStyle, Modal, SectionTitle, EmptyState, StatCard, Badge } from "./atoms.jsx";
 
 // Fiche détaillée d'un profil élève (lecture seule, avec statistiques), et
 // fenêtre de création/modification d'un profil — partagées entre la page
@@ -18,7 +19,49 @@ import { Btn, Field, inputStyle, Modal, SectionTitle, EmptyState, StatCard } fro
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
-export function EleveDetailView({ eleve, questionnaires, categories, onBack }) {
+// Charge les notes obligatoires de la filière de l'élève et calcule le
+// statut de chacune (lue et réussie / pas lue ou ratée). Fonction simple
+// (pas un hook) pour pouvoir être réutilisée aussi bien dans un composant
+// React (EleveDetailView) que dans le flux d'export/impression, qui doit
+// charger ces données avant de générer le PDF.
+export async function fetchNotesObligatoiresStatut(eleve, questionnaires, categoryConfig) {
+  if (!eleve?.fonction) return [];
+  const { data, error } = await supabase.from("notes_obligatoires").select("*").eq("filiere", eleve.fonction).order("ordre", { ascending: true });
+  if (error || !data) return [];
+  return data.map(note => ({ ...note, statut: statutNoteObligatoire(note, questionnaires, eleve.id, categoryConfig).statut }));
+}
+
+function NotesStatutSection({ eleve, questionnaires, categoryConfig }) {
+  const { t, lang } = useLang();
+  const [notes, setNotes] = useState(null); // null = chargement en cours
+  useEffect(() => {
+    let cancelled = false;
+    fetchNotesObligatoiresStatut(eleve, questionnaires, categoryConfig).then(n => { if (!cancelled) setNotes(n); });
+    return () => { cancelled = true; };
+  }, [eleve.id, eleve.fonction]); // eslint-disable-line
+
+  if (notes === null || notes.length === 0) return null;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
+      <SectionTitle>{t("notes_obligatoires_titre")}</SectionTitle>
+      <div style={{ height: 8 }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {notes.map(note => {
+          const lue = note.statut === true;
+          return (
+            <div key={note.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 8, background: lue ? C.greenSoft : "#fff", border: `1px solid ${lue ? C.green : C.line}` }}>
+              <span style={{ fontSize: 13, color: C.ink }}>{note.titre}</span>
+              <Badge color={lue ? C.green : C.inkSoft} bg={lue ? C.greenSoft : C.bg}>{lue ? t("note_lue_badge") : t("note_pas_lue_badge")}</Badge>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function EleveDetailView({ eleve, questionnaires, categories, categoryConfig, onBack }) {
   const { t, lang } = useLang();
   const mine = questionnaires.filter(q => q.eleveId === eleve.id && !q.supprime);
   const graded = mine.filter(q => q.statut === "validé" && !q.supprime);
@@ -46,6 +89,8 @@ export function EleveDetailView({ eleve, questionnaires, categories, onBack }) {
         <StatCard label={t("en_attente_encours")} value={mine.length - graded.length} />
         <StatCard label={t("record_jeu_stations_label")} value={eleve.jeuStationsMeilleurScore || 0} />
       </div>
+
+      <NotesStatutSection eleve={eleve} questionnaires={questionnaires} categoryConfig={categoryConfig} />
 
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <SectionTitle>{t("points_forts_faibles_global")}</SectionTitle>

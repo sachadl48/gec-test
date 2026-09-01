@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { correctPlacementsOrdre, matchedCiblesCount, computeCategoryStats, getResultReached, countTreeResults, validateActionTree, questionnaireReussi } from "./utils/scoring.js";
+import { correctPlacementsOrdre, matchedCiblesCount, computeCategoryStats, getResultReached, countTreeResults, validateActionTree, questionnaireReussi, computeLegendePoints } from "./utils/scoring.js";
 
 describe("correctPlacementsOrdre (question type 'ordre')", () => {
   const q = { items: [{ id: "a" }, { id: "b" }, { id: "c" }] };
@@ -102,5 +102,22 @@ describe("questionnaireReussi (verdict global d'un questionnaire, pour les notes
     const qn = { scoreParCategorie: { Inconnue: 65 } };
     expect(questionnaireReussi(qn, categoryConfig)).toBe(true);
     expect(questionnaireReussi({ scoreParCategorie: { Inconnue: 50 } }, categoryConfig)).toBe(false);
+  });
+});
+
+describe("computeLegendePoints (correction 'Légender une image' via boutons ✓/✗)", () => {
+  it("attribue tous les points si toutes les réponses sont correctes", () => {
+    expect(computeLegendePoints([true, true, true], 6)).toBe(6);
+  });
+  it("attribue 0 point si aucune réponse n'est correcte", () => {
+    expect(computeLegendePoints([false, false, false], 6)).toBe(0);
+  });
+  it("répartit proportionnellement et arrondit à l'entier le plus proche", () => {
+    expect(computeLegendePoints([true, false, false], 6)).toBe(2); // 6 * 1/3 = 2
+    expect(computeLegendePoints([true, true, false], 5)).toBe(3); // 5 * 2/3 = 3.33 -> 3
+  });
+  it("ne plante pas avec un tableau vide ou absent", () => {
+    expect(computeLegendePoints([], 6)).toBe(0);
+    expect(computeLegendePoints(undefined, 6)).toBe(0);
   });
 });

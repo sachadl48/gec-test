@@ -11,7 +11,7 @@ import { FONCTIONS, fonctionLabel } from "../data/fonctions.js";
 import { genId } from "../utils/id.js";
 import { qText, qChoix, itemText, paireText, arNodeText, mediaFor, ciblesFor, marqueursFor } from "../utils/bilingual.js";
 import { normalizeText } from "../utils/userAccount.js";
-import { shuffle, getResultReached, walkTrail, scoreQcmMulti, scoreOrdre, scorePoint } from "../utils/scoring.js";
+import { shuffle, getResultReached, walkTrail, scoreQcmMulti, scoreOrdre, scorePoint, computeLegendePoints } from "../utils/scoring.js";
 import {
   Btn, Field, inputStyle, Badge, StatusBadge, CategoryBadges, TypeBadge, Modal, EmptyState, SectionTitle, pillStyle,
 } from "./atoms.jsx";
@@ -317,7 +317,32 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
   const langFor = (i) => (questionnaire.questionLangues && questionnaire.questionLangues[i]) || eleve?.langue || "fr";
   const initialAnswers = questionnaire.reponses || [];
   const [grades, setGrades] = useState(() => qs.map((q, i) => { if (q.type !== "ouverte" && q.type !== "dessin_reseau") return null; const a = initialAnswers[i]; return (a && typeof a.points === "number") ? a.points : null; }));
-  const [legendeGrades, setLegendeGrades] = useState(() => qs.map((q, i) => { if (q.type !== "legende") return null; const g = questionnaire.manualGrades?.[i]; return typeof g === "number" ? g : null; }));
+  // Pour chaque question "légender une image", un tableau (un booléen par
+  // repère) initialisé sur la comparaison automatique texte-à-texte —
+  // ajustable ensuite au cas par cas via les boutons ✓/✗ (accent oublié,
+  // orthographe jugée correcte malgré tout, etc.).
+  const [legendeOverrides, setLegendeOverrides] = useState(() => qs.map((q, i) => {
+    if (q.type !== "legende") return null;
+    const a = initialAnswers[i];
+    return marqueursFor(q, langFor(i)).map((m, mi) => normalizeText(a ? a[mi] : "") === normalizeText(m.reponse));
+  }));
+  const [legendeGrades, setLegendeGrades] = useState(() => qs.map((q, i) => {
+    if (q.type !== "legende") return null;
+    const saved = questionnaire.manualGrades?.[i];
+    if (typeof saved === "number") return saved;
+    // Pas encore corrigé : les points partent directement de la
+    // comparaison automatique, proportionnellement au nombre de bonnes
+    // réponses — ajustés ensuite en direct à chaque clic sur ✓/✗.
+    return computeLegendePoints(legendeOverrides[i], q.points);
+  }));
+  const toggleLegendeMarker = (qi, mi, value) => {
+    const arr = [...(legendeOverrides[qi] || [])];
+    arr[mi] = value;
+    const nextOverrides = [...legendeOverrides]; nextOverrides[qi] = arr;
+    setLegendeOverrides(nextOverrides);
+    const nextGrades = [...legendeGrades]; nextGrades[qi] = computeLegendePoints(arr, qs[qi].points);
+    setLegendeGrades(nextGrades);
+  };
   const [remarks, setRemarks] = useState(() => qs.map((q, i) => (questionnaire.remarques && questionnaire.remarques[i]) || ""));
   const [overrides, setOverrides] = useState(() => qs.map((q, i) => questionnaire.overrides?.[i] || null));
   const setOverride = (i, patch) => { const next = [...overrides]; next[i] = patch === null ? null : { ...(next[i] || { points: 0, justification: "" }), ...patch }; setOverrides(next); };
@@ -427,19 +452,24 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
                         {marqueursFor(q, langFor(i)).map((m, mi) => {
                           const given = a ? a[mi] : "";
-                          const ok = normalizeText(given) === normalizeText(m.reponse);
+                          const ok = (legendeOverrides[i] || [])[mi];
                           return (
                             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, padding: "5px 8px", background: ok ? C.greenSoft : C.redSoft, borderRadius: 6 }}>
-                              {ok ? <CheckCircle2 size={12} color={C.green} /> : <XCircle size={12} color={C.red} />}
                               <strong>{mi + 1}.</strong> {given && given.trim() ? given : <em>{t("sans_reponse_italic")}</em>} {!ok && <span style={{ color: C.inkSoft }}>{t("attendu_deux_points", { v: m.reponse })}</span>}
+                              <span style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
+                                <button type="button" disabled={readOnly} onClick={() => toggleLegendeMarker(i, mi, true)}
+                                  style={{ background: ok ? C.green : "#fff", color: ok ? "#fff" : C.green, border: `1px solid ${C.green}`, borderRadius: 5, width: 24, height: 24, cursor: readOnly ? "default" : "pointer", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✓</button>
+                                <button type="button" disabled={readOnly} onClick={() => toggleLegendeMarker(i, mi, false)}
+                                  style={{ background: !ok ? C.red : "#fff", color: !ok ? "#fff" : C.red, border: `1px solid ${C.red}`, borderRadius: 5, width: 24, height: 24, cursor: readOnly ? "default" : "pointer", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✗</button>
+                              </span>
                             </div>
                           );
                         })}
                       </div>
-                      <div style={{ fontSize: 11, color: C.inkSoft, marginBottom: 6, fontStyle: "italic" }}>{t("comparaison_aide_note")}</div>
+                      <div style={{ fontSize: 11, color: C.inkSoft, marginBottom: 6, fontStyle: "italic" }}>{t("legende_correction_aide")}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 12.5, color: C.inkSoft }}>{t("points_attribues")}</span>
-                        <input type="number" min={0} max={q.points} disabled={readOnly} style={{ ...inputStyle, width: 70, padding: "6px 8px" }} value={legendeGrades[i] ?? ""} onChange={e => { const v = e.target.value === "" ? null : Math.max(0, Math.min(q.points, Number(e.target.value))); const g = [...legendeGrades]; g[i] = v; setLegendeGrades(g); }} />
+                        <strong style={{ fontSize: 13, color: C.navy }}>{legendeGrades[i] ?? 0}</strong>
                         <span style={{ fontSize: 12.5, color: C.inkSoft }}>/ {q.points}</span>
                       </div>
                     </div>

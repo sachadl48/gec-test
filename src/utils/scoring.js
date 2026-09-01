@@ -151,3 +151,13 @@ export function statutNoteObligatoire(note, questionnaires, eleveId, categoryCon
   if (!derniere) return { statut: null, derniere: null };
   return { statut: questionnaireReussi(derniere, categoryConfig), derniere };
 }
+
+// Points attribués pour une question "légender une image" en fonction du
+// nombre de repères validés corrects (via les boutons ✓/✗ en correction) —
+// proportionnel au nombre total de repères, arrondi à l'entier le plus
+// proche. Un tableau vide ou absent renvoie 0 plutôt que de planter.
+export function computeLegendePoints(overrides, totalPoints) {
+  if (!overrides || overrides.length === 0) return 0;
+  const correct = overrides.filter(Boolean).length;
+  return Math.round((totalPoints * correct) / overrides.length);
+}

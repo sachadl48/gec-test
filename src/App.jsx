@@ -145,12 +145,17 @@ function buildLineSVG(points, width, height, color) {
   const xlabels = points.map((p, i) => `<text x="${xFor(i)}" y="${height - 6}" font-size="7.5" fill="#5B6577" text-anchor="middle">${i + 1}</text>`).join("");
   return `<svg width="${width}" height="${height}">${grid}<polyline points="${pathPts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xlabels}</svg>`;
 }
-function buildProfileBodyHTML({ eleve, questionnaires, questions, categories }) {
+function buildProfileBodyHTML({ eleve, questionnaires, questions, categories, notesEleve }) {
   const validated = questionnaires.filter(q => q.eleveId === eleve.id && q.statut === "validé" && !q.supprime);
   const catStats = computeCategoryStats(validated, categories);
   const radarData = categories.map(cat => ({ categorie: cat, score: catStats[cat]?.total ? Math.round((catStats[cat].correct / catStats[cat].total) * 100) : 0 }));
   const evolution = computeCategoryEvolution(validated, categories);
   const evolutionCats = Object.keys(evolution);
+
+  const notesRows = (notesEleve || []).map(note => {
+    const lue = note.statut === true;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;margin-bottom:6px;background:${lue ? "#E3F1E7" : "#fff"};border:1px solid ${lue ? "#3E8E57" : "#E2E1D9"};"><span style="font-size:13px;">${escapeHtml(note.titre)}</span><span style="font-size:11px;font-weight:700;color:${lue ? "#3E8E57" : "#5B6577"};">${lue ? "Lue" : "Pas lue"}</span></div>`;
+  }).join("");
 
   const rows = categories.map(cat => {
     const vals = validated.map(q => q.scoreParCategorie?.[cat]).filter(v => v !== undefined && v !== null);
@@ -171,6 +176,8 @@ function buildProfileBodyHTML({ eleve, questionnaires, questions, categories }) 
       <div style="font-size:13px;color:#5B6577;margin-top:4px;">N° agent : ${escapeHtml(eleve.numeroAgent)} · Fonction : ${escapeHtml(eleve.fonction || "Élève")}</div></div>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;"><tbody><tr><td style="padding:8px 0;color:#5B6577;width:260px;">Questionnaires répondus (validés)</td><td style="padding:8px 0;font-weight:700;">${validated.length}</td></tr><tr><td style="padding:8px 0;color:#5B6577;">Record jeu des stations</td><td style="padding:8px 0;font-weight:700;">${eleve.jeuStationsMeilleurScore || 0}</td></tr></tbody></table>
+
+    ${notesRows ? `<div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;margin-bottom:10px;">Notes obligatoires</div><div style="margin-bottom:24px;">${notesRows}</div>` : ""}
 
     <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;margin-bottom:10px;">Points forts & points faibles (vue globale)</div>
     <div style="text-align:center;margin-bottom:24px;">${validated.length ? buildRadarSVG(radarData, 320) : `<div style="font-size:12px;color:#5B6577;">Pas encore de questionnaire validé.</div>`}</div>

@@ -3,8 +3,8 @@ import { pickPhoneDistractors, pickPhoneDistractorsProches, generatePhoneQuestio
 import { TELEPHONES } from "./data/telephones.js";
 
 describe("données téléphones", () => {
-  it("chaque service a au moins un numéro (pax, sisco ou stento)", () => {
-    expect(TELEPHONES.every(s => s.pax || s.sisco || s.stento)).toBe(true);
+  it("chaque service a au moins un numéro (pax, cisco ou stento)", () => {
+    expect(TELEPHONES.every(s => s.pax || s.cisco || s.stento)).toBe(true);
   });
 });
 
@@ -15,9 +15,9 @@ describe("pickPhoneDistractors (mode normal, aléatoire)", () => {
     expect(distractors.every(s => s.serviceFr !== service.serviceFr)).toBe(true);
   });
   it("ne renvoie que des services ayant bien un numéro pour ce type précis", () => {
-    const service = TELEPHONES.find(s => s.sisco);
-    const distractors = pickPhoneDistractors(service, "sisco", 3);
-    expect(distractors.every(s => !!s.sisco)).toBe(true);
+    const service = TELEPHONES.find(s => s.cisco);
+    const distractors = pickPhoneDistractors(service, "cisco", 3);
+    expect(distractors.every(s => !!s.cisco)).toBe(true);
   });
 });
 
@@ -30,12 +30,12 @@ describe("pickPhoneDistractorsProches (mode Hard, numéros les plus proches DANS
     expect(distractors.every(s => !!s.pax)).toBe(true);
   });
   it("choisit bien les numéros les plus proches parmi ceux du même système", () => {
-    const service = TELEPHONES.find(s => s.sisco);
-    const correctNum = parseInt(service.sisco, 10);
-    const distractors = pickPhoneDistractorsProches(service, "sisco", 3);
-    const distances = distractors.map(s => Math.abs(parseInt(s.sisco, 10) - correctNum));
-    const autres = TELEPHONES.filter(s => s.sisco && s.serviceFr !== service.serviceFr && !distractors.includes(s));
-    const autresDistances = autres.map(s => Math.abs(parseInt(s.sisco, 10) - correctNum));
+    const service = TELEPHONES.find(s => s.cisco);
+    const correctNum = parseInt(service.cisco, 10);
+    const distractors = pickPhoneDistractorsProches(service, "cisco", 3);
+    const distances = distractors.map(s => Math.abs(parseInt(s.cisco, 10) - correctNum));
+    const autres = TELEPHONES.filter(s => s.cisco && s.serviceFr !== service.serviceFr && !distractors.includes(s));
+    const autresDistances = autres.map(s => Math.abs(parseInt(s.cisco, 10) - correctNum));
     const maxChoisi = Math.max(...distances);
     const minRestant = autresDistances.length ? Math.min(...autresDistances) : Infinity;
     expect(maxChoisi).toBeLessThanOrEqual(minRestant);

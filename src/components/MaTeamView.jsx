@@ -10,7 +10,7 @@ import { callEdgeFunction } from "../lib/supabaseClient.js";
 import { makePseudo } from "../utils/userAccount.js";
 import { initials, computeCategoryStats } from "../utils/scoring.js";
 import { Btn, inputStyle, Badge, SectionTitle, EmptyState, ConfirmDialog, StatCard } from "./atoms.jsx";
-import { EleveDetailView, ProfilModal } from "./profileShared.jsx";
+import { EleveDetailView, ProfilModal, fetchNotesObligatoiresStatut } from "./profileShared.jsx";
 import { AnalysisView } from "./GestionQuestionnaires.jsx";
 
 // Vue "Ma Team" : réservée aux responsables d'équipe, mêmes fonctionnalités
@@ -18,7 +18,7 @@ import { AnalysisView } from "./GestionQuestionnaires.jsx";
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
-export function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, categories, requestPrint }) {
+export function MaTeamView({ currentUser, users, setUsers, questionnaires, questions, categories, categoryConfig, requestPrint }) {
   const { t, lang } = useLang();
   const [viewingEleve, setViewingEleve] = useState(null);
   const [viewingQn, setViewingQn] = useState(null);
@@ -58,7 +58,7 @@ export function MaTeamView({ currentUser, users, setUsers, questionnaires, quest
 
   if (viewingEleve) {
     const fresh = users.find(u => u.id === viewingEleve.id) || viewingEleve;
-    return <EleveDetailView eleve={fresh} questionnaires={questionnaires} categories={categories} onBack={() => setViewingEleve(null)} />;
+    return <EleveDetailView eleve={fresh} questionnaires={questionnaires} categories={categories} categoryConfig={categoryConfig} onBack={() => setViewingEleve(null)} />;
   }
   if (viewingQn) {
     return <AnalysisView questionnaire={viewingQn} eleve={users.find(u => u.id === viewingQn.eleveId)} questions={questions} categories={categories} onClose={() => setViewingQn(null)} readOnly onValidate={() => {}} />;
@@ -110,7 +110,7 @@ export function MaTeamView({ currentUser, users, setUsers, questionnaires, quest
                   <Badge {...fonctionColor(o.fonction)}>{fonctionLabel(o.fonction, lang) || t("role_eleve")}</Badge>
                 </button>
                 <Btn variant="subtle" icon={Eye} onClick={() => setViewingEleve(o)} style={{ padding: "6px 10px" }} />
-                <Btn variant="subtle" icon={FileDown} onClick={() => requestPrint({ type: "profile", eleve: o, questionnaires, categories })} style={{ padding: "6px 10px" }} />
+                <Btn variant="subtle" icon={FileDown} onClick={async () => { const notesEleve = await fetchNotesObligatoiresStatut(o, questionnaires, categoryConfig); requestPrint({ type: "profile", eleve: o, questionnaires, categories, notesEleve }); }} style={{ padding: "6px 10px" }} />
                 <Btn variant="subtle" icon={Edit2} onClick={() => setModal(o)} style={{ padding: "6px 10px" }} />
                 <Btn variant="danger" icon={Trash2} onClick={() => setConfirmId(o.id)} style={{ padding: "6px 10px" }} />
               </div>

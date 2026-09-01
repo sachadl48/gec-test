@@ -1,18 +1,19 @@
 import { useState, useEffect } from "react";
-import { PlayCircle } from "lucide-react";
+import { PlayCircle, AlertTriangle } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
 import { supabase } from "../lib/supabaseClient.js";
 import { TELEPHONES } from "../data/telephones.js";
+import { saveGameScoreWithRetry } from "../utils/gameScore.js";
 import { Btn, Badge } from "./atoms.jsx";
 
 // Jeu des téléphones : associer un service et son numéro interne, dans
-// l'un des 2 systèmes (PAX, SISCO) — deux numérotations
+// l'un des 2 systèmes (PAX, CISCO) — deux numérotations
 // indépendantes, jamais comparables entre elles.
 // Records séparés Normal/Hard, comme pour le jeu des stations (schéma 27).
 
-export const TELEPHONE_TYPES = ["pax", "sisco"];
-export const TYPE_LABELS = { pax: "PAX", sisco: "SISCO" };
+export const TELEPHONE_TYPES = ["pax", "cisco"];
+export const TYPE_LABELS = { pax: "PAX", cisco: "CISCO" };
 
 export function serviceName(service, langue) { return langue === "nl" ? service.serviceNl : service.serviceFr; }
 
@@ -32,7 +33,7 @@ export function pickPhoneDistractors(service, type, count) {
 }
 // Mode Hard : les mauvaises réponses sont les numéros les plus proches du
 // bon, DANS LE MÊME SYSTÈME uniquement (jamais un numéro PAX proposé
-// comme distracteur d'un numéro SISCO — les échelles n'ont rien à voir).
+// comme distracteur d'un numéro CISCO — les échelles n'ont rien à voir).
 export function pickPhoneDistractorsProches(service, type, count) {
   const pool = TELEPHONES.filter(s => s[type] && s.serviceFr !== service.serviceFr);
   const correctNum = parseInt(service[type], 10);
@@ -62,6 +63,7 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
   const [feedback, setFeedback] = useState(null);
   const [timeLeft, setTimeLeft] = useState(CHRONO_DUREE);
   const [finished, setFinished] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [showListe, setShowListe] = useState(false);
   const isChrono = mode === "chrono" || mode === "chrono_hard";
   const isHard = mode === "chrono_hard";
@@ -88,14 +90,20 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
     </div>
   );
 
-  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generatePhoneQuestion(m === "chrono_hard")); };
+  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setSaveError(false); setTimeLeft(CHRONO_DUREE); setQuestion(generatePhoneQuestion(m === "chrono_hard")); };
   const backToMenu = () => { setMode(null); if (refreshLeaderboards) refreshLeaderboards(); };
 
   useEffect(() => {
     if (!isChrono || finished) return;
     if (timeLeft <= 0) {
       setFinished(true);
-      if (user.role === "eleve" && score > meilleurScore) supabase.rpc("update_my_phone_score", { new_score: score, hard: isHard }).then(({ error }) => { if (!error) { setUsers(); if (refreshLeaderboards) refreshLeaderboards(); } });
+      if (user.role === "eleve" && score > meilleurScore) {
+        setSaveError(false);
+        saveGameScoreWithRetry(supabase, "update_my_phone_score", { new_score: score, hard: isHard }).then(({ success }) => {
+          if (success) { setUsers(); if (refreshLeaderboards) refreshLeaderboards(); }
+          else setSaveError(true);
+        });
+      }
       return;
     }
     const id = setTimeout(() => setTimeLeft(s => s - 1), 1000);
@@ -152,7 +160,7 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
                     <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>FR</th>
                     <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>NL</th>
                     <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>PAX</th>
-                    <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>SISCO</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px", color: C.inkSoft, fontWeight: 600 }}>CISCO</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -161,7 +169,7 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
                       <td style={{ padding: "6px 10px" }}>{s.serviceFr}</td>
                       <td style={{ padding: "6px 10px", color: C.inkSoft }}>{s.serviceNl}</td>
                       <td style={{ padding: "6px 10px", fontFamily: FONT_MONO, color: s.pax ? C.navy : C.line }}>{s.pax || "—"}</td>
-                      <td style={{ padding: "6px 10px", fontFamily: FONT_MONO, color: s.sisco ? C.navy : C.line }}>{s.sisco || "—"}</td>
+                      <td style={{ padding: "6px 10px", fontFamily: FONT_MONO, color: s.cisco ? C.navy : C.line }}>{s.cisco || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -183,6 +191,11 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
           <div style={{ fontFamily: FONT_MONO, fontSize: 40, fontWeight: 700, color: C.gold, margin: "14px 0" }}>{score}/{total}</div>
           {isNewBest && <Badge color={C.gold} bg={C.goldSoft}>{t("nouveau_record_badge")}</Badge>}
           {isChrono && !isNewBest && meilleurScore > 0 && <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 6 }}>{t("meilleur_score_badge", { n: meilleurScore })}</div>}
+          {saveError && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", marginTop: 12, padding: "8px 12px", background: C.redSoft, borderRadius: 8, color: C.red, fontSize: 12 }}>
+              <AlertTriangle size={14} /> {t("score_non_enregistre")}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 24 }}>
             <Btn variant="ghost" onClick={backToMenu}>{t("retour_btn")}</Btn>
             <Btn variant="gold" icon={PlayCircle} onClick={() => startMode(mode)}>{t("rejouer_btn")}</Btn>
