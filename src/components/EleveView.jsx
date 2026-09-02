@@ -10,7 +10,7 @@ import { supabase, callEdgeFunction } from "../lib/supabaseClient.js";
 import { rowToQuestion } from "../lib/mappers.js";
 import { initials, computeCategoryStats, statutNoteObligatoire } from "../utils/scoring.js";
 import {
-  Btn, Badge, StatusBadge, SectionTitle, EmptyState, Header, LoadingScreen, SaveErrorBanner,
+  Btn, Badge, StatusBadge, SectionTitle, EmptyState, Header, LoadingScreen, SaveErrorBanner, GameButton,
 } from "./atoms.jsx";
 import { ExamIntro } from "./ExamIntro.jsx";
 import { ExamMode } from "./ExamMode.jsx";
@@ -260,51 +260,29 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
             )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button onClick={() => setShowGame(true)} style={{ background: C.navy, borderRadius: 14, border: "none", padding: 18, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={18} color={C.gold} /></div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4, whiteSpace: "nowrap" }}>{t("jeu_stations_titre")}</div>
-                  <div style={{ display: "flex", gap: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>{t("mode_chrono_titre")}</div>
-                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScore || 0}</strong></div>
-                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBest}</strong></div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>{t("difficulte_hard")}</div>
-                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScoreHard || 0}</strong></div>
-                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecordHard ? dtmRecordHard.score : 0}</strong></div>
-                    </div>
-                  </div>
-                </div>
-              </button>
-              <button onClick={() => setShowPhoneGame(true)} style={{ background: C.navy, borderRadius: 14, border: "none", padding: 18, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={18} color={C.gold} /></div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4, whiteSpace: "nowrap" }}>{t("jeu_telephones_titre")}</div>
-                  <div style={{ display: "flex", gap: 14 }}>
-                    <div>
-                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>{t("mode_chrono_titre")}</div>
-                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuTelephonesMeilleurScore || 0}</strong></div>
-                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBestTel}</strong></div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>{t("difficulte_hard")}</div>
-                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuTelephonesMeilleurScoreHard || 0}</strong></div>
-                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap" }}>{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecordTelHard ? dtmRecordTelHard.score : 0}</strong></div>
-                    </div>
-                  </div>
-                </div>
-              </button>
-              <button onClick={() => setShowAbrevGame(true)} style={{ background: C.navy, borderRadius: 14, border: "none", padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={16} color={C.gold} /></div>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>{t("jeu_abreviations_titre")}</div>
-              </button>
-              <button onClick={() => setShowTradGame(true)} style={{ background: C.navy, borderRadius: 14, border: "none", padding: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={16} color={C.gold} /></div>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 13.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>{t("jeu_traductions_titre")}</div>
-              </button>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              <GameButton onClick={() => setShowGame(true)} title={t("jeu_stations_titre")} stats={[
+                { label: t("mode_chrono_titre"), rows: [
+                  <span key="p">{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScore || 0}</strong></span>,
+                  <span key="d">{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBest}</strong></span>,
+                ] },
+                { label: t("difficulte_hard"), rows: [
+                  <span key="p">{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuStationsMeilleurScoreHard || 0}</strong></span>,
+                  <span key="d">{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecordHard ? dtmRecordHard.score : 0}</strong></span>,
+                ] },
+              ]} />
+              <GameButton onClick={() => setShowPhoneGame(true)} title={t("jeu_telephones_titre")} stats={[
+                { label: t("mode_chrono_titre"), rows: [
+                  <span key="p">{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuTelephonesMeilleurScore || 0}</strong></span>,
+                  <span key="d">{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmBestTel}</strong></span>,
+                ] },
+                { label: t("difficulte_hard"), rows: [
+                  <span key="p">{t("record_personnel_label")} <strong style={{ color: "#fff", fontFamily: FONT_MONO }}>{user.jeuTelephonesMeilleurScoreHard || 0}</strong></span>,
+                  <span key="d">{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecordTelHard ? dtmRecordTelHard.score : 0}</strong></span>,
+                ] },
+              ]} />
+              <GameButton onClick={() => setShowAbrevGame(true)} title={t("jeu_abreviations_titre")} />
+              <GameButton onClick={() => setShowTradGame(true)} title={t("jeu_traductions_titre")} />
             </div>
             <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22 }}>
               <SectionTitle>{t("strengths_weaknesses")}</SectionTitle>

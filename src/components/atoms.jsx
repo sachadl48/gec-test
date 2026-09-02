@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  X, AlertTriangle, CheckCircle2, LogOut, Loader2, Trash2, Upload, Music, Video,
+  X, AlertTriangle, CheckCircle2, LogOut, Loader2, Trash2, Upload, Music, Video, Gamepad2,
 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
@@ -182,4 +182,31 @@ export function DebouncedTextarea({ value, onCommit, disabled, placeholder, styl
     if (dirtyRef.current) { onCommit(local); dirtyRef.current = false; }
   };
   return <textarea disabled={disabled} value={local} onChange={handleChange} onBlur={handleBlur} placeholder={placeholder} style={style} />;
+}
+
+// Bouton d'accès à un jeu (bandeau bleu marine avec icône, titre, et
+// éventuellement des statistiques en colonnes) — partagé entre la vue
+// élève et l'Aperçu staff, pour garantir un visuel réellement identique
+// entre les deux plutôt que deux copies entretenues séparément.
+// `stats`, si fourni : tableau de { label, rows } où rows est une liste de
+// noeuds React (déjà mis en forme par l'appelant, chiffres en gras etc.).
+export function GameButton({ title, stats, onClick }) {
+  return (
+    <button onClick={onClick} style={{ background: C.navy, borderRadius: 14, border: "none", padding: 18, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", width: "100%", minWidth: 0 }}>
+      <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Gamepad2 size={18} color={C.gold} /></div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: stats ? 4 : 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
+        {stats && (
+          <div style={{ display: "flex", gap: 14 }}>
+            {stats.map((s, i) => (
+              <div key={i} style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>{s.label}</div>
+                {s.rows.map((row, ri) => <div key={ri} style={{ fontSize: 10.5, color: "rgba(255,255,255,0.65)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row}</div>)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </button>
+  );
 }

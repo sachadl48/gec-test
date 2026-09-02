@@ -7,7 +7,7 @@ import { C, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
 import { supabase } from "../lib/supabaseClient.js";
 import { computeCategoryStats } from "../utils/scoring.js";
-import { Btn, SectionTitle, EmptyState, Header, SaveErrorBanner, StatCard } from "./atoms.jsx";
+import { Btn, SectionTitle, EmptyState, Header, SaveErrorBanner, StatCard, GameButton } from "./atoms.jsx";
 import { GestionProfils } from "./GestionProfils.jsx";
 import { fetchNotesObligatoiresStatut } from "./profileShared.jsx";
 import { CarnetsEleves } from "./Carnet.jsx";
@@ -150,33 +150,29 @@ export function Apercu({ users, setUsers, questions, questionnaires, setQuestion
         <StatCard label={t("stat_qn_attribues")} value={questionnaires.length} />
         <StatCard label={t("stat_a_valider")} value={aValider.length} accent={aValider.length ? C.gold : C.navy} />
       </div>
-      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
-        {[
-          { titre: t("jeu_stations_titre"), normal: dtmRecord, hard: dtmRecordHard, onPlay: () => setShowGame(true) },
-          { titre: t("jeu_telephones_titre"), normal: dtmRecordTel, hard: dtmRecordTelHard, onPlay: () => setShowPhoneGame(true) },
-        ].map((jeu, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
-            <Gamepad2 size={16} color={C.gold} />
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy }}>{jeu.titre}</span>
-            <div style={{ fontSize: 12, color: C.inkSoft }}>
-              {t("mode_chrono_titre")} — {t("record_dtm_label")} <strong style={{ fontFamily: FONT_MONO, color: C.navy }}>{jeu.normal ? jeu.normal.score : 0}</strong>{jeu.normal && <span> ({jeu.normal.prenom} {jeu.normal.nom})</span>}
-            </div>
-            <div style={{ fontSize: 12, color: C.inkSoft }}>
-              {t("difficulte_hard")} — {t("record_dtm_label")} <strong style={{ fontFamily: FONT_MONO, color: C.navy }}>{jeu.hard ? jeu.hard.score : 0}</strong>{jeu.hard && <span> ({jeu.hard.prenom} {jeu.hard.nom})</span>}
-            </div>
-            <Btn variant="ghost" onClick={jeu.onPlay} style={{ padding: "5px 12px", fontSize: 12 }}>{t("jouer_btn")}</Btn>
-          </div>
-        ))}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
-          <Gamepad2 size={16} color={C.gold} />
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy }}>{t("jeu_abreviations_titre")}</span>
-          <Btn variant="ghost" onClick={() => setShowAbrevGame(true)} style={{ padding: "5px 12px", fontSize: 12 }}>{t("jouer_btn")}</Btn>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
-          <Gamepad2 size={16} color={C.gold} />
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy }}>{t("jeu_traductions_titre")}</span>
-          <Btn variant="ghost" onClick={() => setShowTradGame(true)} style={{ padding: "5px 12px", fontSize: 12 }}>{t("jouer_btn")}</Btn>
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+        <GameButton onClick={() => setShowGame(true)} title={t("jeu_stations_titre")} stats={[
+          { label: t("mode_chrono_titre"), rows: [
+            <span key="d">{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecord ? dtmRecord.score : 0}</strong></span>,
+            dtmRecord && <span key="n">{dtmRecord.prenom} {dtmRecord.nom}</span>,
+          ].filter(Boolean) },
+          { label: t("difficulte_hard"), rows: [
+            <span key="d">{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecordHard ? dtmRecordHard.score : 0}</strong></span>,
+            dtmRecordHard && <span key="n">{dtmRecordHard.prenom} {dtmRecordHard.nom}</span>,
+          ].filter(Boolean) },
+        ]} />
+        <GameButton onClick={() => setShowPhoneGame(true)} title={t("jeu_telephones_titre")} stats={[
+          { label: t("mode_chrono_titre"), rows: [
+            <span key="d">{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecordTel ? dtmRecordTel.score : 0}</strong></span>,
+            dtmRecordTel && <span key="n">{dtmRecordTel.prenom} {dtmRecordTel.nom}</span>,
+          ].filter(Boolean) },
+          { label: t("difficulte_hard"), rows: [
+            <span key="d">{t("record_dtm_label")} <strong style={{ color: C.gold, fontFamily: FONT_MONO }}>{dtmRecordTelHard ? dtmRecordTelHard.score : 0}</strong></span>,
+            dtmRecordTelHard && <span key="n">{dtmRecordTelHard.prenom} {dtmRecordTelHard.nom}</span>,
+          ].filter(Boolean) },
+        ]} />
+        <GameButton onClick={() => setShowAbrevGame(true)} title={t("jeu_abreviations_titre")} />
+        <GameButton onClick={() => setShowTradGame(true)} title={t("jeu_traductions_titre")} />
       </div>
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
         <SectionTitle>{t("reussite_globale_titre")}</SectionTitle>
