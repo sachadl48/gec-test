@@ -74,6 +74,41 @@ export function setCellInSheetXml(sheetXml, addr, value, isText) {
   if (!m) return sheetXml; // ligne hors du modèle (au-delà de ce qui était prévu) : ignorée silencieusement
   return sheetXml.replace(rowRe, setCellInRow(m[0], addr, value, isText));
 }
+// Construit une nouvelle ligne "vierge" de la feuille Commentaire_Journalier,
+// avec un style raisonnable (repris d'une ligne normale du modèle) — pour
+// les jours au-delà de ce que prévoyait le modèle d'origine (35 jours) :
+// jours solo, ou formation prolongée au-delà de 35 jours avec moniteur.
+const COMMENTAIRE_ROW_STYLES = { A: "23", B: "30", C: "23", D: "23", E: "23", F: "31", G: "32", H: "91" };
+export function buildEmptyCommentaireRowXml(rowNum) {
+  const cells = ["A", "B", "C", "D", "E", "F", "G", "H"].map(col => `<c r="${col}${rowNum}" s="${COMMENTAIRE_ROW_STYLES[col]}"/>`).join("");
+  return `<row r="${rowNum}" spans="1:8">${cells}</row>`;
+}
+// Insère une nouvelle ligne au bon endroit dans le XML (juste avant la
+// première ligne existante de numéro supérieur, ou en fin de tableau sinon)
+// — l'ordre croissant des lignes doit être respecté pour qu'Excel ouvre le
+// fichier sans le "réparer".
+export function insertRowXmlAt(sheetXml, rowNum, newRowXml) {
+  const rowRe = /<row r="(\d+)"[^>]*>.*?<\/row>/gs;
+  let m, insertPos = null;
+  while ((m = rowRe.exec(sheetXml)) !== null) {
+    if (parseInt(m[1], 10) > rowNum) { insertPos = m.index; break; }
+  }
+  if (insertPos !== null) return sheetXml.slice(0, insertPos) + newRowXml + sheetXml.slice(insertPos);
+  return sheetXml.replace("</sheetData>", newRowXml + "</sheetData>");
+}
+// Comme setCellInSheetXml, mais crée la ligne si elle n'existe pas encore
+// dans le modèle, au lieu de l'ignorer silencieusement — utilisé uniquement
+// pour Commentaire_Journalier, où chaque jour a besoin de sa propre ligne
+// (contrairement aux feuilles de compétences, où seule la colonne varie).
+export function setCellInSheetXmlEnsuringRow(sheetXml, addr, value, isText) {
+  if (value === null || value === undefined) return sheetXml;
+  const rowNum = addr.match(/\d+/)[0];
+  const rowRe = new RegExp(`<row r="${rowNum}"[^>]*>.*?</row>`, "s");
+  if (!sheetXml.match(rowRe)) sheetXml = insertRowXmlAt(sheetXml, parseInt(rowNum, 10), buildEmptyCommentaireRowXml(rowNum));
+  const m = sheetXml.match(rowRe);
+  if (!m) return sheetXml; // sécurité, ne devrait plus arriver
+  return sheetXml.replace(rowRe, setCellInRow(m[0], addr, value, isText));
+}
 export function fillCompetencesSheet(sheetXml, jours, rowMap, volets) {
   for (const jourData of jours) {
     const col = colForJour(jourData.numero);
@@ -93,20 +128,23 @@ export function fillCompetencesSheet(sheetXml, jours, rowMap, volets) {
 export function fillCommentaireJournalier(sheetXml, jours, rowOffset) {
   for (const jourData of jours) {
     const row = 5 + rowOffset + (jourData.numero - 1);
-    sheetXml = setCellInSheetXml(sheetXml, `A${row}`, jourData.moniteurNom, true);
-    sheetXml = setCellInSheetXml(sheetXml, `B${row}`, jourData.date, true);
+    sheetXml = setCellInSheetXmlEnsuringRow(sheetXml, `A${row}`, jourData.moniteurNom, true);
+    sheetXml = setCellInSheetXmlEnsuringRow(sheetXml, `B${row}`, jourData.date, true);
     if (jourData.poste) {
-      sheetXml = setCellInSheetXml(sheetXml, `C${row}`, jourData.poste, true);
-      sheetXml = setCellInSheetXml(sheetXml, `D${row}`, groupePoste(jourData.poste), true);
+      sheetXml = setCellInSheetXmlEnsuringRow(sheetXml, `C${row}`, jourData.poste, true);
+      sheetXml = setCellInSheetXmlEnsuringRow(sheetXml, `D${row}`, groupePoste(jourData.poste), true);
     }
-    sheetXml = setCellInSheetXml(sheetXml, `E${row}`, jourData.commentaireHumain, true);
-    sheetXml = setCellInSheetXml(sheetXml, `F${row}`, jourData.commentaireTechnique, true);
-    sheetXml = setCellInSheetXml(sheetXml, `G${row}`, jourData.incidentsRencontres, true);
+    sheetXml = setCellInSheetXmlEnsuringRow(sheetXml, `E${row}`, jourData.commentaireHumain, true);
+    sheetXml = setCellInSheetXmlEnsuringRow(sheetXml, `F${row}`, jourData.commentaireTechnique, true);
+    sheetXml = setCellInSheetXmlEnsuringRow(sheetXml, `G${row}`, jourData.incidentsRencontres, true);
     // "Résumé de la semaine" : la colonne H est fusionnée par blocs de 5 lignes
     // (H5:H9, H10:H14, ...) — il faut écrire sur la PREMIÈRE ligne du bloc
     // (la cellule "maîtresse" de la fusion), pas sur la ligne du jour lui-même.
+    // Au-delà de la ligne 39 (jour 35), le modèle ne définit plus cette
+    // fusion — le texte s'écrit quand même, mais seulement dans la cellule
+    // de la 5e ligne du bloc, sans s'étaler visuellement sur les 5 lignes.
     if (jourData.resumeSemaine && jourData.numero % 5 === 0) {
-      sheetXml = setCellInSheetXml(sheetXml, `H${row - 4}`, jourData.resumeSemaine, true);
+      sheetXml = setCellInSheetXmlEnsuringRow(sheetXml, `H${row - 4}`, jourData.resumeSemaine, true);
     }
   }
   return sheetXml;

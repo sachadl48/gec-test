@@ -219,10 +219,10 @@ export function ListeQuestionnaires({ users, questions, questionnaires, setQuest
     return (
       <AnalysisView questionnaire={reviewing} eleve={users.find(u => u.id === reviewing.eleveId)} questions={questions} categories={categories}
         onClose={() => setReviewing(null)}
-        onValidate={(reponsesFinal, scoreParCategorie, scoreGlobal, remarks, manualGrades, overrides, categorieCounts) => {
+        onValidate={(reponsesFinal, scoreParCategorie, scoreGlobal, remarks, manualGrades, overrides, categorieCounts, legendeOverrides) => {
           setQuestionnaires(questionnaires.map(q => q.id === reviewing.id ? {
             ...q, statut: "validé", reponses: reponsesFinal, scoreParCategorie, scoreGlobal, categorieCounts,
-            remarques: remarks, manualGrades, overrides, correcteurId: currentUser?.id || null,
+            remarques: remarks, manualGrades, overrides, legendeOverrides, correcteurId: currentUser?.id || null,
             dateValidation: new Date().toISOString().slice(0, 10),
           } : q));
           setReviewing(null);
@@ -323,6 +323,8 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
   // orthographe jugée correcte malgré tout, etc.).
   const [legendeOverrides, setLegendeOverrides] = useState(() => qs.map((q, i) => {
     if (q.type !== "legende") return null;
+    const saved = questionnaire.legendeOverrides?.[i];
+    if (Array.isArray(saved)) return saved;
     const a = initialAnswers[i];
     return marqueursFor(q, langFor(i)).map((m, mi) => normalizeText(a ? a[mi] : "") === normalizeText(m.reponse));
   }));
@@ -389,7 +391,8 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
   const handleValidate = () => {
     const reponsesFinal = qs.map((q, i) => (q.type === "ouverte" || q.type === "dessin_reseau") ? { ...initialAnswers[i], points: grades[i] } : initialAnswers[i]);
     const manualGrades = qs.map((q, i) => q.type === "legende" ? legendeGrades[i] : (questionnaire.manualGrades?.[i] ?? null));
-    onValidate(reponsesFinal, scoreParCategorie, scoreGlobal, remarks, manualGrades, overrides, categorieCounts);
+    const legendeOverridesFinal = qs.map((q, i) => q.type === "legende" ? legendeOverrides[i] : (questionnaire.legendeOverrides?.[i] ?? null));
+    onValidate(reponsesFinal, scoreParCategorie, scoreGlobal, remarks, manualGrades, overrides, categorieCounts, legendeOverridesFinal);
   };
   const title = !readOnly ? t("analyse_titre") : showConfirmRead ? t("ma_correction_titre") : t("consultation_titre");
 
@@ -456,12 +459,14 @@ export function AnalysisView({ questionnaire, eleve, questions, categories, onCl
                           return (
                             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, padding: "5px 8px", background: ok ? C.greenSoft : C.redSoft, borderRadius: 6 }}>
                               <strong>{mi + 1}.</strong> {given && given.trim() ? given : <em>{t("sans_reponse_italic")}</em>} {!ok && <span style={{ color: C.inkSoft }}>{t("attendu_deux_points", { v: m.reponse })}</span>}
-                              <span style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
-                                <button type="button" disabled={readOnly} onClick={() => toggleLegendeMarker(i, mi, true)}
-                                  style={{ background: ok ? C.green : "#fff", color: ok ? "#fff" : C.green, border: `1px solid ${C.green}`, borderRadius: 5, width: 24, height: 24, cursor: readOnly ? "default" : "pointer", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✓</button>
-                                <button type="button" disabled={readOnly} onClick={() => toggleLegendeMarker(i, mi, false)}
-                                  style={{ background: !ok ? C.red : "#fff", color: !ok ? "#fff" : C.red, border: `1px solid ${C.red}`, borderRadius: 5, width: 24, height: 24, cursor: readOnly ? "default" : "pointer", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✗</button>
-                              </span>
+                              {!readOnly && (
+                                <span style={{ marginLeft: "auto", display: "flex", gap: 4, flexShrink: 0 }}>
+                                  <button type="button" onClick={() => toggleLegendeMarker(i, mi, true)}
+                                    style={{ background: ok ? C.green : "#fff", color: ok ? "#fff" : C.green, border: `1px solid ${C.green}`, borderRadius: 5, width: 24, height: 24, cursor: "pointer", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✓</button>
+                                  <button type="button" onClick={() => toggleLegendeMarker(i, mi, false)}
+                                    style={{ background: !ok ? C.red : "#fff", color: !ok ? "#fff" : C.red, border: `1px solid ${C.red}`, borderRadius: 5, width: 24, height: 24, cursor: "pointer", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✗</button>
+                                </span>
+                              )}
                             </div>
                           );
                         })}

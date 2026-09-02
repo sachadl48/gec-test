@@ -17,6 +17,8 @@ import { GestionComptes, AdminPage } from "./GestionComptes.jsx";
 import { MaTeamView } from "./MaTeamView.jsx";
 import { StationGame } from "./StationGame.jsx";
 import { PhoneGame } from "./PhoneGame.jsx";
+import { AbbreviationGame } from "./AbbreviationGame.jsx";
+import { TranslationGame } from "./TranslationGame.jsx";
 
 // Page d'accueil du staff (aperçu général avec la file d'attente de
 // correction), et l'orchestrateur principal qui affiche le bon onglet
@@ -73,6 +75,8 @@ export function Apercu({ users, setUsers, questions, questionnaires, setQuestion
   const [reviewing, setReviewing] = useState(null);
   const [showGame, setShowGame] = useState(false);
   const [showPhoneGame, setShowPhoneGame] = useState(false);
+  const [showAbrevGame, setShowAbrevGame] = useState(false);
+  const [showTradGame, setShowTradGame] = useState(false);
   const [dtmRecord, setDtmRecord] = useState(null);
   const [dtmRecordHard, setDtmRecordHard] = useState(null);
   const [dtmRecordTel, setDtmRecordTel] = useState(null);
@@ -105,6 +109,20 @@ export function Apercu({ users, setUsers, questions, questionnaires, setQuestion
     return (
       <div>
         <PhoneGame user={currentUser} users={users} setUsers={setUsers} dtmRecord={dtmRecordTel} dtmRecordHard={dtmRecordTelHard} onExit={() => setShowPhoneGame(false)} refreshLeaderboards={refreshLeaderboards} />
+      </div>
+    );
+  }
+  if (showAbrevGame) {
+    return (
+      <div>
+        <AbbreviationGame onExit={() => setShowAbrevGame(false)} />
+      </div>
+    );
+  }
+  if (showTradGame) {
+    return (
+      <div>
+        <TranslationGame onExit={() => setShowTradGame(false)} />
       </div>
     );
   }
@@ -149,6 +167,16 @@ export function Apercu({ users, setUsers, questions, questionnaires, setQuestion
             <Btn variant="ghost" onClick={jeu.onPlay} style={{ padding: "5px 12px", fontSize: 12 }}>{t("jouer_btn")}</Btn>
           </div>
         ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
+          <Gamepad2 size={16} color={C.gold} />
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy }}>{t("jeu_abreviations_titre")}</span>
+          <Btn variant="ghost" onClick={() => setShowAbrevGame(true)} style={{ padding: "5px 12px", fontSize: 12 }}>{t("jouer_btn")}</Btn>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 18px" }}>
+          <Gamepad2 size={16} color={C.gold} />
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy }}>{t("jeu_traductions_titre")}</span>
+          <Btn variant="ghost" onClick={() => setShowTradGame(true)} style={{ padding: "5px 12px", fontSize: 12 }}>{t("jouer_btn")}</Btn>
+        </div>
       </div>
       <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
         <SectionTitle>{t("reussite_globale_titre")}</SectionTitle>

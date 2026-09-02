@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   colForJour, colLetterToNum, setCellInRow, setCellInSheetXml,
   fillCompetencesSheet, fillCommentaireJournalier, offsetRegSoloJours,
+  setCellInSheetXmlEnsuringRow, insertRowXmlAt, buildEmptyCommentaireRowXml,
+  resolveCarnetSheetPath,
 } from "./utils/excelExport.js";
 import { EXCEL_ROW_MAP_REGULATEUR, EXCEL_ROW_MAP_DISPATCHEUR } from "./data/excelRowMap.js";
 import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "./data/competences.js";
@@ -201,5 +203,72 @@ describe("offsetRegSoloJours (les jours solo doivent toujours suivre les vrais j
   it("gère une liste régulière vide (pas encore commencée) sans planter", () => {
     const result = offsetRegSoloJours([], [{ numero: 1 }]);
     expect(result.map(j => j.numero)).toEqual([1]);
+  });
+});
+
+describe("insertRowXmlAt / buildEmptyCommentaireRowXml (création de ligne pour un jour au-delà du modèle)", () => {
+  it("insère la nouvelle ligne juste avant la première ligne de numéro supérieur", () => {
+    const xml = `<sheetData><row r="5">a</row><row r="10">b</row></sheetData>`;
+    const result = insertRowXmlAt(xml, 7, `<row r="7">NEW</row>`);
+    expect(result).toBe(`<sheetData><row r="5">a</row><row r="7">NEW</row><row r="10">b</row></sheetData>`);
+  });
+  it("insère en fin de tableau si le numéro dépasse toutes les lignes existantes", () => {
+    const xml = `<sheetData><row r="5">a</row><row r="10">b</row></sheetData>`;
+    const result = insertRowXmlAt(xml, 40, `<row r="40">NEW</row>`);
+    expect(result).toBe(`<sheetData><row r="5">a</row><row r="10">b</row><row r="40">NEW</row></sheetData>`);
+  });
+  it("la ligne construite contient bien les 8 colonnes A à H", () => {
+    const rowXml = buildEmptyCommentaireRowXml(40);
+    for (const col of ["A", "B", "C", "D", "E", "F", "G", "H"]) {
+      expect(rowXml).toContain(`r="${col}40"`);
+    }
+  });
+});
+
+describe("setCellInSheetXmlEnsuringRow (le vrai correctif : commentaires des jours solo)", () => {
+  it("écrit correctement dans une ligne déjà existante, sans la dupliquer", () => {
+    const xml = `<sheetData><row r="5" spans="1:8"><c r="A5"/></row></sheetData>`;
+    const result = setCellInSheetXmlEnsuringRow(xml, "A5", "Jean Dupont", true);
+    expect(result).toContain("Jean Dupont");
+    expect((result.match(/<row r="5"/g) || []).length).toBe(1);
+  });
+  it("crée la ligne si elle n'existe pas encore, puis y écrit la valeur", () => {
+    const xml = `<sheetData><row r="5" spans="1:8"><c r="A5"/></row></sheetData>`;
+    const result = setCellInSheetXmlEnsuringRow(xml, "A40", "Commentaire jour solo", true);
+    expect(result).toContain('<row r="40"');
+    expect(result).toContain("Commentaire jour solo");
+  });
+});
+
+describe("Correction bout en bout : commentaires des jours solo dans le vrai modèle Excel", () => {
+  it("le modèle réel ne contient bien des lignes que jusqu'à 39 (confirme la cause du bug signalé)", async () => {
+    const fs = await import("node:fs");
+    const buf = fs.readFileSync("/home/claude/gec-test/public/carnet-modele.xlsx");
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(buf);
+    const path = await resolveCarnetSheetPath(zip, "Commentaire_Journalier");
+    expect(path).toBeTruthy();
+    const xml = await zip.file(path).async("string");
+    const rows = [...xml.matchAll(/<row r="(\d+)"/g)].map(m => parseInt(m[1], 10));
+    expect(Math.max(...rows)).toBe(39); // jour 35 = ligne 39, rien au-delà avant le correctif
+  });
+
+  it("après le correctif, un jour solo (numéro 36, au-delà du modèle) écrit bien son commentaire", async () => {
+    const fs = await import("node:fs");
+    const buf = fs.readFileSync("/home/claude/gec-test/public/carnet-modele.xlsx");
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(buf);
+    const path = await resolveCarnetSheetPath(zip, "Commentaire_Journalier");
+    let xml = await zip.file(path).async("string");
+
+    const joursReg = Array.from({ length: 35 }, (_, i) => ({ numero: i + 1, moniteurNom: null, date: null, commentaireHumain: "", commentaireTechnique: "", incidentsRencontres: "" }));
+    const joursRegSoloBruts = [{ numero: 1, moniteurNom: "Marie Martin", date: "05/09/2026", commentaireHumain: "Très bonne journée solo", commentaireTechnique: "RAS", incidentsRencontres: "" }];
+    const joursRegSolo = offsetRegSoloJours(joursReg, joursRegSoloBruts);
+    expect(joursRegSolo[0].numero).toBe(36); // confirme le bon décalage (déjà corrigé précédemment)
+
+    xml = fillCommentaireJournalier(xml, [...joursReg, ...joursRegSolo], 0);
+    expect(xml).toContain("Très bonne journée solo");
+    expect(xml).toContain("Marie Martin");
+    expect(xml).toContain('<row r="40"'); // jour 36 -> ligne 5+0+(36-1) = 40
   });
 });
