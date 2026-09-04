@@ -65,3 +65,10 @@ export function questionnaireToRow(qn) {
     note_id: qn.noteId || null,
   };
 }
+
+export function rowToEnquete(row) {
+  return {
+    id: row.id, eleveId: row.eleve_id, moniteurs: row.moniteurs || [], statut: row.statut,
+    reponses: row.reponses || null, dateCreation: row.date_creation, dateCompletion: row.date_completion || null,
+  };
+}

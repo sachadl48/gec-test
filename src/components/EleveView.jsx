@@ -27,7 +27,7 @@ import { EnqueteSatisfactionForm } from "./EnqueteSatisfaction.jsx";
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
-export function EleveView({ user, users, setUsers, questionnaires, refreshQuestionnaires, categories, categoryConfig, onLogout, submitReponses, confirmRead, saveError }) {
+export function EleveView({ user, users, setUsers, questionnaires, refreshQuestionnaires, categories, categoryConfig, onLogout, submitReponses, confirmRead, saveError, enquetesSatisfaction }) {
   const { t } = useLang();
   const [playing, setPlaying] = useState(null);
   const [examStarted, setExamStarted] = useState(false);
@@ -47,12 +47,7 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
   const [noteError, setNoteError] = useState("");
   const [startingNote, setStartingNote] = useState(false);
   const [showEnquete, setShowEnquete] = useState(false);
-  const [enquetePending, setEnquetePending] = useState(null);
-  const fetchEnquetePending = () => {
-    supabase.from("enquetes_satisfaction").select("*").eq("eleve_id", user.id).eq("statut", "en_attente").order("date_creation", { ascending: false }).limit(1)
-      .then(({ data }) => setEnquetePending(data && data[0] ? data[0] : null));
-  };
-  useEffect(() => { fetchEnquetePending(); }, [user.id]); // eslint-disable-line
+  const enquetePending = (enquetesSatisfaction || []).find(e => e.statut === "en_attente") || null;
 
   const filiereNotes = user.fonction === "Élève régulateur" || user.fonction === "Élève dispatcheur" ? user.fonction : null;
   useEffect(() => {
@@ -190,7 +185,7 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
       <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
         <Header user={user} onLogout={onLogout} />
         <div style={{ padding: "24px 28px" }}>
-          <EnqueteSatisfactionForm enquete={enquetePending} onExit={() => setShowEnquete(false)} onDone={() => { setShowEnquete(false); fetchEnquetePending(); }} />
+          <EnqueteSatisfactionForm enquete={enquetePending} onExit={() => setShowEnquete(false)} onDone={() => setShowEnquete(false)} />
         </div>
       </div>
     );

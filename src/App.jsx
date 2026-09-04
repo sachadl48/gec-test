@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { supabase, callEdgeFunction } from "./lib/supabaseClient.js";
-import { rowToUser, rowToQuestion, questionToRow, rowToQuestionnaire, questionnaireToRow } from "./lib/mappers.js";
+import { rowToUser, rowToQuestion, questionToRow, rowToQuestionnaire, questionnaireToRow, rowToEnquete } from "./lib/mappers.js";
 import { LANGS, useLang, LangProvider } from "./lang.jsx";
 import { TYPE_META, typeLabel, AR_COLOR, AR_LABEL } from "./data/questionTypes.js";
 import { FONCTIONS, TEAMS, FONCTION_LABELS, fonctionLabel, fonctionColor } from "./data/fonctions.js";
@@ -330,6 +330,7 @@ export default function App() {
   const [users, setUsersState] = useState([]);
   const [questions, setQuestionsState] = useState([]);
   const [questionnaires, setQuestionnairesState] = useState([]);
+  const [enquetesSatisfaction, setEnquetesSatisfactionState] = useState([]);
   const [categories, setCategoriesState] = useState([]);
   const [categoryConfig, setCategoryConfigState] = useState({});
   const [session, setSession] = useState(null);
@@ -365,6 +366,8 @@ export default function App() {
           setQuestionnairesState(qnRes.data.map(rowToQuestionnaire));
           setQuestionsState([]); // chargées à la demande (voir EleveView)
           setUsersState([session]);
+          const enqRes = await supabase.from("enquetes_satisfaction").select("*").eq("eleve_id", session.id);
+          if (!enqRes.error) setEnquetesSatisfactionState(enqRes.data.map(rowToEnquete));
         } else {
           const [usersRes, qRes, qnRes] = await Promise.all([
             supabase.from("profiles").select("*"),
@@ -381,6 +384,12 @@ export default function App() {
           setUsersState(usersRes.data.map(rowToUser));
           setQuestionsState(qRes.data.map(rowToQuestion));
           setQuestionnairesState(qnRes.data.map(rowToQuestionnaire));
+          // Les règles de sécurité (RLS) limitent déjà cette table aux
+          // admins — pour un moniteur non-admin, ça renverra simplement une
+          // liste vide, sans erreur.
+          supabase.from("enquetes_satisfaction").select("*").then(({ data, error }) => {
+            if (!error) setEnquetesSatisfactionState(data.map(rowToEnquete));
+          });
 
           // Charge les médias (images/audio/vidéo) séparément, en
           // arrière-plan, une fois la banque de questions déjà affichée à
@@ -450,6 +459,44 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, [session?.id, session?.role]);
 
+  // Synchro en direct des enquêtes de satisfaction, des deux côtés : côté
+  // élève, pour voir apparaître une nouvelle enquête sans recharger la
+  // page (créée par un admin, potentiellement en dehors de toute action
+  // de l'élève lui-même) ; côté staff, pour voir en direct quand un élève
+  // complète la sienne, ou qu'une nouvelle apparaît.
+  useEffect(() => {
+    if (!session || session.role !== "eleve") return;
+    const channel = supabase
+      .channel(`enquetes-eleve-${session.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "enquetes_satisfaction", filter: `eleve_id=eq.${session.id}` }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          setEnquetesSatisfactionState(prev => prev.some(e => e.id === payload.new.id) ? prev : [...prev, rowToEnquete(payload.new)]);
+        } else if (payload.eventType === "UPDATE") {
+          setEnquetesSatisfactionState(prev => prev.map(e => e.id === payload.new.id ? rowToEnquete(payload.new) : e));
+        } else if (payload.eventType === "DELETE") {
+          setEnquetesSatisfactionState(prev => prev.filter(e => e.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.id, session?.role]);
+  useEffect(() => {
+    if (!session || session.role === "eleve") return;
+    const channel = supabase
+      .channel(`enquetes-staff-${session.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "enquetes_satisfaction" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          setEnquetesSatisfactionState(prev => prev.some(e => e.id === payload.new.id) ? prev : [...prev, rowToEnquete(payload.new)]);
+        } else if (payload.eventType === "UPDATE") {
+          setEnquetesSatisfactionState(prev => prev.map(e => e.id === payload.new.id ? rowToEnquete(payload.new) : e));
+        } else if (payload.eventType === "DELETE") {
+          setEnquetesSatisfactionState(prev => prev.filter(e => e.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.id, session?.role]);
+
   // Synchro en direct des profils (carnet compris) : quand un autre membre
   // du staff ouvre/ferme un jour de carnet — ou modifie tout autre champ
   // d'un profil — ça se reflète immédiatement, sans devoir rafraîchir.
@@ -505,7 +552,7 @@ export default function App() {
   };
   const logout = async () => {
     await supabase.auth.signOut();
-    setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({});
+    setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({}); setEnquetesSatisfactionState([]);
   };
 
   const auteurLog = session ? `${session.prenom} ${session.nom}` : "Système";
@@ -631,9 +678,9 @@ export default function App() {
             <Btn variant="gold" style={{ marginTop: 18 }} onClick={() => { setLoadError(false); setLoadAttempt(a => a + 1); }}>Réessayer</Btn>
           </div>
         ) : session.role === "eleve" ? (
-          <EleveView user={users.find(u => u.id === session.id) || session} users={users} setUsers={refreshUsers} questionnaires={questionnaires} refreshQuestionnaires={refreshQuestionnaires} categories={categories} categoryConfig={categoryConfig} onLogout={logout} submitReponses={submitReponses} confirmRead={confirmRead} saveError={saveError} />
+          <EleveView user={users.find(u => u.id === session.id) || session} users={users} setUsers={refreshUsers} questionnaires={questionnaires} refreshQuestionnaires={refreshQuestionnaires} categories={categories} categoryConfig={categoryConfig} onLogout={logout} submitReponses={submitReponses} confirmRead={confirmRead} saveError={saveError} enquetesSatisfaction={enquetesSatisfaction} />
         ) : (
-          <StaffView user={session} users={users} setUsers={refreshUsers} questions={questions} setQuestions={setQuestions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} onLogout={logout} saveError={saveError} requestPrint={setPrintJob} onImportQuestions={importQuestions} onRenameCategory={renameCategory} refreshQuestionnaires={refreshQuestionnaires} />
+          <StaffView user={session} users={users} setUsers={refreshUsers} questions={questions} setQuestions={setQuestions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} onLogout={logout} saveError={saveError} requestPrint={setPrintJob} onImportQuestions={importQuestions} onRenameCategory={renameCategory} refreshQuestionnaires={refreshQuestionnaires} enquetesSatisfaction={enquetesSatisfaction} />
         )}
       </LangProvider>
       {printJob && <PrintOverlay job={printJob} onClose={() => setPrintJob(null)} />}
