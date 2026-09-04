@@ -19,6 +19,7 @@ import { PhoneGame } from "./PhoneGame.jsx";
 import { AbbreviationGame } from "./AbbreviationGame.jsx";
 import { TranslationGame } from "./TranslationGame.jsx";
 import { AnalysisView } from "./GestionQuestionnaires.jsx";
+import { EnqueteSatisfactionForm } from "./EnqueteSatisfaction.jsx";
 
 // Vue "élève" (opérateur) : questionnaires en cours/à faire, points
 // forts/faibles, accès au jeu des stations, passage d'examen et
@@ -45,6 +46,13 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
   const [readingNote, setReadingNote] = useState(null); // { note, url } | null
   const [noteError, setNoteError] = useState("");
   const [startingNote, setStartingNote] = useState(false);
+  const [showEnquete, setShowEnquete] = useState(false);
+  const [enquetePending, setEnquetePending] = useState(null);
+  const fetchEnquetePending = () => {
+    supabase.from("enquetes_satisfaction").select("*").eq("eleve_id", user.id).eq("statut", "en_attente").order("date_creation", { ascending: false }).limit(1)
+      .then(({ data }) => setEnquetePending(data && data[0] ? data[0] : null));
+  };
+  useEffect(() => { fetchEnquetePending(); }, [user.id]); // eslint-disable-line
 
   const filiereNotes = user.fonction === "Élève régulateur" || user.fonction === "Élève dispatcheur" ? user.fonction : null;
   useEffect(() => {
@@ -177,6 +185,16 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
       </div>
     );
   }
+  if (showEnquete && enquetePending) {
+    return (
+      <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
+        <Header user={user} onLogout={onLogout} />
+        <div style={{ padding: "24px 28px" }}>
+          <EnqueteSatisfactionForm enquete={enquetePending} onExit={() => setShowEnquete(false)} onDone={() => { setShowEnquete(false); fetchEnquetePending(); }} />
+        </div>
+      </div>
+    );
+  }
   if (showGame) {
     return (
       <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
@@ -234,6 +252,18 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
                 <div style={{ fontSize: 12, color: C.inkSoft, marginBottom: 4 }}>{t("questionnaires_done")}</div>
                 <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: C.navy }}>{graded.length}</div>
               </div>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22 }}>
+              <SectionTitle>{t("enquete_satisfaction_titre")}</SectionTitle>
+              {enquetePending ? (
+                <button onClick={() => setShowEnquete(true)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 10, cursor: "pointer", textAlign: "left", width: "100%", marginTop: 10 }}>
+                  <ClipboardList size={14} color={C.gold} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: C.ink }}>{t("enquete_satisfaction_titre")}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.gold, whiteSpace: "nowrap" }}>{t("enquete_a_remplir")}</span>
+                </button>
+              ) : (
+                <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 10 }}>{t("enquete_aucune_pour_instant")}</div>
+              )}
             </div>
             {notesObligatoires.length > 0 && (
               <div style={{ background: "#fff", borderRadius: 14, border: `1px solid ${C.line}`, padding: 22 }}>

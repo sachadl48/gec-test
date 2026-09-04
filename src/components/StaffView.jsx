@@ -19,6 +19,7 @@ import { StationGame } from "./StationGame.jsx";
 import { PhoneGame } from "./PhoneGame.jsx";
 import { AbbreviationGame } from "./AbbreviationGame.jsx";
 import { TranslationGame } from "./TranslationGame.jsx";
+import { GestionEnquetes } from "./GestionEnquetes.jsx";
 
 // Page d'accueil du staff (aperçu général avec la file d'attente de
 // correction), et l'orchestrateur principal qui affiche le bon onglet
@@ -38,6 +39,7 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
     { key: "questions", label: t("nav_questions"), icon: HelpCircle },
     { key: "questionnaires", label: t("nav_questionnaires"), icon: ClipboardList },
     ...(isAdmin ? [{ key: "comptes", label: t("nav_accounts"), icon: ShieldCheck }] : []),
+    ...(isAdmin ? [{ key: "enquetes", label: t("nav_enquetes"), icon: ClipboardCheck }] : []),
     ...(user.responsableTeam ? [{ key: "maTeam", label: t("nav_ma_team"), icon: ShieldCheck }] : []),
     ...(isSuperAdmin ? [{ key: "admin", label: t("nav_admin_page"), icon: Lock }] : []),
   ];
@@ -62,6 +64,7 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
           {tab === "questions" && <GestionQuestions questions={questions} setQuestions={setQuestions} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} isAdmin={isAdmin} onImportQuestions={onImportQuestions} onRenameCategory={onRenameCategory} questionnaires={questionnaires} users={users} currentUser={user} />}
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
+          {tab === "enquetes" && isAdmin && <GestionEnquetes users={users} currentUser={user} />}
           {tab === "admin" && isSuperAdmin && <AdminPage refreshQuestionnaires={refreshQuestionnaires} />}
           {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} />}
         </div>

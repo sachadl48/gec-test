@@ -547,6 +547,18 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
 }
 
 const GRADUATION_MAP = { "Élève régulateur": "Régulateur", "Élève dispatcheur": "Dispatcheur" };
+// Liste des moniteurs distincts apparus sur les jours du carnet (reg,
+// solo, disp confondus) — figée au moment de la validation de réussite,
+// pour l'enquête de satisfaction.
+export function extraireMoniteursCarnet(carnet) {
+  const noms = new Set();
+  for (const section of [carnet?.reg, carnet?.regSolo, carnet?.disp]) {
+    for (const j of section || []) {
+      if (j.moniteurNom && j.moniteurNom.trim()) noms.add(j.moniteurNom.trim());
+    }
+  }
+  return [...noms].sort().map(nom => ({ nom }));
+}
 export function CarnetsEleves({ users, setUsers, questionnaires, questions, categories, categoryConfig, isAdmin, currentUser }) {
   const { t, lang } = useLang();
   const [subtab, setSubtab] = useState("liste"); // "liste" | "notes"
@@ -572,6 +584,13 @@ export function CarnetsEleves({ users, setUsers, questionnaires, questions, cate
       const { error: err } = await supabase.from("profiles").update({ fonction: nouvelleFonction, formation_statut: null }).eq("id", eleve.id);
       if (err) throw err;
       logActivity("Profil", [{ action: "modification", description: `${eleve.prenom} ${eleve.nom} — Fonction : ${eleve.fonction} → ${nouvelleFonction}` }], auteurLog);
+      // Création automatique de l'enquête de satisfaction (pas anonyme,
+      // pas bloquant : si la création échoue, la réussite reste validée
+      // quand même — l'admin peut toujours la recréer manuellement si
+      // besoin un jour).
+      const moniteurs = extraireMoniteursCarnet(eleve.carnet);
+      const { error: enqErr } = await supabase.from("enquetes_satisfaction").insert({ eleve_id: eleve.id, moniteurs, statut: "en_attente" });
+      if (enqErr) console.error("Création de l'enquête de satisfaction échouée :", enqErr.message || enqErr);
       await setUsers();
     } catch (e) { setError(e?.message || "Erreur inconnue."); }
     setConfirmSuccess(null);
