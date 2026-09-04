@@ -25,16 +25,29 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Appelle une Edge Function Supabase authentifiée avec le jeton de la
 // session en cours (ou la clé anonyme si personne n'est connecté).
-export async function callEdgeFunction(name, body) {
-  const { data: { session } } = await supabase.auth.getSession();
+// En cas de 401 (jeton expiré pile au mauvais moment, avant que le
+// rafraîchissement automatique en arrière-plan n'ait eu le temps de
+// passer), une tentative de rafraîchissement explicite est faite avant de
+// réessayer une seule fois — pour absorber ce cas limite sans faire
+// planter l'action de la personne.
+async function doCallEdgeFunction(name, body, accessToken) {
   const res = await fetch(`${supabaseUrl}/functions/v1/${name}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.access_token || supabaseAnonKey}`,
+      Authorization: `Bearer ${accessToken || supabaseAnonKey}`,
     },
     body: JSON.stringify(body),
   });
+  return res;
+}
+export async function callEdgeFunction(name, body) {
+  const { data: { session } } = await supabase.auth.getSession();
+  let res = await doCallEdgeFunction(name, body, session?.access_token);
+  if (res.status === 401) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    if (refreshed?.session?.access_token) res = await doCallEdgeFunction(name, body, refreshed.session.access_token);
+  }
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || "Une erreur est survenue.");
   return json;

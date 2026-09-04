@@ -10,10 +10,9 @@ import { Users } from "lucide-react";
 // Vue "Performances des moniteurs" : un graphique en toile d'araignée
 // général (toutes les enquêtes complétées confondues), puis un graphique
 // personnel pour chaque profil enregistré comme moniteur. Les moniteurs
-// sont retrouvés dans les enquêtes par correspondance de nom (prénom +
-// nom) — pas d'identifiant direct, donc un moniteur renommé ou dont le
-// nom a été mal saisi lors de l'ouverture d'un jour de carnet n'apparaîtra
-// pas correctement ici. Limite connue, pas une erreur du calcul lui-même.
+// sont identifiés par leur id de compte (capturé à la création de
+// l'enquête, via ouvertParId sur les jours du carnet) — fiable même en
+// cas d'homonymie, contrairement à une comparaison par nom.
 function RadarCard({ title, data, compact }) {
   const { t } = useLang();
   return (
@@ -56,7 +55,7 @@ export function PerformancesMoniteurs({ users, enquetesSatisfaction }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {moniteursProfils.map(m => {
             const nomComplet = `${m.prenom} ${m.nom}`;
-            const data = computeMoniteurRadarData(terminees, nomComplet, lang);
+            const data = computeMoniteurRadarData(terminees, m.id, lang);
             return <RadarCard key={m.id} title={nomComplet} data={data} compact />;
           })}
         </div>

@@ -324,6 +324,8 @@ async function syncArray(table, oldArr, newArr, toRow) {
 
 export default function App() {
   const [checkingSession, setCheckingSession] = useState(true);
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState("");
+  const isManualLogout = useRef(false);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -347,6 +349,27 @@ export default function App() {
       }
       setCheckingSession(false);
     })();
+  }, []);
+
+  // Écoute les changements d'état d'authentification décidés par Supabase
+  // lui-même (pas seulement ceux déclenchés par une action de la personne
+  // dans l'app). Sans ça, si le rafraîchissement automatique du jeton
+  // finit par échouer en arrière-plan — après une longue période
+  // d'inactivité par exemple — Supabase déconnecte réellement la session
+  // côté serveur, mais l'état React ne le sait jamais : l'écran continue
+  // d'afficher "connecté" alors que chaque nouvelle action échoue en
+  // silence avec une erreur 401. Le drapeau isManualLogout distingue une
+  // vraie déconnexion volontaire (pas de message à afficher) d'une
+  // coupure décidée par Supabase (message clair, pour éviter la confusion).
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT" && !isManualLogout.current) {
+        setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({}); setEnquetesSatisfactionState([]);
+        setSessionExpiredNotice("Votre session a expiré. Merci de vous reconnecter.");
+      }
+      isManualLogout.current = false;
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   // Chargement des données une fois la personne identifiée
@@ -548,9 +571,11 @@ export default function App() {
     const { data: profile, error: profileError } = await supabase.from("profiles").select("*").eq("id", data.user.id).single();
     if (profileError || !profile) return { error: "Profil introuvable." };
     setSession(rowToUser(profile));
+    setSessionExpiredNotice("");
     return { error: null };
   };
   const logout = async () => {
+    isManualLogout.current = true;
     await supabase.auth.signOut();
     setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({}); setEnquetesSatisfactionState([]);
   };
@@ -670,7 +695,7 @@ export default function App() {
       <FontImport />
       <PrintStyles />
       <LangProvider lang={(session && session.langue) || "fr"}>
-        {checkingSession ? <LoadingScreen label="Chargement..." /> : !session ? <LoginPage onLogin={login} /> : loading ? <LoadingScreen label="Chargement des données..." /> : loadError ? (
+        {checkingSession ? <LoadingScreen label="Chargement..." /> : !session ? <LoginPage onLogin={login} notice={sessionExpiredNotice} /> : loading ? <LoadingScreen label="Chargement des données..." /> : loadError ? (
           <div style={{ minHeight: 640, background: C.navy, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: 16, padding: 24, textAlign: "center" }}>
             <AlertTriangle size={28} color={C.gold} />
             <div style={{ color: "#fff", fontSize: 16, fontWeight: 600, marginTop: 14, fontFamily: FONT_DISPLAY }}>Impossible de charger les données</div>

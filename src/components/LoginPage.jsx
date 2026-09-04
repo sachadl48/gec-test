@@ -8,7 +8,7 @@ import { Field, inputStyle, Btn } from "./atoms.jsx";
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
-export function LoginPage({ onLogin }) {
+export function LoginPage({ onLogin, notice }) {
   const { t } = useLang();
   const [pseudo, setPseudo] = useState("");
   const [password, setPassword] = useState("");
@@ -39,6 +39,7 @@ export function LoginPage({ onLogin }) {
           <div style={{ fontSize: 12.5, color: "#9AA6C0", marginTop: 4, letterSpacing: ".03em" }}>{t("login_subtitle")}</div>
         </div>
         <div style={{ background: "#fff", borderRadius: 14, padding: 26, boxShadow: "0 24px 60px rgba(0,0,0,0.35)" }}>
+          {notice && <div style={{ background: C.goldSoft, color: "#8A6100", fontSize: 12.5, fontWeight: 600, padding: "10px 12px", borderRadius: 8, marginBottom: 14 }}>{notice}</div>}
           <Field label={t("login_id")}>
             <div style={{ position: "relative" }}><UserCircle2 size={16} style={{ position: "absolute", left: 12, top: 12, color: C.inkSoft }} /><input style={{ ...inputStyle, paddingLeft: 36 }} placeholder="ex. rousseauc" value={pseudo} onChange={e => setPseudo(e.target.value)} onKeyDown={onKeyDown} /></div>
           </Field>

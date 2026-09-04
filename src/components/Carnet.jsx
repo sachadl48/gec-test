@@ -551,13 +551,20 @@ const GRADUATION_MAP = { "Élève régulateur": "Régulateur", "Élève dispatch
 // solo, disp confondus) — figée au moment de la validation de réussite,
 // pour l'enquête de satisfaction.
 export function extraireMoniteursCarnet(carnet) {
-  const noms = new Set();
+  // Identifié par ouvertParId (l'id réel du compte), pas par le nom en
+  // texte libre — moniteurNom ne contient que le nom de famille (pas le
+  // prénom), ce qui rendait toute comparaison ultérieure avec un profil
+  // peu fiable. moniteurComplet (prénom + nom) sert uniquement à
+  // l'affichage dans l'enquête, jamais à la comparaison.
+  const parId = new Map();
   for (const section of [carnet?.reg, carnet?.regSolo, carnet?.disp]) {
     for (const j of section || []) {
-      if (j.moniteurNom && j.moniteurNom.trim()) noms.add(j.moniteurNom.trim());
+      if (j.ouvertParId && (j.moniteurComplet || j.moniteurNom)) {
+        parId.set(j.ouvertParId, j.moniteurComplet || j.moniteurNom);
+      }
     }
   }
-  return [...noms].sort().map(nom => ({ nom }));
+  return [...parId.entries()].map(([id, nom]) => ({ id, nom })).sort((a, b) => a.nom.localeCompare(b.nom));
 }
 export function CarnetsEleves({ users, setUsers, questionnaires, questions, categories, categoryConfig, isAdmin, currentUser }) {
   const { t, lang } = useLang();

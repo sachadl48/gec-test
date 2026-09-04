@@ -19,14 +19,23 @@ import { Btn, Field, inputStyle, Modal, SectionTitle, EmptyState, StatCard, Badg
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
+// Une fois diplômé (Régulateur/Dispatcheur), la fonction de l'élève ne
+// correspond plus aux valeurs "Élève X" utilisées comme filière dans la
+// table notes_obligatoires — sans ce mapping, plus aucune note ne
+// remonterait après la remise du diplôme, alors que le statut (lu/raté)
+// de ces notes reste bien réel et doit continuer à s'afficher.
+const FILIERE_NOTES_MAP = { "Élève régulateur": "Élève régulateur", "Régulateur": "Élève régulateur", "Élève dispatcheur": "Élève dispatcheur", "Dispatcheur": "Élève dispatcheur" };
+export function filiereNotesPour(fonction) { return FILIERE_NOTES_MAP[fonction] || null; }
+
 // Charge les notes obligatoires de la filière de l'élève et calcule le
 // statut de chacune (lue et réussie / pas lue ou ratée). Fonction simple
 // (pas un hook) pour pouvoir être réutilisée aussi bien dans un composant
 // React (EleveDetailView) que dans le flux d'export/impression, qui doit
 // charger ces données avant de générer le PDF.
 export async function fetchNotesObligatoiresStatut(eleve, questionnaires, categoryConfig) {
-  if (!eleve?.fonction) return [];
-  const { data, error } = await supabase.from("notes_obligatoires").select("*").eq("filiere", eleve.fonction).order("ordre", { ascending: true });
+  const filiere = filiereNotesPour(eleve?.fonction);
+  if (!filiere) return [];
+  const { data, error } = await supabase.from("notes_obligatoires").select("*").eq("filiere", filiere).order("ordre", { ascending: true });
   if (error || !data) return [];
   return data.map(note => ({ ...note, statut: statutNoteObligatoire(note, questionnaires, eleve.id, categoryConfig).statut }));
 }

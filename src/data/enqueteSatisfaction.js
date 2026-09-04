@@ -61,12 +61,12 @@ export const COMPETENCES_MONITEUR = [
 // `filterNom` est fourni ou non. Chaque compétence = moyenne des notes
 // (1-5) de sa question associée, ramenée à un pourcentage (comme les
 // autres graphiques radar de l'app) — 0 si aucune donnée pour l'instant.
-export function computeMoniteurRadarData(enquetesTerminees, filterNom, lang) {
+export function computeMoniteurRadarData(enquetesTerminees, filterId, lang) {
   return COMPETENCES_MONITEUR.map(({ competence, competenceNl, cle }) => {
     let total = 0, count = 0;
     for (const e of enquetesTerminees) {
       for (const m of (e.reponses?.moniteurs || [])) {
-        if (filterNom && m.nom !== filterNom) continue;
+        if (filterId && m.id !== filterId) continue;
         const note = m.questions?.[cle]?.note;
         if (typeof note === "number") { total += note; count++; }
       }

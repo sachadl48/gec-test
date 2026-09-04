@@ -14,7 +14,7 @@ export function EnqueteSatisfactionForm({ enquete, onDone, onExit }) {
   const { t, lang } = useLang();
   const [formation, setFormation] = useState(() => Object.fromEntries(ENQUETE_FORMATION_QUESTIONS.map(q => [q.cle, { note: null, commentaire: "" }])));
   const [moniteurs, setMoniteurs] = useState(() => (enquete.moniteurs || []).map(m => ({
-    nom: m.nom,
+    id: m.id, nom: m.nom,
     questions: Object.fromEntries(ENQUETE_MONITEUR_QUESTIONS.map(q => [q.cle, { note: null, commentaire: "" }])),
   })));
   const [saving, setSaving] = useState(false);
