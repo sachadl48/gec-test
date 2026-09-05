@@ -12,6 +12,7 @@ import { useLang, LANGS } from "../lang.jsx";
 import { fonctionColor, fonctionLabel } from "../data/fonctions.js";
 import { COTATION_SCALE, VOLET_CLUSTERS_REGULATEUR, VOLET_CLUSTERS_DISPATCHEUR, EVOLUTION_GRAPHS, EVOLUTION_COLORS, POSTES_REGULATEUR, POSTES_DISPATCHEUR } from "../data/carnetDisplay.js";
 import { VOLETS_REGULATEUR, VOLETS_DISPATCHEUR } from "../data/competences.js";
+import { MATIERES_ACTIONS, computeMatieresRecap } from "../data/matieresActions.js";
 import { supabase } from "../lib/supabaseClient.js";
 import { initials, statutNoteObligatoire } from "../utils/scoring.js";
 import { getCompetenceGlobale, getCritereValeur, computeRadarCarnet, computeEvolutionCarnet } from "../utils/carnetKeys.js";
@@ -64,6 +65,7 @@ export function CarnetJourDetail({ jourData, editable, currentUser, volets, trac
   const [confirmAnnuler, setConfirmAnnuler] = useState(false);
   const [openVolet, setOpenVolet] = useState(null);
   const [showAideCotation, setShowAideCotation] = useState(false);
+  const [jourSubTab, setJourSubTab] = useState("cotations"); // "cotations" | "matieres"
   const started = jourData.statut === "en_cours" || jourData.statut === "termine";
   const finished = jourData.statut === "termine";
   // Rétrocompatibilité : un jour déjà en cours avant l'ajout de cette
@@ -110,6 +112,10 @@ export function CarnetJourDetail({ jourData, editable, currentUser, volets, trac
     if (!canFill) return;
     const actuel = getCompetenceGlobale(jourData, volet, vi);
     onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, competencesGlobales: { ...j.competencesGlobales, [volet.titre]: actuel === v ? undefined : v } } : j));
+  };
+  const setMatiereFaite = (cle, v) => {
+    if (!canFill) return;
+    onUpdateList(jours => jours.map(j => j.numero === jourData.numero ? { ...j, matieresFaites: { ...j.matieresFaites, [cle]: v } } : j));
   };
 
   return (
@@ -176,6 +182,13 @@ export function CarnetJourDetail({ jourData, editable, currentUser, volets, trac
         </div>
       )}
 
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        <button onClick={() => setJourSubTab("cotations")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${jourSubTab === "cotations" ? C.navy : C.line}`, background: jourSubTab === "cotations" ? C.navy : "#fff", color: jourSubTab === "cotations" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_cotations")}</button>
+        <button onClick={() => setJourSubTab("matieres")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${jourSubTab === "matieres" ? C.navy : C.line}`, background: jourSubTab === "matieres" ? C.navy : "#fff", color: jourSubTab === "matieres" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_matieres")}</button>
+      </div>
+
+      {jourSubTab === "cotations" ? (
+      <>
       <div style={{ marginBottom: 12, display: "flex", justifyContent: "flex-end" }}>
         <Btn variant="ghost" icon={HelpCircle} onClick={() => setShowAideCotation(true)}>{t("aide_cotation_btn")}</Btn>
       </div>
@@ -262,6 +275,23 @@ export function CarnetJourDetail({ jourData, editable, currentUser, volets, trac
           return elements;
         })()}
       </div>
+      </>
+      ) : (
+        <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden", opacity: started ? 1 : 0.6 }}>
+          {MATIERES_ACTIONS.map((item, i) => {
+            const fait = !!jourData.matieresFaites?.[item.cle];
+            return (
+              <div key={item.cle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${C.line}`, background: fait ? C.greenSoft : "#fff" }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: C.navy }}>{item.label}</span>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: canFill ? "pointer" : "default", fontSize: 12.5, color: fait ? C.green : C.inkSoft, fontWeight: 600 }}>
+                  {fait ? t("matiere_faite_label") : t("matiere_pas_faite_label")}
+                  <input type="checkbox" checked={fait} disabled={!canFill} onChange={e => setMatiereFaite(item.cle, e.target.checked)} />
+                </label>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {confirmFin && (
         <ConfirmDialog tone="success" title={t("fin_journee_btn")} message={t("confirm_fin_journee_msg", { n: jourData.numero })}
           confirmLabel={t("fin_journee_btn")} onConfirm={finDeJournee} onCancel={() => setConfirmFin(false)} />
@@ -332,6 +362,41 @@ function NotesCarnetSection({ eleve, filiere, questionnaires, categoryConfig }) 
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Tableau récapitulatif "Matière/Manœuvres/Actions" — une ligne par
+// élément, blanc si jamais fait, vert dès qu'il a été fait au moins une
+// fois. Cliquer sur une ligne ouvre le détail (quels jours, avec quel
+// moniteur) dans une fenêtre.
+function MatieresRecapTable({ recap }) {
+  const { t } = useLang();
+  const [detail, setDetail] = useState(null);
+  return (
+    <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
+      {recap.map((item, i) => (
+        <button key={item.cle} onClick={() => setDetail(item)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left", padding: "12px 16px", border: "none", borderTop: i === 0 ? "none" : `1px solid ${C.line}`, background: item.count > 0 ? C.greenSoft : "#fff", cursor: "pointer" }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: C.navy }}>{item.label}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: item.count > 0 ? C.green : C.inkSoft }}>{t("matiere_fois_count", { n: item.count })}</span>
+        </button>
+      ))}
+      {detail && (
+        <Modal title={detail.label} onClose={() => setDetail(null)}>
+          {detail.occurrences.length === 0 ? (
+            <div style={{ fontSize: 13, color: C.inkSoft }}>{t("matiere_jamais_faite")}</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {detail.occurrences.map((o, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: C.bg, borderRadius: 8, fontSize: 13 }}>
+                  <span>{t("carnet_jour_titre", { n: o.numero })} — {o.date || "—"}</span>
+                  <span style={{ color: C.inkSoft }}>{o.moniteur || "—"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -478,6 +543,7 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
 
       <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
         <button onClick={() => setActiveSubTab("jours")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${activeSubTab === "jours" ? C.navy : C.line}`, background: activeSubTab === "jours" ? C.navy : "#fff", color: activeSubTab === "jours" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_jours")}</button>
+        <button onClick={() => setActiveSubTab("matieres")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${activeSubTab === "matieres" ? C.navy : C.line}`, background: activeSubTab === "matieres" ? C.navy : "#fff", color: activeSubTab === "matieres" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_matieres")}</button>
         <button onClick={() => setActiveSubTab("graphiques")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${activeSubTab === "graphiques" ? C.navy : C.line}`, background: activeSubTab === "graphiques" ? C.navy : "#fff", color: activeSubTab === "graphiques" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_graphiques")}</button>
       </div>
 
@@ -498,7 +564,11 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
             <NotesCarnetSection eleve={eleve} filiere="Élève dispatcheur" questionnaires={questionnaires} categoryConfig={categoryConfig} />
           </>
         )
-      ) : (() => {
+      ) : activeSubTab === "matieres" ? (() => {
+        const jours = activeTab === "regulateur" ? [...joursReg, ...joursRegSolo] : joursDisp;
+        const recap = computeMatieresRecap(jours);
+        return <MatieresRecapTable recap={recap} />;
+      })() : (() => {
         const jours = activeTab === "regulateur" ? [...joursReg, ...joursRegSolo] : joursDisp;
         const volets = activeTab === "regulateur" ? VOLETS_REGULATEUR : VOLETS_DISPATCHEUR;
         const radarData = computeRadarCarnet(jours, volets);
