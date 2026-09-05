@@ -1,31 +1,32 @@
 import { useState, useEffect } from "react";
-import { PlayCircle, ExternalLink } from "lucide-react";
+import { PlayCircle, ExternalLink, AlertTriangle } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
-import { TRADUCTIONS } from "../data/traductions.js";
-import { Btn } from "./atoms.jsx";
+import { Btn, EmptyState } from "./atoms.jsx";
 
 // Jeu des traductions : associer un terme STIB à sa traduction FR <-> NL.
 // Pas de suivi de score ni de classement (contrairement aux jeux des
-// stations/téléphones) — un simple outil d'entraînement.
+// stations/téléphones) — un simple outil d'entraînement. Les termes sont
+// chargés depuis la base (table game_traductions, modifiable depuis
+// "Gestion des jeux"), reçus en prop.
 
 const GLOSSAIRE_URL = "https://stibmivb.sharepoint.com/sites/PUB_OPS-BUM_ReferenceLibrary/Lists/GlossaireBUM/All%20Items%20Prod.aspx";
 
-export function pickTraductionDistractors(correct, count) {
-  const pool = TRADUCTIONS.filter(t => t.fr !== correct.fr);
+export function pickTraductionDistractors(traductions, correct, count) {
+  const pool = traductions.filter(t => t.fr !== correct.fr);
   return [...pool].sort(() => Math.random() - 0.5).slice(0, count);
 }
 
-export function generateTraductionQuestion() {
-  const correct = TRADUCTIONS[Math.floor(Math.random() * TRADUCTIONS.length)];
+export function generateTraductionQuestion(traductions) {
+  const correct = traductions[Math.floor(Math.random() * traductions.length)];
   const direction = Math.random() < 0.5 ? "frToNl" : "nlToFr";
-  const options = [correct, ...pickTraductionDistractors(correct, 3)].sort(() => Math.random() - 0.5);
+  const options = [correct, ...pickTraductionDistractors(traductions, correct, 3)].sort(() => Math.random() - 0.5);
   return { direction, correct, options, correctIndex: options.findIndex(o => o.fr === correct.fr) };
 }
 
 export const CHRONO_DUREE = 60;
 
-export function TranslationGame({ onExit }) {
+export function TranslationGame({ traductions, onExit }) {
   const { t } = useLang();
   const [mode, setMode] = useState(null); // null | "normale" | "chrono"
   const [question, setQuestion] = useState(null);
@@ -36,7 +37,7 @@ export function TranslationGame({ onExit }) {
   const [finished, setFinished] = useState(false);
   const isChrono = mode === "chrono";
 
-  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generateTraductionQuestion()); };
+  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generateTraductionQuestion(traductions)); };
 
   useEffect(() => {
     if (!isChrono || finished) return;
@@ -54,11 +55,20 @@ export function TranslationGame({ onExit }) {
     setTimeout(() => {
       setFeedback(null);
       if (isChrono && timeLeft <= 1) return;
-      setQuestion(generateTraductionQuestion());
+      setQuestion(generateTraductionQuestion(traductions));
     }, 550);
   };
 
   const stopLibre = () => setFinished(true);
+
+  if (!traductions || traductions.length === 0) {
+    return (
+      <div>
+        <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
+        <EmptyState icon={AlertTriangle} title={t("jeu_donnees_vides_titre")} body={t("jeu_donnees_vides_body")} />
+      </div>
+    );
+  }
 
   if (!mode) {
     return (

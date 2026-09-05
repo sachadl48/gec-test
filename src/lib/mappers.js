@@ -72,3 +72,18 @@ export function rowToEnquete(row) {
     reponses: row.reponses || null, dateCreation: row.date_creation, dateCompletion: row.date_completion || null,
   };
 }
+
+// Les 4 tables de données des jeux (Gestion des jeux) — mappers simples
+// dans les deux sens (snake_case en base, camelCase côté JS, comme
+// partout ailleurs dans l'app).
+export function rowToGameStation(row) { return { id: row.id, numero: row.numero, fr: row.fr, nl: row.nl }; }
+export function gameStationToRow(o) { return { numero: o.numero, fr: o.fr, nl: o.nl }; }
+
+export function rowToGameTelephone(row) { return { id: row.id, serviceFr: row.service_fr, serviceNl: row.service_nl, pax: row.pax || null, cisco: row.cisco || null }; }
+export function gameTelephoneToRow(o) { return { service_fr: o.serviceFr, service_nl: o.serviceNl, pax: o.pax || null, cisco: o.cisco || null }; }
+
+export function rowToGameAbreviation(row) { return { id: row.id, acronyme: row.acronyme, correct: row.correct, langue: row.langue }; }
+export function gameAbreviationToRow(o) { return { acronyme: o.acronyme, correct: o.correct, langue: o.langue }; }
+
+export function rowToGameTraduction(row) { return { id: row.id, fr: row.fr, nl: row.nl }; }
+export function gameTraductionToRow(o) { return { fr: o.fr, nl: o.nl }; }

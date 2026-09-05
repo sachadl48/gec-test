@@ -3,58 +3,59 @@ import { PlayCircle, AlertTriangle } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
 import { supabase } from "../lib/supabaseClient.js";
-import { TELEPHONES } from "../data/telephones.js";
 import { saveGameScoreWithRetry } from "../utils/gameScore.js";
-import { Btn, Badge } from "./atoms.jsx";
+import { Btn, Badge, EmptyState } from "./atoms.jsx";
 
 // Jeu des téléphones : associer un service et son numéro interne, dans
 // l'un des 2 systèmes (PAX, CISCO) — deux numérotations
 // indépendantes, jamais comparables entre elles.
 // Records séparés Normal/Hard, comme pour le jeu des stations (schéma 27).
+// Les services sont désormais chargés depuis la base (table
+// game_telephones, modifiable depuis "Gestion des jeux"), reçus en prop.
 
 export const TELEPHONE_TYPES = ["pax", "cisco"];
 export const TYPE_LABELS = { pax: "PAX", cisco: "CISCO" };
 
 export function serviceName(service, langue) { return langue === "nl" ? service.serviceNl : service.serviceFr; }
 
-function pickServiceEtType() {
+function pickServiceEtType(telephones) {
   let service, type, tries = 0;
   do {
-    service = TELEPHONES[Math.floor(Math.random() * TELEPHONES.length)];
+    service = telephones[Math.floor(Math.random() * telephones.length)];
     type = TELEPHONE_TYPES[Math.floor(Math.random() * TELEPHONE_TYPES.length)];
     tries++;
   } while (!service[type] && tries < 200);
   return { service, type };
 }
 
-export function pickPhoneDistractors(service, type, count) {
-  const pool = TELEPHONES.filter(s => s[type] && s.serviceFr !== service.serviceFr);
+export function pickPhoneDistractors(telephones, service, type, count) {
+  const pool = telephones.filter(s => s[type] && s.serviceFr !== service.serviceFr);
   return [...pool].sort(() => Math.random() - 0.5).slice(0, count);
 }
 // Mode Hard : les mauvaises réponses sont les numéros les plus proches du
 // bon, DANS LE MÊME SYSTÈME uniquement (jamais un numéro PAX proposé
 // comme distracteur d'un numéro CISCO — les échelles n'ont rien à voir).
-export function pickPhoneDistractorsProches(service, type, count) {
-  const pool = TELEPHONES.filter(s => s[type] && s.serviceFr !== service.serviceFr);
+export function pickPhoneDistractorsProches(telephones, service, type, count) {
+  const pool = telephones.filter(s => s[type] && s.serviceFr !== service.serviceFr);
   const correctNum = parseInt(service[type], 10);
   return [...pool]
     .sort((a, b) => Math.abs(parseInt(a[type], 10) - correctNum) - Math.abs(parseInt(b[type], 10) - correctNum))
     .slice(0, count);
 }
 
-export function generatePhoneQuestion(hard = false) {
-  const { service, type } = pickServiceEtType();
+export function generatePhoneQuestion(telephones, hard = false) {
+  const { service, type } = pickServiceEtType(telephones);
   // En mode Hard, on ne demande toujours que le numéro (jamais l'inverse).
   const direction = hard ? "serviceToNum" : (Math.random() < 0.5 ? "numToService" : "serviceToNum");
   const displayLang = Math.random() < 0.5 ? "fr" : "nl";
-  const distractors = hard ? pickPhoneDistractorsProches(service, type, 3) : pickPhoneDistractors(service, type, 3);
+  const distractors = hard ? pickPhoneDistractorsProches(telephones, service, type, 3) : pickPhoneDistractors(telephones, service, type, 3);
   const optionServices = [service, ...distractors].sort(() => Math.random() - 0.5);
   return { direction, displayLang, type, correct: service, options: optionServices, correctIndex: optionServices.findIndex(s => s.serviceFr === service.serviceFr) };
 }
 
 export const CHRONO_DUREE = 60;
 
-export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onExit, refreshLeaderboards }) {
+export function PhoneGame({ user, users, setUsers, telephones, dtmRecord, dtmRecordHard, onExit, refreshLeaderboards }) {
   const { t, lang } = useLang();
   const [mode, setMode] = useState(null); // null | "normale" | "chrono" | "chrono_hard"
   const [question, setQuestion] = useState(null);
@@ -90,7 +91,7 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
     </div>
   );
 
-  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setSaveError(false); setTimeLeft(CHRONO_DUREE); setQuestion(generatePhoneQuestion(m === "chrono_hard")); };
+  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setSaveError(false); setTimeLeft(CHRONO_DUREE); setQuestion(generatePhoneQuestion(telephones, m === "chrono_hard")); };
   const backToMenu = () => { setMode(null); if (refreshLeaderboards) refreshLeaderboards(); };
 
   useEffect(() => {
@@ -119,11 +120,20 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
     setTimeout(() => {
       setFeedback(null);
       if (isChrono && timeLeft <= 1) return;
-      setQuestion(generatePhoneQuestion(isHard));
+      setQuestion(generatePhoneQuestion(telephones, isHard));
     }, 550);
   };
 
   const stopLibre = () => setFinished(true);
+
+  if (!telephones || telephones.length === 0) {
+    return (
+      <div>
+        <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
+        <EmptyState icon={AlertTriangle} title={t("jeu_donnees_vides_titre")} body={t("jeu_donnees_vides_body")} />
+      </div>
+    );
+  }
 
   if (!mode) {
     return (
@@ -164,7 +174,7 @@ export function PhoneGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onE
                   </tr>
                 </thead>
                 <tbody>
-                  {TELEPHONES.map(s => (
+                  {telephones.map(s => (
                     <tr key={s.serviceFr} style={{ borderTop: `1px solid ${C.line}` }}>
                       <td style={{ padding: "6px 10px" }}>{s.serviceFr}</td>
                       <td style={{ padding: "6px 10px", color: C.inkSoft }}>{s.serviceNl}</td>

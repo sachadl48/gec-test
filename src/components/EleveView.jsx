@@ -27,7 +27,7 @@ import { EnqueteSatisfactionForm } from "./EnqueteSatisfaction.jsx";
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
-export function EleveView({ user, users, setUsers, questionnaires, refreshQuestionnaires, categories, categoryConfig, onLogout, submitReponses, confirmRead, saveError, enquetesSatisfaction }) {
+export function EleveView({ user, users, setUsers, questionnaires, refreshQuestionnaires, categories, categoryConfig, onLogout, submitReponses, confirmRead, saveError, enquetesSatisfaction, gameStations, gameTelephones, gameAbreviations, gameTraductions }) {
   const { t } = useLang();
   const [playing, setPlaying] = useState(null);
   const [examStarted, setExamStarted] = useState(false);
@@ -195,7 +195,7 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
       <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
         <Header user={user} onLogout={onLogout} />
         <div style={{ padding: "24px 28px" }}>
-          <StationGame user={user} users={users} setUsers={setUsers} dtmRecord={dtmRecord} dtmRecordHard={dtmRecordHard} onExit={() => setShowGame(false)} refreshLeaderboards={refreshLeaderboards} />
+          <StationGame user={user} users={users} setUsers={setUsers} stations={gameStations} dtmRecord={dtmRecord} dtmRecordHard={dtmRecordHard} onExit={() => setShowGame(false)} refreshLeaderboards={refreshLeaderboards} />
         </div>
       </div>
     );
@@ -205,7 +205,7 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
       <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
         <Header user={user} onLogout={onLogout} />
         <div style={{ padding: "24px 28px" }}>
-          <PhoneGame user={user} users={users} setUsers={setUsers} dtmRecord={dtmRecordTel} dtmRecordHard={dtmRecordTelHard} onExit={() => setShowPhoneGame(false)} refreshLeaderboards={refreshLeaderboards} />
+          <PhoneGame user={user} users={users} setUsers={setUsers} telephones={gameTelephones} dtmRecord={dtmRecordTel} dtmRecordHard={dtmRecordTelHard} onExit={() => setShowPhoneGame(false)} refreshLeaderboards={refreshLeaderboards} />
         </div>
       </div>
     );
@@ -215,7 +215,7 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
       <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
         <Header user={user} onLogout={onLogout} />
         <div style={{ padding: "24px 28px" }}>
-          <AbbreviationGame onExit={() => setShowAbrevGame(false)} />
+          <AbbreviationGame abreviations={gameAbreviations} onExit={() => setShowAbrevGame(false)} />
         </div>
       </div>
     );
@@ -225,7 +225,7 @@ export function EleveView({ user, users, setUsers, questionnaires, refreshQuesti
       <div style={{ fontFamily: FONT_BODY, background: C.bg, minHeight: 640, borderRadius: 16, overflow: "hidden" }}>
         <Header user={user} onLogout={onLogout} />
         <div style={{ padding: "24px 28px" }}>
-          <TranslationGame onExit={() => setShowTradGame(false)} />
+          <TranslationGame traductions={gameTraductions} onExit={() => setShowTradGame(false)} />
         </div>
       </div>
     );

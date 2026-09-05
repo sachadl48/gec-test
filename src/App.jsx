@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { supabase, callEdgeFunction } from "./lib/supabaseClient.js";
-import { rowToUser, rowToQuestion, questionToRow, rowToQuestionnaire, questionnaireToRow, rowToEnquete } from "./lib/mappers.js";
+import { rowToUser, rowToQuestion, questionToRow, rowToQuestionnaire, questionnaireToRow, rowToEnquete, rowToGameStation, rowToGameTelephone, rowToGameAbreviation, rowToGameTraduction } from "./lib/mappers.js";
 import { LANGS, useLang, LangProvider } from "./lang.jsx";
 import { TYPE_META, typeLabel, AR_COLOR, AR_LABEL } from "./data/questionTypes.js";
 import { FONCTIONS, TEAMS, FONCTION_LABELS, fonctionLabel, fonctionColor } from "./data/fonctions.js";
@@ -333,6 +333,10 @@ export default function App() {
   const [questions, setQuestionsState] = useState([]);
   const [questionnaires, setQuestionnairesState] = useState([]);
   const [enquetesSatisfaction, setEnquetesSatisfactionState] = useState([]);
+  const [gameStations, setGameStationsState] = useState([]);
+  const [gameTelephones, setGameTelephonesState] = useState([]);
+  const [gameAbreviations, setGameAbreviationsState] = useState([]);
+  const [gameTraductions, setGameTraductionsState] = useState([]);
   const [categories, setCategoriesState] = useState([]);
   const [categoryConfig, setCategoryConfigState] = useState({});
   const [session, setSession] = useState(null);
@@ -364,7 +368,7 @@ export default function App() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT" && !isManualLogout.current) {
-        setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({}); setEnquetesSatisfactionState([]);
+        setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({}); setEnquetesSatisfactionState([]); setGameStationsState([]); setGameTelephonesState([]); setGameAbreviationsState([]); setGameTraductionsState([]);
         setSessionExpiredNotice("Votre session a expiré. Merci de vous reconnecter.");
       }
       isManualLogout.current = false;
@@ -382,6 +386,20 @@ export default function App() {
         if (catsRes.error) throw catsRes.error;
         setCategoriesState(catsRes.data.map(c => c.nom));
         setCategoryConfigState(Object.fromEntries(catsRes.data.map(c => [c.nom, { seuil: c.seuil, fonctions: c.fonctions, description: c.description || "" }])));
+
+        // Données des 4 jeux : identiques pour tout le monde (élèves
+        // compris, qui en ont besoin pour jouer), donc chargées une seule
+        // fois ici plutôt que dupliquées dans chaque branche ci-dessous.
+        const [stRes, telRes, abrRes, tradRes] = await Promise.all([
+          supabase.from("game_stations").select("*").order("numero", { ascending: true }),
+          supabase.from("game_telephones").select("*"),
+          supabase.from("game_abreviations").select("*"),
+          supabase.from("game_traductions").select("*"),
+        ]);
+        if (!stRes.error) setGameStationsState(stRes.data.map(rowToGameStation));
+        if (!telRes.error) setGameTelephonesState(telRes.data.map(rowToGameTelephone));
+        if (!abrRes.error) setGameAbreviationsState(abrRes.data.map(rowToGameAbreviation));
+        if (!tradRes.error) setGameTraductionsState(tradRes.data.map(rowToGameTraduction));
 
         if (session.role === "eleve") {
           const qnRes = await supabase.from("questionnaires").select("*").eq("eleve_id", session.id);
@@ -520,6 +538,34 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, [session?.id, session?.role]);
 
+  // Synchro en direct des 4 tables de données de jeux — ouverte à tout le
+  // monde connecté (élèves compris, qui en ont besoin pour jouer), pas
+  // seulement au staff qui peut les modifier depuis "Gestion des jeux".
+  useEffect(() => {
+    if (!session) return;
+    const specs = [
+      { table: "game_stations", setState: setGameStationsState, mapper: rowToGameStation },
+      { table: "game_telephones", setState: setGameTelephonesState, mapper: rowToGameTelephone },
+      { table: "game_abreviations", setState: setGameAbreviationsState, mapper: rowToGameAbreviation },
+      { table: "game_traductions", setState: setGameTraductionsState, mapper: rowToGameTraduction },
+    ];
+    const channels = specs.map(({ table, setState, mapper }) =>
+      supabase
+        .channel(`${table}-${session.id}`)
+        .on("postgres_changes", { event: "*", schema: "public", table }, (payload) => {
+          if (payload.eventType === "INSERT") {
+            setState(prev => prev.some(r => r.id === payload.new.id) ? prev : [...prev, mapper(payload.new)]);
+          } else if (payload.eventType === "UPDATE") {
+            setState(prev => prev.map(r => r.id === payload.new.id ? mapper(payload.new) : r));
+          } else if (payload.eventType === "DELETE") {
+            setState(prev => prev.filter(r => r.id !== payload.old.id));
+          }
+        })
+        .subscribe()
+    );
+    return () => { channels.forEach(c => supabase.removeChannel(c)); };
+  }, [session?.id]);
+
   // Synchro en direct des profils (carnet compris) : quand un autre membre
   // du staff ouvre/ferme un jour de carnet — ou modifie tout autre champ
   // d'un profil — ça se reflète immédiatement, sans devoir rafraîchir.
@@ -577,7 +623,7 @@ export default function App() {
   const logout = async () => {
     isManualLogout.current = true;
     await supabase.auth.signOut();
-    setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({}); setEnquetesSatisfactionState([]);
+    setSession(null); setUsersState([]); setQuestionsState([]); setQuestionnairesState([]); setCategoriesState([]); setCategoryConfigState({}); setEnquetesSatisfactionState([]); setGameStationsState([]); setGameTelephonesState([]); setGameAbreviationsState([]); setGameTraductionsState([]);
   };
 
   const auteurLog = session ? `${session.prenom} ${session.nom}` : "Système";
@@ -703,9 +749,9 @@ export default function App() {
             <Btn variant="gold" style={{ marginTop: 18 }} onClick={() => { setLoadError(false); setLoadAttempt(a => a + 1); }}>Réessayer</Btn>
           </div>
         ) : session.role === "eleve" ? (
-          <EleveView user={users.find(u => u.id === session.id) || session} users={users} setUsers={refreshUsers} questionnaires={questionnaires} refreshQuestionnaires={refreshQuestionnaires} categories={categories} categoryConfig={categoryConfig} onLogout={logout} submitReponses={submitReponses} confirmRead={confirmRead} saveError={saveError} enquetesSatisfaction={enquetesSatisfaction} />
+          <EleveView user={users.find(u => u.id === session.id) || session} users={users} setUsers={refreshUsers} questionnaires={questionnaires} refreshQuestionnaires={refreshQuestionnaires} categories={categories} categoryConfig={categoryConfig} onLogout={logout} submitReponses={submitReponses} confirmRead={confirmRead} saveError={saveError} enquetesSatisfaction={enquetesSatisfaction} gameStations={gameStations} gameTelephones={gameTelephones} gameAbreviations={gameAbreviations} gameTraductions={gameTraductions} />
         ) : (
-          <StaffView user={session} users={users} setUsers={refreshUsers} questions={questions} setQuestions={setQuestions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} onLogout={logout} saveError={saveError} requestPrint={setPrintJob} onImportQuestions={importQuestions} onRenameCategory={renameCategory} refreshQuestionnaires={refreshQuestionnaires} enquetesSatisfaction={enquetesSatisfaction} />
+          <StaffView user={session} users={users} setUsers={refreshUsers} questions={questions} setQuestions={setQuestions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} setCategories={setCategories} categoryConfig={categoryConfig} setCategoryConfig={setCategoryConfig} onLogout={logout} saveError={saveError} requestPrint={setPrintJob} onImportQuestions={importQuestions} onRenameCategory={renameCategory} refreshQuestionnaires={refreshQuestionnaires} enquetesSatisfaction={enquetesSatisfaction} gameStations={gameStations} gameTelephones={gameTelephones} gameAbreviations={gameAbreviations} gameTraductions={gameTraductions} />
         )}
       </LangProvider>
       {printJob && <PrintOverlay job={printJob} onClose={() => setPrintJob(null)} />}

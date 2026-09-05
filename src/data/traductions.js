@@ -105,5 +105,4 @@ export const TRADUCTIONS = [
   { fr: "Coeur", nl: "	Hart" },
   { fr: "Pointe", nl: "	Punt" },
   { fr: "Respirer", nl: "	Ademen" },
-  { fr: "Être conscient", nl: "Bij bewust zijn" },
 ];

@@ -459,6 +459,23 @@ export function CarnetPersonnel({ eleve, users, setUsers, questionnaires, catego
         )}
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy }}>{t("formation_debut_label")}</span>
+          <input type="date" disabled={!editable}
+            value={dateFrToIso(activeTab === "regulateur" ? eleve.carnet?.regFormationDebut : eleve.carnet?.dispFormationDebut)}
+            onChange={e => updateCarnet(activeTab === "regulateur" ? { regFormationDebut: dateIsoToFr(e.target.value) } : { dispFormationDebut: dateIsoToFr(e.target.value) })}
+            style={{ ...inputStyle, width: "auto", padding: "4px 8px", fontSize: 13, fontFamily: FONT_MONO }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.navy }}>{t("formation_fin_label")}</span>
+          <input type="date" disabled={!editable}
+            value={dateFrToIso(activeTab === "regulateur" ? eleve.carnet?.regFormationFin : eleve.carnet?.dispFormationFin)}
+            onChange={e => updateCarnet(activeTab === "regulateur" ? { regFormationFin: dateIsoToFr(e.target.value) } : { dispFormationFin: dateIsoToFr(e.target.value) })}
+            style={{ ...inputStyle, width: "auto", padding: "4px 8px", fontSize: 13, fontFamily: FONT_MONO }} />
+        </div>
+      </div>
+
       <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
         <button onClick={() => setActiveSubTab("jours")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${activeSubTab === "jours" ? C.navy : C.line}`, background: activeSubTab === "jours" ? C.navy : "#fff", color: activeSubTab === "jours" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_jours")}</button>
         <button onClick={() => setActiveSubTab("graphiques")} style={{ padding: "6px 14px", borderRadius: 20, border: `1px solid ${activeSubTab === "graphiques" ? C.navy : C.line}`, background: activeSubTab === "graphiques" ? C.navy : "#fff", color: activeSubTab === "graphiques" ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t("sous_onglet_graphiques")}</button>
@@ -575,6 +592,8 @@ export function CarnetsEleves({ users, setUsers, questionnaires, questions, cate
   const [confirmSuccess, setConfirmSuccess] = useState(null);
   const [confirmFail, setConfirmFail] = useState(null);
   const [confirmStartDP, setConfirmStartDP] = useState(null);
+  const [dpDateDebut, setDpDateDebut] = useState("");
+  const [dpDateFin, setDpDateFin] = useState("");
   const [error, setError] = useState("");
   const matches = (u) => `${u.prenom} ${u.nom} ${u.numeroAgent}`.toLowerCase().includes(search.toLowerCase());
 
@@ -612,15 +631,17 @@ export function CarnetsEleves({ users, setUsers, questionnaires, questions, cate
     } catch (e) { setError(e?.message || "Erreur inconnue."); }
     setConfirmFail(null);
   };
-  const startDPTraining = async (eleve) => {
+  const startDPTraining = async (eleve, debutIso, finIso) => {
     setError("");
     try {
-      const { error: err } = await supabase.from("profiles").update({ fonction: "Élève dispatcheur", formation_statut: null }).eq("id", eleve.id);
+      const newCarnet = { ...(eleve.carnet || {}), dispFormationDebut: dateIsoToFr(debutIso), dispFormationFin: dateIsoToFr(finIso) };
+      const { error: err } = await supabase.from("profiles").update({ fonction: "Élève dispatcheur", formation_statut: null, carnet: newCarnet }).eq("id", eleve.id);
       if (err) throw err;
       logActivity("Profil", [{ action: "modification", description: `${eleve.prenom} ${eleve.nom} — Fonction : ${eleve.fonction} → Élève dispatcheur` }], auteurLog);
       await setUsers();
     } catch (e) { setError(e?.message || "Erreur inconnue."); }
     setConfirmStartDP(null);
+    setDpDateDebut(""); setDpDateFin("");
   };
 
   if (viewingCarnet) {
@@ -718,8 +739,15 @@ export function CarnetsEleves({ users, setUsers, questionnaires, questions, cate
           confirmLabel={t("mettre_fin_formation_btn")} onConfirm={() => markFail(confirmFail)} onCancel={() => setConfirmFail(null)} />
       )}
       {confirmStartDP && (
-        <ConfirmDialog tone="success" title={t("debuter_formation_dp_btn")} message={t("debuter_formation_dp_msg", { nom: `${confirmStartDP.prenom} ${confirmStartDP.nom}` })}
-          confirmLabel={t("debuter_formation_dp_btn")} onConfirm={() => startDPTraining(confirmStartDP)} onCancel={() => setConfirmStartDP(null)} />
+        <Modal title={t("debuter_formation_dp_btn")} onClose={() => { setConfirmStartDP(null); setDpDateDebut(""); setDpDateFin(""); }}>
+          <div style={{ fontSize: 13, color: C.ink, marginBottom: 16 }}>{t("debuter_formation_dp_msg", { nom: `${confirmStartDP.prenom} ${confirmStartDP.nom}` })}</div>
+          <Field label={t("formation_debut_label")}><input type="date" style={inputStyle} value={dpDateDebut} onChange={e => setDpDateDebut(e.target.value)} /></Field>
+          <Field label={t("formation_fin_label")}><input type="date" style={inputStyle} value={dpDateFin} onChange={e => setDpDateFin(e.target.value)} /></Field>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
+            <Btn variant="ghost" onClick={() => { setConfirmStartDP(null); setDpDateDebut(""); setDpDateFin(""); }}>{t("cancel")}</Btn>
+            <Btn variant="primary" disabled={!dpDateDebut || !dpDateFin} onClick={() => startDPTraining(confirmStartDP, dpDateDebut, dpDateFin)}>{t("debuter_formation_dp_btn")}</Btn>
+          </div>
+        </Modal>
       )}
         </>
       )}

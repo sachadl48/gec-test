@@ -20,6 +20,8 @@ import { PhoneGame } from "./PhoneGame.jsx";
 import { AbbreviationGame } from "./AbbreviationGame.jsx";
 import { TranslationGame } from "./TranslationGame.jsx";
 import { GestionMoniteurs } from "./GestionMoniteurs.jsx";
+import { GestionJeux } from "./GestionJeux.jsx";
+import { FormationTimeline } from "./FormationTimeline.jsx";
 
 // Page d'accueil du staff (aperçu général avec la file d'attente de
 // correction), et l'orchestrateur principal qui affiche le bon onglet
@@ -27,7 +29,7 @@ import { GestionMoniteurs } from "./GestionMoniteurs.jsx";
 // Extrait de App.jsx dans le cadre du découpage du fichier principal en
 // modules plus petits — aucun changement de contenu, uniquement déplacé.
 
-export function StaffView({ user, users, setUsers, questions, setQuestions, questionnaires, setQuestionnaires, categories, setCategories, categoryConfig, setCategoryConfig, onLogout, saveError, requestPrint, onImportQuestions, onRenameCategory, refreshQuestionnaires, enquetesSatisfaction }) {
+export function StaffView({ user, users, setUsers, questions, setQuestions, questionnaires, setQuestionnaires, categories, setCategories, categoryConfig, setCategoryConfig, onLogout, saveError, requestPrint, onImportQuestions, onRenameCategory, refreshQuestionnaires, enquetesSatisfaction, gameStations, gameTelephones, gameAbreviations, gameTraductions }) {
   const { t } = useLang();
   const [tab, setTab] = useState("apercu");
   const isAdmin = user.role === "admin";
@@ -38,6 +40,7 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
     { key: "carnets", label: t("nav_carnets"), icon: BookCheck },
     { key: "questions", label: t("nav_questions"), icon: HelpCircle },
     { key: "questionnaires", label: t("nav_questionnaires"), icon: ClipboardList },
+    { key: "jeux", label: t("nav_gestion_jeux"), icon: Gamepad2 },
     ...(isAdmin ? [{ key: "comptes", label: t("nav_accounts"), icon: ShieldCheck }] : []),
     ...(isAdmin ? [{ key: "enquetes", label: t("nav_gestion_moniteurs"), icon: ClipboardCheck }] : []),
     ...(user.responsableTeam ? [{ key: "maTeam", label: t("nav_ma_team"), icon: ShieldCheck }] : []),
@@ -55,7 +58,7 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
         </div>
         <div style={{ padding: "24px 28px", minWidth: 0 }}>
           <SaveErrorBanner visible={saveError} />
-          {tab === "apercu" && <Apercu users={users} setUsers={setUsers} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} currentUser={user} />}
+          {tab === "apercu" && <Apercu users={users} setUsers={setUsers} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} currentUser={user} gameStations={gameStations} gameTelephones={gameTelephones} gameAbreviations={gameAbreviations} gameTraductions={gameTraductions} />}
           {tab === "profils" && <GestionProfils users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} categoryConfig={categoryConfig} isAdmin={isAdmin} currentUser={user} onPrint={async (eleve) => {
             const notesEleve = await fetchNotesObligatoiresStatut(eleve, questionnaires, categoryConfig);
             requestPrint({ type: "profile", eleve, questionnaires, categories, notesEleve });
@@ -65,6 +68,7 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
           {tab === "questionnaires" && <GestionQuestionnaires users={users} questions={questions} questionnaires={questionnaires} setQuestionnaires={setQuestionnaires} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} currentUser={user} />}
           {tab === "comptes" && isAdmin && <GestionComptes users={users} setUsers={setUsers} currentUser={user} />}
           {tab === "enquetes" && isAdmin && <GestionMoniteurs users={users} enquetesSatisfaction={enquetesSatisfaction} isSuperAdmin={isSuperAdmin} />}
+          {tab === "jeux" && <GestionJeux gameStations={gameStations} gameTelephones={gameTelephones} gameAbreviations={gameAbreviations} gameTraductions={gameTraductions} />}
           {tab === "admin" && isSuperAdmin && <AdminPage refreshQuestionnaires={refreshQuestionnaires} />}
           {tab === "maTeam" && user.responsableTeam && <MaTeamView currentUser={user} users={users} setUsers={setUsers} questionnaires={questionnaires} questions={questions} categories={categories} categoryConfig={categoryConfig} requestPrint={requestPrint} />}
         </div>
@@ -73,7 +77,7 @@ export function StaffView({ user, users, setUsers, questions, setQuestions, ques
   );
 }
 
-export function Apercu({ users, setUsers, questions, questionnaires, setQuestionnaires, categories, currentUser }) {
+export function Apercu({ users, setUsers, questions, questionnaires, setQuestionnaires, categories, currentUser, gameStations, gameTelephones, gameAbreviations, gameTraductions }) {
   const { t } = useLang();
   const [reviewing, setReviewing] = useState(null);
   const [showGame, setShowGame] = useState(false);
@@ -104,28 +108,28 @@ export function Apercu({ users, setUsers, questions, questionnaires, setQuestion
   if (showGame) {
     return (
       <div>
-        <StationGame user={currentUser} users={users} setUsers={setUsers} dtmRecord={dtmRecord} dtmRecordHard={dtmRecordHard} onExit={() => setShowGame(false)} refreshLeaderboards={refreshLeaderboards} />
+        <StationGame user={currentUser} users={users} setUsers={setUsers} stations={gameStations} dtmRecord={dtmRecord} dtmRecordHard={dtmRecordHard} onExit={() => setShowGame(false)} refreshLeaderboards={refreshLeaderboards} />
       </div>
     );
   }
   if (showPhoneGame) {
     return (
       <div>
-        <PhoneGame user={currentUser} users={users} setUsers={setUsers} dtmRecord={dtmRecordTel} dtmRecordHard={dtmRecordTelHard} onExit={() => setShowPhoneGame(false)} refreshLeaderboards={refreshLeaderboards} />
+        <PhoneGame user={currentUser} users={users} setUsers={setUsers} telephones={gameTelephones} dtmRecord={dtmRecordTel} dtmRecordHard={dtmRecordTelHard} onExit={() => setShowPhoneGame(false)} refreshLeaderboards={refreshLeaderboards} />
       </div>
     );
   }
   if (showAbrevGame) {
     return (
       <div>
-        <AbbreviationGame onExit={() => setShowAbrevGame(false)} />
+        <AbbreviationGame abreviations={gameAbreviations} onExit={() => setShowAbrevGame(false)} />
       </div>
     );
   }
   if (showTradGame) {
     return (
       <div>
-        <TranslationGame onExit={() => setShowTradGame(false)} />
+        <TranslationGame traductions={gameTraductions} onExit={() => setShowTradGame(false)} />
       </div>
     );
   }
@@ -147,11 +151,31 @@ export function Apercu({ users, setUsers, questions, questionnaires, setQuestion
   return (
     <div>
       <SectionTitle>{t("apercu_title")}</SectionTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginTop: 16, marginBottom: 24 }}>
-        <StatCard label={t("stat_eleves_suivis")} value={eleves.length} />
-        <StatCard label={t("stat_questions_banque")} value={questions.length} />
-        <StatCard label={t("stat_qn_attribues")} value={questionnaires.length} />
-        <StatCard label={t("stat_a_valider")} value={aValider.length} accent={aValider.length ? C.gold : C.navy} />
+      <FormationTimeline users={users} />
+      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
+        <SectionTitle>{t("qn_attente_titre")}</SectionTitle>
+        {aValider.length === 0 ? <EmptyState icon={ClipboardCheck} title={t("rien_a_valider_titre")} body={t("rien_a_valider_body")} /> : (
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            {aValider.map(q => { const e = users.find(u => u.id === q.eleveId); return <div key={q.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: `1px solid ${C.line}`, borderRadius: 9, fontSize: 13.5 }}><span><strong>{q.titre}</strong> — {e?.prenom} {e?.nom}</span><Btn variant="gold" icon={Eye} onClick={() => setReviewing(q)} style={{ padding: "5px 12px", fontSize: 12.5 }}>{t("analyser_btn")}</Btn></div>; })}
+          </div>
+        )}
+      </div>
+      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
+        <SectionTitle>{t("reussite_globale_titre")}</SectionTitle>
+        <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 8 }}>{t("reussite_globale_sub")}</div>
+        {gradedAll.length === 0 ? <EmptyState icon={ClipboardList} title={t("pas_de_donnees_titre")} body={t("pas_de_donnees_body")} /> : (
+          <div style={{ height: 280 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData} outerRadius="75%">
+                <PolarGrid stroke={C.line} />
+                <PolarAngleAxis dataKey="categorie" tick={{ fontSize: 11, fill: C.inkSoft, fontFamily: FONT_BODY }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9, fill: "#B8BCC4" }} />
+                <Radar dataKey="score" stroke={C.navy} fill={C.navy} fillOpacity={0.3} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${C.line}`, fontSize: 12 }} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
         <GameButton onClick={() => setShowGame(true)} title={t("jeu_stations_titre")} stats={[
@@ -176,31 +200,6 @@ export function Apercu({ users, setUsers, questions, questionnaires, setQuestion
         ]} />
         <GameButton onClick={() => setShowAbrevGame(true)} title={t("jeu_abreviations_titre")} />
         <GameButton onClick={() => setShowTradGame(true)} title={t("jeu_traductions_titre")} />
-      </div>
-      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 24 }}>
-        <SectionTitle>{t("reussite_globale_titre")}</SectionTitle>
-        <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4, marginBottom: 8 }}>{t("reussite_globale_sub")}</div>
-        {gradedAll.length === 0 ? <EmptyState icon={ClipboardList} title={t("pas_de_donnees_titre")} body={t("pas_de_donnees_body")} /> : (
-          <div style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData} outerRadius="75%">
-                <PolarGrid stroke={C.line} />
-                <PolarAngleAxis dataKey="categorie" tick={{ fontSize: 11, fill: C.inkSoft, fontFamily: FONT_BODY }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9, fill: "#B8BCC4" }} />
-                <Radar dataKey="score" stroke={C.navy} fill={C.navy} fillOpacity={0.3} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: `1px solid ${C.line}`, fontSize: 12 }} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-      <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 20 }}>
-        <SectionTitle>{t("qn_attente_titre")}</SectionTitle>
-        {aValider.length === 0 ? <EmptyState icon={ClipboardCheck} title={t("rien_a_valider_titre")} body={t("rien_a_valider_body")} /> : (
-          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-            {aValider.map(q => { const e = users.find(u => u.id === q.eleveId); return <div key={q.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: `1px solid ${C.line}`, borderRadius: 9, fontSize: 13.5 }}><span><strong>{q.titre}</strong> — {e?.prenom} {e?.nom}</span><Btn variant="gold" icon={Eye} onClick={() => setReviewing(q)} style={{ padding: "5px 12px", fontSize: 12.5 }}>{t("analyser_btn")}</Btn></div>; })}
-          </div>
-        )}
       </div>
     </div>
   );

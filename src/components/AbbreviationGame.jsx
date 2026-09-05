@@ -1,27 +1,32 @@
 import { useState, useEffect } from "react";
-import { PlayCircle } from "lucide-react";
+import { PlayCircle, AlertTriangle } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
-import { ABREVIATIONS } from "../data/abreviations.js";
-import { Btn, Badge } from "./atoms.jsx";
+import { Btn, Badge, EmptyState } from "./atoms.jsx";
 
 // Jeu des abréviations : deviner la signification d'un acronyme STIB
 // parmi 4 choix. Pas de record — un simple outil d'entraînement, sans
-// sauvegarde de score. Les 3 mauvaises réponses de chaque acronyme sont
-// fixes (définies dans data/abreviations.js), pas tirées au hasard à
-// chaque partie — voir la conversation avec Sacha.
+// sauvegarde de score. Les 3 mauvaises réponses sont désormais tirées au
+// hasard parmi les autres entrées à chaque partie (comme pour les 3
+// autres jeux) — changement décidé avec Sacha au moment de rendre cette
+// liste modifiable depuis "Gestion des jeux", pour que l'ajout d'une
+// entrée reste simple (juste l'acronyme et sa signification). Les
+// abréviations sont chargées depuis la base (table game_abreviations),
+// reçues en prop.
 
 export const GLOSSAIRE_URL = "https://stibmivb.sharepoint.com/sites/PUB_OPS-BUM_ReferenceLibrary/Lists/GlossaireBUM/All%20Items%20Prod.aspx";
 
-export function generateAbreviationQuestion() {
-  const entry = ABREVIATIONS[Math.floor(Math.random() * ABREVIATIONS.length)];
-  const options = [entry.correct, ...entry.mauvaises].sort(() => Math.random() - 0.5);
+export function generateAbreviationQuestion(abreviations) {
+  const entry = abreviations[Math.floor(Math.random() * abreviations.length)];
+  const pool = abreviations.filter(a => a.acronyme !== entry.acronyme);
+  const distractors = [...pool].sort(() => Math.random() - 0.5).slice(0, 3).map(a => a.correct);
+  const options = [entry.correct, ...distractors].sort(() => Math.random() - 0.5);
   return { acronyme: entry.acronyme, options, correctIndex: options.indexOf(entry.correct) };
 }
 
 export const CHRONO_DUREE = 60;
 
-export function AbbreviationGame({ onExit }) {
+export function AbbreviationGame({ abreviations, onExit }) {
   const { t } = useLang();
   const [mode, setMode] = useState(null); // null | "normale" | "chrono"
   const [question, setQuestion] = useState(null);
@@ -32,7 +37,7 @@ export function AbbreviationGame({ onExit }) {
   const [finished, setFinished] = useState(false);
   const isChrono = mode === "chrono";
 
-  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generateAbreviationQuestion()); };
+  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setTimeLeft(CHRONO_DUREE); setQuestion(generateAbreviationQuestion(abreviations)); };
 
   useEffect(() => {
     if (!isChrono || finished) return;
@@ -50,11 +55,20 @@ export function AbbreviationGame({ onExit }) {
     setTimeout(() => {
       setFeedback(null);
       if (isChrono && timeLeft <= 1) return;
-      setQuestion(generateAbreviationQuestion());
+      setQuestion(generateAbreviationQuestion(abreviations));
     }, 550);
   };
 
   const stopLibre = () => setFinished(true);
+
+  if (!abreviations || abreviations.length === 0) {
+    return (
+      <div>
+        <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
+        <EmptyState icon={AlertTriangle} title={t("jeu_donnees_vides_titre")} body={t("jeu_donnees_vides_body")} />
+      </div>
+    );
+  }
 
   if (!mode) {
     return (

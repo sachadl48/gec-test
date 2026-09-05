@@ -3,39 +3,40 @@ import { PlayCircle, AlertTriangle } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_BODY, FONT_MONO } from "../theme.js";
 import { useLang } from "../lang.jsx";
 import { supabase } from "../lib/supabaseClient.js";
-import { STATIONS } from "../data/stations.js";
 import { saveGameScoreWithRetry } from "../utils/gameScore.js";
-import { Btn, Badge } from "./atoms.jsx";
+import { Btn, Badge, EmptyState } from "./atoms.jsx";
 
 // Jeu des stations : associer numéro et nom de station STIB. Menu à 3
 // modes (Normal / Chrono / Chrono Hard), identique visuellement au jeu
-// des téléphones.
+// des téléphones. Les stations sont désormais chargées depuis la base
+// (table game_stations, modifiable depuis "Gestion des jeux"), reçues en
+// prop — plus un fichier statique.
 
 export function stationName(station, langue) { return langue === "nl" ? station.nl : station.fr; }
-export function pickDistractors(correctStation, count) {
-  const pool = STATIONS.filter(s => s.numero !== correctStation.numero);
+export function pickDistractors(stations, correctStation, count) {
+  const pool = stations.filter(s => s.numero !== correctStation.numero);
   return [...pool].sort(() => Math.random() - 0.5).slice(0, count);
 }
 // Mode "Hard" : les mauvaises réponses sont les stations dont le numéro
 // est le plus proche du bon — beaucoup plus difficile à deviner par
 // élimination que des numéros pris au hasard dans tout le réseau.
-export function pickDistractorsProches(correctStation, count) {
-  const pool = STATIONS.filter(s => s.numero !== correctStation.numero);
+export function pickDistractorsProches(stations, correctStation, count) {
+  const pool = stations.filter(s => s.numero !== correctStation.numero);
   return [...pool]
     .sort((a, b) => Math.abs(a.numero - correctStation.numero) - Math.abs(b.numero - correctStation.numero))
     .slice(0, count);
 }
-export function generateStationQuestion(hard = false) {
-  const correct = STATIONS[Math.floor(Math.random() * STATIONS.length)];
+export function generateStationQuestion(stations, hard = false) {
+  const correct = stations[Math.floor(Math.random() * stations.length)];
   const direction = Math.random() < 0.5 ? "numToName" : "nameToNum";
   const displayLang = Math.random() < 0.5 ? "fr" : "nl";
-  const distractors = hard ? pickDistractorsProches(correct, 3) : pickDistractors(correct, 3);
+  const distractors = hard ? pickDistractorsProches(stations, correct, 3) : pickDistractors(stations, correct, 3);
   const optionStations = [correct, ...distractors].sort(() => Math.random() - 0.5);
   return { direction, displayLang, correct, options: optionStations, correctIndex: optionStations.findIndex(s => s.numero === correct.numero) };
 }
 export const CHRONO_DUREE = 60;
 
-export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, onExit, refreshLeaderboards }) {
+export function StationGame({ user, users, setUsers, stations, dtmRecord, dtmRecordHard, onExit, refreshLeaderboards }) {
   const { t, lang } = useLang();
   const [mode, setMode] = useState(null); // null | "normale" | "chrono" | "chrono_hard"
   const [showListe, setShowListe] = useState(false);
@@ -66,7 +67,7 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
     </div>
   );
 
-  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setSaveError(false); setTimeLeft(CHRONO_DUREE); setQuestion(generateStationQuestion(m === "chrono_hard")); };
+  const startMode = (m) => { setMode(m); setScore(0); setTotal(0); setFinished(false); setFeedback(null); setSaveError(false); setTimeLeft(CHRONO_DUREE); setQuestion(generateStationQuestion(stations, m === "chrono_hard")); };
   const backToMenu = () => { setMode(null); if (refreshLeaderboards) refreshLeaderboards(); };
 
   useEffect(() => {
@@ -95,11 +96,20 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
     setTimeout(() => {
       setFeedback(null);
       if (isChrono && timeLeft <= 1) return;
-      setQuestion(generateStationQuestion(isHard));
+      setQuestion(generateStationQuestion(stations, isHard));
     }, 550);
   };
 
   const stopLibre = () => setFinished(true);
+
+  if (!stations || stations.length === 0) {
+    return (
+      <div>
+        <Btn variant="ghost" onClick={onExit}>{t("retour_btn")}</Btn>
+        <EmptyState icon={AlertTriangle} title={t("jeu_donnees_vides_titre")} body={t("jeu_donnees_vides_body")} />
+      </div>
+    );
+  }
 
   if (!mode) {
     return (
@@ -139,7 +149,7 @@ export function StationGame({ user, users, setUsers, dtmRecord, dtmRecordHard, o
                   </tr>
                 </thead>
                 <tbody>
-                  {[...STATIONS].sort((a, b) => a.numero - b.numero).map(s => (
+                  {[...stations].sort((a, b) => a.numero - b.numero).map(s => (
                     <tr key={s.numero} style={{ borderTop: `1px solid ${C.line}` }}>
                       <td style={{ padding: "6px 12px", fontFamily: FONT_MONO, fontWeight: 700, color: C.navy }}>{s.numero}</td>
                       <td style={{ padding: "6px 12px" }}>{s.fr}</td>
